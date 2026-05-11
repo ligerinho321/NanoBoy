@@ -1,0 +1,41 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "type": "cppbuild",
+            "label": "Compiler Debug",
+            "command": "/usr/bin/clang",
+            "args": [
+                "-fcolor-diagnostics",
+                "-fansi-escape-codes",
+                "-g",
+
+                "${workspaceFolder}/main.c",
+                "${workspaceFolder}/core/apu.c",
+                "${workspaceFolder}/core/boot.c",
+                "${workspaceFolder}/core/cpu.c",
+                "${workspaceFolder}/core/dma.c",
+                "${workspaceFolder}/core/gb.c",
+                "${workspaceFolder}/core/interrupt.c",
+                "${workspaceFolder}/core/joypad.c",
+                "${workspaceFolder}/core/memory.c",
+                "${workspaceFolder}/core/palette.c",
+                "${workspaceFolder}/core/ppu.c",
+                "${workspaceFolder}/core/timer.c",
+                
+                "-I${workspaceFolder}/core",
+                
+                "-o",
+                "${workspaceFolder}/main"
+            ],
+            "options": {
+                "cwd": "${fileDirname}"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": "build",
+            "detail": "compilador: /usr/bin/clang"
+        }
+    ]
+}
