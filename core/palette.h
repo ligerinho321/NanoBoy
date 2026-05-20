@@ -2,7 +2,9 @@
 
 #include "./utils.h"
 
-typedef struct _gb_t gb_t;
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct gb_rgb_t {
     uint8_t r;
@@ -28,8 +30,12 @@ uint8_t gb_palette_read_dmg_register(void* data,uint16_t address);
 void gb_palette_write_cgb_register(void* data,uint8_t value,uint16_t address);
 uint8_t gb_palette_read_cgb_register(void* data,uint16_t address);
 
-void gb_palette_dmg_map(gb_palette_t* palette);
+void gb_palette_map_dmg_registers(gb_palette_t* palette);
 
-void gb_palette_cgb_map(gb_palette_t* palette);
+void gb_palette_map_cgb_registers(gb_palette_t* palette);
 
 void gb_palette_reset(gb_palette_t* palette);
+
+#ifdef __cplusplus
+}
+#endif

@@ -64,7 +64,7 @@ uint8_t gb_interrupt_get_vector(gb_interrupt_t* interrupt){
 }
 
 
-void gb_interrupt_map(gb_interrupt_t* interrupt){
+void gb_interrupt_map_registers(gb_interrupt_t* interrupt){
     gb_memory_handler_t** bus = interrupt->gb->memory.bus;
     bus[0xFF0F] = &interrupt->flag_register_handler;
     bus[0xFFFF] = &interrupt->enable_register_handler;

@@ -2,7 +2,9 @@
 
 #include "./utils.h"
 
-typedef struct _gb_t gb_t;
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct _gb_memory_t {
     gb_t *gb;
@@ -24,7 +26,7 @@ typedef struct _gb_memory_t {
     uint8_t wram_bank;
     gb_memory_handler_t wram0_handler;
     gb_memory_handler_t wram1_handler;
-    gb_memory_handler_t wbk_regsiter_handler;
+    gb_memory_handler_t wbk_register_handler;
     
     uint8_t oam[0xA0];
     gb_memory_handler_t oam_handler;
@@ -68,3 +70,7 @@ uint8_t gb_memory_read_vbk_register(void* data,uint16_t address);
 
 void gb_memory_write_wbk_register(void* data,uint8_t value,uint16_t address);
 uint8_t gb_memory_read_wbk_register(void* data,uint16_t address);
+
+#ifdef __cplusplus
+}
+#endif

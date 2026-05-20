@@ -2,7 +2,9 @@
 
 #include "./utils.h"
 
-typedef struct _gb_t gb_t;
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef enum _gb_interrupt_flag_t {
     gb_interrupt_vblank_flag = 0x01,
@@ -40,6 +42,10 @@ uint8_t gb_interrupt_read_enable_register(void* data,uint16_t address);
 
 uint8_t gb_interrupt_get_vector(gb_interrupt_t* interrupt);
 
-void gb_interrupt_map(gb_interrupt_t* interrupt);
+void gb_interrupt_map_registers(gb_interrupt_t* interrupt);
 
 void gb_interrupt_reset(gb_interrupt_t* interrupt);
+
+#ifdef __cplusplus
+}
+#endif

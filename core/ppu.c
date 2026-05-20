@@ -135,7 +135,7 @@ uint8_t gb_ppu_read_register(void* data,uint16_t address){
     return value;
 }
 
-void gb_ppu_map(gb_ppu_t* ppu){
+void gb_ppu_map_registers(gb_ppu_t* ppu){
     gb_memory_handler_t** bus = ppu->gb->memory.bus;
     bus[0xFF40] = &ppu->register_handler;
     bus[0xFF41] = &ppu->register_handler;

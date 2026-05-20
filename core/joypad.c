@@ -77,7 +77,7 @@ uint8_t gb_joypad_read_register(void* data,uint16_t address){
     return value;
 }
 
-void gb_joypad_map(gb_joypad_t* joypad){
+void gb_joypad_map_registers(gb_joypad_t* joypad){
     gb_memory_handler_t** bus = joypad->gb->memory.bus;
     bus[0xFF00] = &joypad->register_handler;
 }

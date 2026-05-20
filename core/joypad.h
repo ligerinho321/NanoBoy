@@ -2,7 +2,9 @@
 
 #include "./utils.h"
 
-typedef struct _gb_t gb_t;
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct gb_joypad_key_t {
     bool down;
@@ -44,7 +46,11 @@ void gb_joypad_write_register(void* data,uint8_t value,uint16_t address);
 
 uint8_t gb_joypad_read_register(void* data,uint16_t address);
 
-void gb_joypad_map(gb_joypad_t* joypad);
+void gb_joypad_map_registers(gb_joypad_t* joypad);
 
 void gb_joypad_reset(gb_joypad_t* joypad);
+
+#ifdef __cplusplus
+}
+#endif
 

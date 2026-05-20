@@ -18,6 +18,7 @@ void gb_mbc1_write_enable_ram_register(void* data,uint8_t value,uint16_t address
     mbc1->ram_enabled = ((value & 0x0F) == 0x0A) ? true : false;
 }
 
+
 void gb_mbc1_write_bank0_register(void* data,uint8_t value,uint16_t address){
     gb_mbc1_t* mbc1 = (gb_mbc1_t*)data;
     mbc1->bank[0] = value & 0x1F;

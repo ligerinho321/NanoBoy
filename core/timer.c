@@ -118,7 +118,7 @@ uint8_t gb_timer_read_register(void* data,uint16_t address){
     return value;
 }
 
-void gb_timer_map(gb_timer_t* timer){
+void gb_timer_map_registers(gb_timer_t* timer){
     gb_memory_handler_t** bus = timer->gb->memory.bus;
     bus[0xFF04] = &timer->register_handler;
     bus[0xFF05] = &timer->register_handler;

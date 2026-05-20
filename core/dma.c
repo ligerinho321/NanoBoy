@@ -9,6 +9,12 @@ void gb_dma_init(gb_dma_t* dma,gb_t* gb){
         gb_dma_oam_read_register,
         dma
     };
+
+    dma->vram_register_handler = (gb_memory_handler_t){
+        gb_dma_vram_write_register,
+        gb_dma_vram_read_register,
+        dma
+    };
 }
 
 void gb_dma_oam_clock(gb_dma_t* dma){
@@ -42,9 +48,52 @@ uint8_t gb_dma_oam_read_register(void* data,uint16_t address){
     return dma->oam_byte;
 }
 
-void gb_dma_oam_map(gb_dma_t* dma){
+void gb_dma_vram_write_register(void* data,uint8_t value,uint16_t address){
+    gb_dma_t* dma = (gb_dma_t*)data;
+
+    switch(address){
+        case 0xFF51: break;
+        case 0xFF52: break;
+        case 0xFF53: break;
+        case 0xFF54: break;
+        case 0xFF55: break;
+    }
+}
+
+uint8_t gb_dma_vram_read_register(void* data,uint16_t address){
+    gb_dma_t* dma = (gb_dma_t*)data;
+
+    uint8_t value = 0xFF;
+
+    if(address == 0xFF55){
+
+    }
+
+    return value;
+}
+
+
+void gb_dma_oam_map_registers(gb_dma_t* dma){
     gb_memory_handler_t** bus = dma->gb->memory.bus;
     bus[0xFF46] = &dma->oam_register_handler;
+}
+
+void gb_dma_vram_map_registers(gb_dma_t* dma){
+    gb_memory_handler_t** bus = dma->gb->memory.bus;
+    bus[0xFF51] = &dma->vram_register_handler;
+    bus[0xFF52] = &dma->vram_register_handler;
+    bus[0xFF53] = &dma->vram_register_handler;
+    bus[0xFF54] = &dma->vram_register_handler;
+    bus[0xFF55] = &dma->vram_register_handler;
+}
+
+void gb_dma_vram_unmap_registers(gb_dma_t* dma){
+    gb_memory_handler_t** bus = dma->gb->memory.bus;
+    bus[0xFF51] = NULL;
+    bus[0xFF52] = NULL;
+    bus[0xFF53] = NULL;
+    bus[0xFF54] = NULL;
+    bus[0xFF55] = NULL;
 }
 
 void gb_dma_reset(gb_dma_t* dma){

@@ -2,7 +2,9 @@
 
 #include "./utils.h"
 
-typedef struct _gb_t gb_t;
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef enum _gb_cpu_flag_t {
     gb_cpu_carry_flag = 0x10,       // C
@@ -50,3 +52,7 @@ void gb_cpu_init(gb_cpu_t* cpu,gb_t* gb);
 void gb_cpu_execute(gb_cpu_t* cpu);
 
 void gb_cpu_reset(gb_cpu_t* cpu);
+
+#ifdef __cplusplus
+}
+#endif

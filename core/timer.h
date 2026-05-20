@@ -2,7 +2,9 @@
 
 #include "./utils.h"
 
-typedef struct _gb_t gb_t;
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct _gb_timer_t {
     gb_t* gb;
@@ -29,6 +31,10 @@ void gb_timer_write_register(void* data,uint8_t value,uint16_t address);
 
 uint8_t gb_timer_read_register(void* data,uint16_t address);
 
-void gb_timer_map(gb_timer_t* timer);
+void gb_timer_map_registers(gb_timer_t* timer);
 
 void gb_timer_reset(gb_timer_t* timer);
+
+#ifdef __cplusplus
+}
+#endif

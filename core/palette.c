@@ -80,14 +80,14 @@ uint8_t gb_palette_read_cgb_register(void* data,uint16_t address){
     return value;
 }
 
-void gb_palette_dmg_map(gb_palette_t* palette){
+void gb_palette_map_dmg_registers(gb_palette_t* palette){
     gb_memory_handler_t** bus = palette->gb->memory.bus;
     bus[0xFF47] = &palette->dmg_register_handler;
     bus[0xFF48] = &palette->dmg_register_handler;
     bus[0xFF49] = &palette->dmg_register_handler;
 }
 
-void gb_palette_cgb_map(gb_palette_t* palette){
+void gb_palette_map_cgb_registers(gb_palette_t* palette){
     gb_memory_handler_t** bus = palette->gb->memory.bus;
     bus[0xFF68] = &palette->cgb_register_handler;
     bus[0xFF69] = &palette->cgb_register_handler;

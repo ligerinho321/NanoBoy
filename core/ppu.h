@@ -2,7 +2,9 @@
 
 #include "./utils.h"
 
-typedef struct _gb_t gb_t;
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct _gb_ppu_lcdc_t {
     union{
@@ -50,4 +52,10 @@ void gb_ppu_write_register(void* data,uint8_t value,uint16_t address);
 
 uint8_t gb_ppu_read_register(void* data,uint16_t address);
 
+void gb_ppu_map_registers(gb_ppu_t* ppu);
+
 void gb_ppu_reset(gb_ppu_t* ppu);
+
+#ifdef __cplusplus
+}
+#endif
