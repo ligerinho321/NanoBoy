@@ -1,5 +1,5 @@
-#include "./joypad.h"
-#include "./gb.h"
+#include "joypad.h"
+#include "gb.h"
 
 void gb_joypad_init(gb_joypad_t* joypad,gb_t* gb){
     joypad->gb = gb;

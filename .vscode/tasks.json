@@ -27,7 +27,6 @@
                 "${workspaceFolder}/core/serial.c",
                 "${workspaceFolder}/core/timer.c",
                 
-                "-I${workspaceFolder}/core",
                 "-I${workspaceFolder}/imgui",
 
                 "-L${workspaceFolder}/imgui/lib",

@@ -1,4 +1,4 @@
-#include "./gb.h"
+#include "gb.h"
 
 void gb_init(gb_t* gb){
 
@@ -57,6 +57,9 @@ void gb_master_clock(gb_t* gb){
 void gb_write_key0_register(void* data,uint8_t value,uint16_t address){
     gb_t* gb = (gb_t*)data;
     gb->cgb_mode = !(value & 0x0C);
+    if(!gb->cgb_mode){
+        gb_memory_unmap_cgb_registers(&gb->memory);
+    }
 }
 
 void gb_write_key1_register(void* data,uint8_t value,uint16_t address){

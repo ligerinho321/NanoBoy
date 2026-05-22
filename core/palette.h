@@ -33,6 +33,7 @@ uint8_t gb_palette_read_cgb_register(void* data,uint16_t address);
 void gb_palette_map_dmg_registers(gb_palette_t* palette);
 
 void gb_palette_map_cgb_registers(gb_palette_t* palette);
+void gb_palette_unmap_cgb_registers(gb_palette_t* palette);
 
 void gb_palette_reset(gb_palette_t* palette);
 

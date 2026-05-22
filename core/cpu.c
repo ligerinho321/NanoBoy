@@ -1,5 +1,5 @@
-#include "./cpu.h"
-#include "./gb.h"
+#include "cpu.h"
+#include "gb.h"
 
 #define gb_cpu_set_flag(flag,state) (state) ? (cpu->f |= (flag)) : (cpu->f &= ~(flag))
 

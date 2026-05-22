@@ -1,5 +1,5 @@
-#include "./timer.h"
-#include "./gb.h"
+#include "timer.h"
+#include "gb.h"
 
 void gb_timer_init(gb_timer_t* timer,gb_t* gb){
     timer->gb = gb;

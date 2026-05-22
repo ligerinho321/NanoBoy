@@ -1,6 +1,6 @@
 #pragma once
 
-#include "./utils.h"
+#include "utils.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -24,6 +24,8 @@ uint8_t gb_apu_read_pcm34_register(void* data,uint16_t address);
 void gb_apu_map_registers(gb_apu_t* apu);
 
 void gb_apu_map_pcm_registers(gb_apu_t* apu);
+
+void gb_apu_unmap_pcm_registers(gb_apu_t* apu);
 
 void gb_apu_reset(gb_apu_t* apu);
 

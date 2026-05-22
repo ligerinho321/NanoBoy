@@ -1,5 +1,5 @@
-#include "./interrupt.h"
-#include "./gb.h"
+#include "interrupt.h"
+#include "gb.h"
 
 void gb_interrupt_init(gb_interrupt_t* interrupt,gb_t* gb){
     interrupt->gb = gb;

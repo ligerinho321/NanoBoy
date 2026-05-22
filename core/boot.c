@@ -168,11 +168,11 @@ uint8_t cgb_boot_rom[2304] = {
 };
 
 // 0x0000-0x00FF
-uint8_t gb_dmg_boot_read(void* data,uint16_t address){
+uint8_t gb_dmg_boot_rom_read(void* data,uint16_t address){
     return dmg_boot_rom[address];
 }
 
 // 0x0000-0x00FF, 0x0200-0x08FF
-uint8_t gb_cgb_boot_read(void* data,uint16_t address){
+uint8_t gb_cgb_boot_rom_read(void* data,uint16_t address){
     return cgb_boot_rom[address];
 }

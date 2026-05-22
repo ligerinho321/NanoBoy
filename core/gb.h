@@ -1,17 +1,17 @@
 #pragma once
 
-#include "./utils.h"
-#include "./cpu.h"
-#include "./ppu.h"
-#include "./apu.h"
-#include "./joypad.h"
-#include "./interrupt.h"
-#include "./timer.h"
-#include "./dma.h"
-#include "./palette.h"
-#include "./serial.h"
-#include "./memory.h"
-#include "./cartridge.h"
+#include "utils.h"
+#include "cpu.h"
+#include "ppu.h"
+#include "apu.h"
+#include "joypad.h"
+#include "interrupt.h"
+#include "timer.h"
+#include "dma.h"
+#include "palette.h"
+#include "serial.h"
+#include "memory.h"
+#include "cartridge.h"
 
 #ifdef __cplusplus
 extern "C" {

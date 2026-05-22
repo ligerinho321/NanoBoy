@@ -1,5 +1,5 @@
-#include "./apu.h"
-#include "./gb.h"
+#include "apu.h"
+#include "gb.h"
 
 void gb_apu_init(gb_apu_t* apu,gb_t* gb){
     apu->gb = gb;
@@ -40,6 +40,12 @@ void gb_apu_map_pcm_registers(gb_apu_t* apu){
     gb_memory_handler_t** bus = apu->gb->memory.bus;
     bus[0xFF76] = &apu->pcm12_register_handler;
     bus[0xFF77] = &apu->pcm34_register_handler;
+}
+
+void gb_apu_unmap_pcm_registers(gb_apu_t* apu){
+    gb_memory_handler_t** bus = apu->gb->memory.bus;
+    bus[0xFF76] = NULL;
+    bus[0xFF77] = NULL;
 }
 
 void gb_apu_reset(gb_apu_t* apu){

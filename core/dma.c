@@ -1,5 +1,5 @@
-#include "./dma.h"
-#include "./gb.h"
+#include "dma.h"
+#include "gb.h"
 
 void gb_dma_init(gb_dma_t* dma,gb_t* gb){
     dma->gb = gb;

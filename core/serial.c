@@ -1,5 +1,5 @@
-#include "./serial.h"
-#include "./gb.h"
+#include "serial.h"
+#include "gb.h"
 
 void gb_serial_init(gb_serial_t* serial,gb_t* gb){
     serial->gb = gb;

@@ -1,5 +1,5 @@
-#include "./ppu.h"
-#include "./gb.h"
+#include "ppu.h"
+#include "gb.h"
 
 void gb_ppu_init(gb_ppu_t* ppu,gb_t* gb){
     ppu->gb = gb;

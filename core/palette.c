@@ -95,6 +95,14 @@ void gb_palette_map_cgb_registers(gb_palette_t* palette){
     bus[0xFF6B] = &palette->cgb_register_handler;
 }
 
+void gb_palette_unmap_cgb_registers(gb_palette_t* palette){
+    gb_memory_handler_t** bus = palette->gb->memory.bus;
+    bus[0xFF68] = NULL;
+    bus[0xFF69] = NULL;
+    bus[0xFF6A] = NULL;
+    bus[0xFF6B] = NULL; 
+}
+
 void gb_palette_reset(gb_palette_t* palette){
     palette->bgp = 0x00;
     palette->obp[0] = 0x00;

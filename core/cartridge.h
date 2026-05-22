@@ -1,6 +1,8 @@
 #pragma once
 
-#include "./utils.h"
+#include "utils.h"
+#include "mappers/mbc1.h"
+#include "mappers/mbc2.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -21,11 +23,29 @@ typedef enum _gb_cartridge_component_t {
 } gb_cartridge_component_t;
 
 typedef struct _gb_cartridge_t {
+    gb_t* gb;
+
     uint8_t rom[GB_CARTRIDGE_ROM_MAX_SIZE];
     size_t rom_size;
+    gb_memory_handler_t rom0_handler;
+    gb_memory_handler_t rom1_handler;
+    uint8_t* rom0_ptr;
+    uint8_t* rom1_ptr;
+    uint16_t rom_bank_mask;
 
     uint8_t ram[GB_CARTRIDGE_RAM_MAX_SIZE];
     size_t ram_size;
+    gb_memory_handler_t ram_handler;
+    uint8_t* ram_ptr;
+    uint8_t ram_bank_mask;
+    uint16_t ram_address_mask;
+    bool* ram_enabled;
+    bool ram_battery;
+
+    union{
+        gb_mbc1_t mbc1;
+        gb_mbc2_t mbc2;
+    };
 } gb_cartridge_t;
 
 bool gb_cartridge_load(gb_cartridge_t* cartridge,const char* path);
@@ -34,11 +54,23 @@ bool gb_cartridge_verify_header_checksum(gb_cartridge_t* cartridge);
 
 bool gb_cartridge_verify_global_checksum(gb_cartridge_t* cartridge);
 
-uint8_t gb_cartridge_mapper(gb_cartridge_t* cartridge);
+void gb_cartridge_init_mapper(gb_cartridge_t* cartridge);
 
-size_t gb_cartridge_rom_size(gb_cartridge_t* cartridge);
+void gb_no_mbc_init(gb_cartridge_t* cartridge,uint8_t flags);
 
-size_t gb_cartridge_ram_size(gb_cartridge_t* cartridge);
+void gb_cartridge_load_rom_size(gb_cartridge_t* cartridge);
+
+void gb_cartridge_init_ram(gb_cartridge_t* cartridge,bool* ram_enabled,bool battery);
+
+void gb_cartridge_set_rom0_bank(gb_cartridge_t* cartridge,uint16_t bank);
+void gb_cartridge_set_rom1_bank(gb_cartridge_t* cartridge,uint16_t bank);
+void gb_cartridge_set_ram_bank(gb_cartridge_t* cartridge,uint8_t bank);
+
+uint8_t gb_cartridge_read_rom0(void* data,uint16_t address);
+uint8_t gb_cartridge_read_rom1(void* data,uint16_t address);
+
+void gb_cartridge_write_ram(void* data,uint8_t value,uint16_t address);
+uint8_t gb_cartridge_read_ram(void* data,uint16_t address);
 
 void gb_cartridge_clear(gb_cartridge_t* cartridge);
 
