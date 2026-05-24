@@ -27,6 +27,7 @@ void gb_cartridge_init(gb_cartridge_t* cartridge,gb_t* gb){
     gb_memory_map(&cartridge->gb->memory,&cartridge->ram_handler,0xA000,0xBFFF);
 }
 
+
 bool gb_cartridge_load(gb_cartridge_t* cartridge,const char* path){
     FILE* file = fopen(path,"rb");
     if(!file){
@@ -107,27 +108,27 @@ void gb_cartridge_init_mapper(gb_cartridge_t* cartridge){
         //MMM01+RAM+BATTERY
         case 0x0D: break;
         //MBC3+TIMER+BATTERY
-        case 0x0F: break;
+        case 0x0F: gb_mbc3_init(cartridge,gb_cartridge_rtc | gb_cartridge_battery); break;
         //MBC3+TIMER+RAM+BATTERY
-        case 0x10: break;
+        case 0x10: gb_mbc3_init(cartridge,gb_cartridge_rtc | gb_cartridge_ram | gb_cartridge_battery); break;
         //MBC3
-        case 0x11: break;
+        case 0x11: gb_mbc3_init(cartridge,0x00); break;
         //MBC3+RAM
-        case 0x12: break;
+        case 0x12: gb_mbc3_init(cartridge,gb_cartridge_ram); break;
         //MBC3+RAM+BATTERY
-        case 0x13: break;
+        case 0x13: gb_mbc3_init(cartridge,gb_cartridge_ram | gb_cartridge_battery); break;
         //MBC5
-        case 0x19: break;
+        case 0x19: gb_mbc5_init(cartridge,0x00); break;
         //MBC5+RAM
-        case 0x1A: break;
+        case 0x1A: gb_mbc5_init(cartridge,gb_cartridge_ram); break;
         //MBC5+RAM+BATTERY
-        case 0x1B: break;
+        case 0x1B: gb_mbc5_init(cartridge,gb_cartridge_ram | gb_cartridge_battery); break;
         //MBC5+RUMBLE
-        case 0x1C: break;
-        //MBC5+RUMBLE+BATTERY
-        case 0x1D: break;
+        case 0x1C: gb_mbc5_init(cartridge,gb_cartridge_rumble); break;
+        //MBC5+RUMBLE+RAM
+        case 0x1D: gb_mbc5_init(cartridge,gb_cartridge_rumble | gb_cartridge_ram); break;
         //MBC5+RUMBLE+RAM+BATTERY
-        case 0x1E: break;
+        case 0x1E: gb_mbc5_init(cartridge,gb_cartridge_rumble | gb_cartridge_ram | gb_cartridge_battery); break;
         //MBC6
         case 0x20: break;
         //MBC7+SENSOR+RUMBLE+RAM+BATTERY
@@ -143,13 +144,19 @@ void gb_cartridge_init_mapper(gb_cartridge_t* cartridge){
     }
 }
 
+
 void gb_no_mbc_init(gb_cartridge_t* cartridge,uint8_t flags){
 
     gb_cartridge_set_rom0_bank(cartridge,0x00);
     gb_cartridge_set_rom1_bank(cartridge,0x01);
     
     if(flags & gb_cartridge_ram){
-        gb_cartridge_init_ram(cartridge,NULL,flags & gb_cartridge_battery);
+        gb_cartridge_init_ram(cartridge,flags & gb_cartridge_battery);
+        if(cartridge->ram_size){
+            gb_cartridge_set_ram_bank(cartridge,0x00);
+            cartridge->ram_handler.write = gb_cartridge_write_ram;
+            cartridge->ram_handler.read = gb_cartridge_read_ram;
+        }
     }
 }
 
@@ -206,7 +213,7 @@ void gb_cartridge_load_rom_size(gb_cartridge_t* cartridge){
 }
 
 
-void gb_cartridge_init_ram(gb_cartridge_t* cartridge,bool *ram_enabled,bool battery){
+void gb_cartridge_init_ram(gb_cartridge_t* cartridge,bool battery){
 
     switch(cartridge->rom[0x149]){
         //2KB
@@ -243,14 +250,7 @@ void gb_cartridge_init_ram(gb_cartridge_t* cartridge,bool *ram_enabled,bool batt
         else{
             cartridge->ram_address_mask = 0x1FFF;
         }
-
-        gb_cartridge_set_ram_bank(cartridge,0x00);
-
-        cartridge->ram_handler.write = gb_cartridge_write_ram;
-        cartridge->ram_handler.read = gb_cartridge_read_ram;
-
-        cartridge->ram_enabled = ram_enabled;
-        cartridge->ram_battery = battery;
+        cartridge->ram_has_battery = battery;
     }
 }
 
@@ -281,9 +281,7 @@ uint8_t gb_cartridge_read_rom1(void* data,uint16_t address){
 
 void gb_cartridge_write_ram(void* data,uint8_t value,uint16_t address){
     gb_cartridge_t* cartridge = (gb_cartridge_t*)data;
-    if(!cartridge->ram_enabled || *cartridge->ram_enabled){
-        cartridge->ram_ptr[address & cartridge->ram_address_mask] = value;
-    }
+    cartridge->ram_ptr[address & cartridge->ram_address_mask] = value;
 }
 
 uint8_t gb_cartridge_read_ram(void* data,uint16_t address){
@@ -306,6 +304,7 @@ void gb_cartridge_clear(gb_cartridge_t* cartridge){
     cartridge->ram_ptr = NULL;
     cartridge->ram_bank_mask = 0x00;
     cartridge->ram_address_mask = 0x00;
-    cartridge->ram_battery = false;
-    cartridge->ram_enabled = NULL;
+    cartridge->ram_has_battery = false;
+
+    cartridge->reset = NULL;
 }

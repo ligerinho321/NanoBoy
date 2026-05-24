@@ -160,10 +160,10 @@ void gb_memory_write_bank_register(void* data,uint8_t value,uint16_t address){
     gb_memory_t* memory = (gb_memory_t*)data;
     
     if(value & 0x01){
-        gb_memory_map(memory,memory->rom0_handler,0x0000,0x00FF);
+        gb_memory_map(memory,&memory->gb->cartridge.rom0_handler,0x0000,0x00FF);
         
         if(memory->gb->type == gb_cgb){
-            gb_memory_map(memory,memory->rom0_handler,0x0200,0x0BFF);
+            gb_memory_map(memory,&memory->gb->cartridge.rom1_handler,0x0200,0x0BFF);
         }
 
         memory->bus[0xFF50] = NULL;

@@ -6,6 +6,8 @@
 extern "C" {
 #endif
 
+typedef struct _gb_cartridge_t gb_cartridge_t;
+
 typedef struct _gb_mbc1_t {
     bool ram_enabled;
     uint8_t bank[2];

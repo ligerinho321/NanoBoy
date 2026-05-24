@@ -13,6 +13,11 @@
                 "-g",
                 
                 "${workspaceFolder}/main.cpp",
+
+                "${workspaceFolder}/core/mappers/mbc1.c",
+                "${workspaceFolder}/core/mappers/mbc2.c",
+                "${workspaceFolder}/core/mappers/mbc3.c",
+                "${workspaceFolder}/core/mappers/mbc5.c",
                 "${workspaceFolder}/core/apu.c",
                 "${workspaceFolder}/core/boot.c",
                 "${workspaceFolder}/core/cartridge.c",

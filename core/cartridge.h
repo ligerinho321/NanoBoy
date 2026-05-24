@@ -3,6 +3,8 @@
 #include "utils.h"
 #include "mappers/mbc1.h"
 #include "mappers/mbc2.h"
+#include "mappers/mbc3.h"
+#include "mappers/mbc5.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -17,7 +19,7 @@ extern "C" {
 typedef enum _gb_cartridge_component_t {
     gb_cartridge_ram = 0x01,
     gb_cartridge_battery = 0x02,
-    gb_cartridge_timer = 0x04,
+    gb_cartridge_rtc = 0x04,
     gb_cartridge_rumble = 0x08,
     gb_cartridge_sensor = 0x10
 } gb_cartridge_component_t;
@@ -39,14 +41,19 @@ typedef struct _gb_cartridge_t {
     uint8_t* ram_ptr;
     uint8_t ram_bank_mask;
     uint16_t ram_address_mask;
-    bool* ram_enabled;
-    bool ram_battery;
+    bool ram_has_battery;
+
+    void (*reset)(struct _gb_cartridge_t*);
 
     union{
         gb_mbc1_t mbc1;
         gb_mbc2_t mbc2;
+        gb_mbc3_t mbc3;
+        gb_mbc5_t mbc5;
     };
 } gb_cartridge_t;
+
+void gb_cartridge_init(gb_cartridge_t* cartridge,gb_t* gb);
 
 bool gb_cartridge_load(gb_cartridge_t* cartridge,const char* path);
 
@@ -60,7 +67,7 @@ void gb_no_mbc_init(gb_cartridge_t* cartridge,uint8_t flags);
 
 void gb_cartridge_load_rom_size(gb_cartridge_t* cartridge);
 
-void gb_cartridge_init_ram(gb_cartridge_t* cartridge,bool* ram_enabled,bool battery);
+void gb_cartridge_init_ram(gb_cartridge_t* cartridge,bool battery);
 
 void gb_cartridge_set_rom0_bank(gb_cartridge_t* cartridge,uint16_t bank);
 void gb_cartridge_set_rom1_bank(gb_cartridge_t* cartridge,uint16_t bank);
