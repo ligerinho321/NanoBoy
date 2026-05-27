@@ -10,6 +10,7 @@
 #include "dma.h"
 #include "palette.h"
 #include "serial.h"
+#include "boot.h"
 #include "memory.h"
 #include "cartridge.h"
 
@@ -34,6 +35,7 @@ typedef struct _gb_t {
     gb_dma_t dma;
     gb_palette_t palette;
     gb_serial_t serial;
+    gb_boot_t boot;
     gb_memory_t memory;
     gb_cartridge_t cartridge;
     

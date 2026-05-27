@@ -13,7 +13,7 @@ void gb_memory_init(gb_memory_t* memory,gb_t* gb){
     gb_memory_map_hram(memory);
 
     gb_memory_map_general_registers(memory);
-    
+
     memory->vbk_register_handler = (gb_memory_handler_t){
         gb_memory_write_vbk_register,
         gb_memory_read_vbk_register,
@@ -153,21 +153,6 @@ void gb_memory_map_hram(gb_memory_t* memory){
     };
 
     gb_memory_map(memory,&memory->hram_handler,0xFF80,0xFFFE);
-}
-
-
-void gb_memory_write_bank_register(void* data,uint8_t value,uint16_t address){
-    gb_memory_t* memory = (gb_memory_t*)data;
-    
-    if(value & 0x01){
-        gb_memory_map(memory,&memory->gb->cartridge.rom0_handler,0x0000,0x00FF);
-        
-        if(memory->gb->type == gb_cgb){
-            gb_memory_map(memory,&memory->gb->cartridge.rom1_handler,0x0200,0x0BFF);
-        }
-
-        memory->bus[0xFF50] = NULL;
-    }
 }
 
 

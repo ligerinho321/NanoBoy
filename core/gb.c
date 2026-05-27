@@ -11,6 +11,7 @@ void gb_init(gb_t* gb){
     gb_dma_init(&gb->dma,gb);
     gb_palette_init(&gb->palette,gb);
     gb_serial_init(&gb->serial,gb);
+    gb_boot_init(&gb->boot,gb);
     gb_cartridge_init(&gb->cartridge,gb);
 
     gb->key0_register_handler = (gb_memory_handler_t){
@@ -99,6 +100,7 @@ void gb_reset(gb_t* gb){
     gb_dma_reset(&gb->dma);
     gb_palette_reset(&gb->palette);
     gb_serial_reset(&gb->serial);
+    gb_boot_map(&gb->boot);
     
     if(gb->cartridge.reset){
         gb->cartridge.reset(&gb->cartridge);

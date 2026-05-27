@@ -1,5 +1,5 @@
-#include "./boot.h"
-#include "./gb.h"
+#include "boot.h"
+#include "gb.h"
 
 uint8_t dmg_boot_rom[256] = {
     0x31,0xFE,0xFF,0xAF,0x21,0xFF,0x9F,0x32,0xCB,0x7C,0x20,0xFB,0x21,0x26,0xFF,0x0E,
@@ -167,12 +167,66 @@ uint8_t cgb_boot_rom[2304] = {
     0x12,0xB0,0x79,0xB8,0xAD,0x16,0x17,0x07,0xBA,0x05,0x7C,0x13,0x00,0x00,0x00,0x00,
 };
 
+void gb_boot_init(gb_boot_t* boot,gb_t* gb){
+    boot->gb = gb;
+
+    boot->rom_handler = (gb_memory_handler_t){
+        NULL,
+        NULL,
+        boot
+    };
+
+    boot->bank_register_handler = (gb_memory_handler_t){
+        gb_boot_write_bank_register,
+        gb_boot_read_bank_register,
+        boot
+    };
+}
+
+void gb_boot_map(gb_boot_t* boot){
+
+    if(boot->gb->type == gb_cgb){
+        boot->rom_handler.read = gb_boot_read_cgb_rom;
+        gb_memory_map(&boot->gb->memory,&boot->rom_handler,0x0000,0x00FF);
+        gb_memory_map(&boot->gb->memory,&boot->rom_handler,0x0200,0x08FF);
+    }
+    else{
+        boot->rom_handler.read = gb_boot_read_dmg_rom;
+        gb_memory_map(&boot->gb->memory,&boot->rom_handler,0x0000,0x00FF);
+    }
+
+    boot->gb->memory.bus[0xFF50] = &boot->bank_register_handler;
+
+    boot->rom_mapped = true;
+}
+
+void gb_boot_write_bank_register(void* data,uint8_t value,uint16_t address){
+    gb_boot_t* boot = (gb_boot_t*)data;
+    
+    if(value & 0x01){
+        gb_memory_map(&boot->gb->memory,&boot->gb->cartridge.rom0_handler,0x0000,0x00FF);
+        
+        if(boot->gb->type == gb_cgb){
+            gb_memory_map(&boot->gb->memory,&boot->gb->cartridge.rom1_handler,0x0200,0x08FF);
+        }
+
+        boot->gb->memory.bus[0xFF50] = NULL;
+
+        boot->rom_mapped = false;
+    }
+}
+
+uint8_t gb_boot_read_bank_register(void* data,uint16_t address){
+    gb_boot_t* boot = (gb_boot_t*)data;
+    return 0xFE | !boot->rom_mapped;
+}
+
 // 0x0000-0x00FF
-uint8_t gb_dmg_boot_rom_read(void* data,uint16_t address){
+uint8_t gb_boot_read_dmg_rom(void* data,uint16_t address){
     return dmg_boot_rom[address];
 }
 
 // 0x0000-0x00FF, 0x0200-0x08FF
-uint8_t gb_cgb_boot_rom_read(void* data,uint16_t address){
+uint8_t gb_boot_read_cgb_rom(void* data,uint16_t address){
     return cgb_boot_rom[address];
 }
