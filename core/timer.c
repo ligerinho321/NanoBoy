@@ -3,12 +3,8 @@
 
 void gb_timer_init(gb_timer_t* timer,gb_t* gb){
     timer->gb = gb;
-
-    timer->register_handler = (gb_memory_handler_t){
-        gb_timer_write_register,
-        gb_timer_read_register,
-        timer
-    };
+    
+    gb_timer_map_registers(timer);
 }
 
 static inline void gb_timer_tima_reload(gb_timer_t* timer){
@@ -47,7 +43,7 @@ void gb_timer_clock(gb_timer_t* timer){
 }
 
 void gb_timer_write_register(void* data,uint8_t value,uint16_t address){
-    gb_timer_t* timer = (gb_timer_t*)timer;
+    gb_timer_t* timer = (gb_timer_t*)data;
 
     switch(address){
         //DIV
@@ -66,7 +62,7 @@ void gb_timer_write_register(void* data,uint8_t value,uint16_t address){
         //TMA
         case 0xFF06:{
             timer->tma = value;
-            if(!timer->tima_reloaded){
+            if(timer->tima_reloaded){
                 timer->tima = value;
             }
             break;
@@ -100,7 +96,7 @@ void gb_timer_write_register(void* data,uint8_t value,uint16_t address){
 }
 
 uint8_t gb_timer_read_register(void* data,uint16_t address){
-    gb_timer_t* timer = (gb_timer_t*)timer;
+    gb_timer_t* timer = (gb_timer_t*)data;
 
     uint8_t value = 0xFF;
 
@@ -119,7 +115,15 @@ uint8_t gb_timer_read_register(void* data,uint16_t address){
 }
 
 void gb_timer_map_registers(gb_timer_t* timer){
+    
+    timer->register_handler = (gb_memory_handler_t){
+        gb_timer_write_register,
+        gb_timer_read_register,
+        timer
+    };
+
     gb_memory_handler_t** bus = timer->gb->memory.bus;
+
     bus[0xFF04] = &timer->register_handler;
     bus[0xFF05] = &timer->register_handler;
     bus[0xFF06] = &timer->register_handler;

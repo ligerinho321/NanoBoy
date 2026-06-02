@@ -10,7 +10,8 @@
                 "-fansi-escape-codes",
                 "-std=c++17",
                 
-                "-g",
+                //"-g",
+                "-O2",
                 
                 "${workspaceFolder}/main.cpp",
 
@@ -31,6 +32,7 @@
                 "${workspaceFolder}/core/ppu.c",
                 "${workspaceFolder}/core/serial.c",
                 "${workspaceFolder}/core/timer.c",
+                "${workspaceFolder}/core/utils.c",
                 
                 "-I${workspaceFolder}/imgui",
 

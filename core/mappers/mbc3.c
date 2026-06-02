@@ -3,8 +3,13 @@
 
 void gb_mbc3_init(gb_cartridge_t* cartridge,uint8_t flags){
 
+    printf("Mapper: MBC3\n");
+    
     gb_cartridge_set_rom0_bank(cartridge,0x00);
 
+    cartridge->rom0_handler.write = gb_mbc3_write_register0;
+    cartridge->rom1_handler.write = gb_mbc3_write_register1;
+    
     cartridge->mbc3.has_rtc = flags & gb_cartridge_rtc;
 
     if(flags & gb_cartridge_ram){
@@ -52,7 +57,7 @@ void gb_mbc3_update_ram_and_rtc_mapping(gb_cartridge_t* cartridge){
 void gb_mbc3_write_register0(void* data,uint8_t value,uint16_t address){
     gb_cartridge_t* cartridge = (gb_cartridge_t*)data;
     //0x0000-0x1FFF
-    if(address <= 0x1FFF){
+    if(address < 0x2000){
         if(!cartridge->ram_size && !cartridge->mbc3.has_rtc) return;
 
         cartridge->mbc3.ram_and_rtc_enabled = (value & 0x0F) == 0x0A;
@@ -74,7 +79,7 @@ void gb_mbc3_write_register0(void* data,uint8_t value,uint16_t address){
 void gb_mbc3_write_register1(void* data,uint8_t value,uint16_t address){
     gb_cartridge_t* cartridge = (gb_cartridge_t*)data;
     //0x4000-0x5FFF
-    if(address <= 0x5FFF){
+    if(address < 0x6000){
         if(!cartridge->ram_size && !cartridge->mbc3.has_rtc) return;
 
         cartridge->mbc3.ram_and_rtc_bank = value & 0x0F;

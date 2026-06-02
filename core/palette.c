@@ -2,22 +2,18 @@
 #include "gb.h"
 
 const gb_rgb_t dmg_palette[4] = {
-    {0x08,0x18,0x20},
-    {0x34,0x68,0x56},
+    {0xE0,0xF8,0xD0},
     {0x88,0xC0,0x70},
-    {0xE0,0xF8,0xD0}
+    {0x34,0x68,0x56},
+    {0x08,0x18,0x20}
 };
 
 
 void gb_palette_init(gb_palette_t* palette,gb_t* gb){
     palette->gb = gb;
 
-    palette->dmg_register_handler = (gb_memory_handler_t){
-        gb_palette_write_dmg_register,
-        gb_palette_read_dmg_register,
-        palette
-    };
-
+    gb_palette_map_dmg_registers(palette);
+    
     palette->cgb_register_handler = (gb_memory_handler_t){
         gb_palette_write_cgb_register,
         gb_palette_read_cgb_register,
@@ -68,9 +64,9 @@ gb_rgb_t gb_palette_rgb555_to_rgb888(uint16_t color){
     uint8_t g5 = (color >> 0x05) & 0x1F;
     uint8_t b5 = (color >> 0x0A) & 0x1F;
     return (gb_rgb_t){
-        (r5 << 0x03) | (r5 >> 0x02),
-        (g5 << 0x03) | (g5 >> 0x02),
-        (b5 << 0x03) | (b5 >> 0x02)
+        (uint8_t)((r5 << 0x03) | (r5 >> 0x02)),
+        (uint8_t)((g5 << 0x03) | (g5 >> 0x02)),
+        (uint8_t)((b5 << 0x03) | (b5 >> 0x02))
     };
 }
 
@@ -174,7 +170,15 @@ uint8_t gb_palette_read_cgb_register(void* data,uint16_t address){
 
 
 void gb_palette_map_dmg_registers(gb_palette_t* palette){
+
+    palette->dmg_register_handler = (gb_memory_handler_t){
+        gb_palette_write_dmg_register,
+        gb_palette_read_dmg_register,
+        palette
+    };
+
     gb_memory_handler_t** bus = palette->gb->memory.bus;
+
     bus[0xFF47] = &palette->dmg_register_handler;
     bus[0xFF48] = &palette->dmg_register_handler;
     bus[0xFF49] = &palette->dmg_register_handler;

@@ -1045,7 +1045,7 @@ void gb_cpu_execute_opcode(gb_cpu_t* cpu){
         //DEC B
         case 0x05: gb_cpu_dec_byte(cpu,&cpu->b); break;
         //LD B,IMM8
-        case 0x06: cpu->b = gb_cpu_read_byte(cpu,cpu->pc++);; break;
+        case 0x06: cpu->b = gb_cpu_read_byte(cpu,cpu->pc++); break;
         //RLCA
         case 0x07: gb_cpu_rlca(cpu); break;
         //LD [IMM16],SP

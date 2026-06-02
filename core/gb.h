@@ -25,6 +25,7 @@ typedef enum _gb_type_t {
 
 typedef struct _gb_t {
     gb_type_t type;
+    bool cartridge_inserted;
     
     gb_cpu_t cpu;
     gb_ppu_t ppu;
@@ -43,17 +44,27 @@ typedef struct _gb_t {
     bool double_speed;
     bool speed_switch_needed;
     bool obj_priority_mode;
-    
+
+    uint64_t cycles;
+
     gb_memory_handler_t key0_register_handler;
     gb_memory_handler_t key1_register_handler;
     gb_memory_handler_t opri_register_handler;
 
-    uint64_t cycles;
+    gb_callback_handler_t* callback_handles;
 } gb_t;
 
 void gb_init(gb_t* gb);
 
 void gb_master_clock(gb_t* gb);
+
+bool gb_insert_cartridge(gb_t* gb,const char* path);
+void gb_remove_cartridge(gb_t* gb);
+
+void gb_add_callback(gb_t* gb,gb_callback_handler_t* callback);
+void gb_remove_callback(gb_t* gb,gb_callback_handler_t* callback);
+
+void gb_set_joypad_callback(gb_t* gb,gb_joypad_callback_t callback,void* data);
 
 void gb_write_key0_register(void* data,uint8_t value,uint16_t address);
 

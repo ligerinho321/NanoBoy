@@ -47,9 +47,11 @@ bool gb_cartridge_load(gb_cartridge_t* cartridge,const char* path){
 
     gb_cartridge_load_rom_size(cartridge);
 
-    if((cartridge->rom_size != size) || !gb_cartridge_verify_header_checksum(cartridge) || !gb_cartridge_verify_global_checksum(cartridge)){
+    if(cartridge->rom_size != size){
         goto invalid_rom;
     }
+
+    gb_cartridge_init_mapper(cartridge);
 
     fclose(file);
     return true;
@@ -146,6 +148,8 @@ void gb_cartridge_init_mapper(gb_cartridge_t* cartridge){
 
 
 void gb_no_mbc_init(gb_cartridge_t* cartridge,uint8_t flags){
+    
+    printf("Mapper: NoMBC\n");
 
     gb_cartridge_set_rom0_bank(cartridge,0x00);
     gb_cartridge_set_rom1_bank(cartridge,0x01);
@@ -307,4 +311,5 @@ void gb_cartridge_clear(gb_cartridge_t* cartridge){
     cartridge->ram_has_battery = false;
 
     cartridge->reset = NULL;
+
 }

@@ -11,7 +11,7 @@
 #include <vector>
 #include <algorithm>
 #include <string>
-#include <atomic>
+#include <thread>
 
 constexpr uintmax_t gigabytes = 0x01 << 0x1E;
 constexpr uintmax_t megabytes = 0x01 << 0x14;
@@ -21,6 +21,7 @@ const char* filters_name[2] = {
     "All files",
     "GB ROM files"
 };
+
 
 class file_selector_t {
 public:
@@ -55,7 +56,9 @@ public:
         {}
     };
 
-    bool opened;
+    gb_t* gb = nullptr;
+
+    bool opened = false;
         
     std::filesystem::path current_path;
     std::vector<path_part_t> current_path_parts;
@@ -66,8 +69,8 @@ public:
     uint8_t sort_column_index;
     bool sort_ascending;
 
-    char name_buffer[256];
-    int current_filter;
+    char name_buffer[256] = {0};
+    int current_filter = filter_gb_rom_files;
 
     bool popup_opened;
     ImVec2 popup_pos;
@@ -77,13 +80,8 @@ public:
     ImVec2 window_min;
     ImVec2 window_max;
 
-    file_selector_t(){
-        opened = false;
+    file_selector_t(gb_t* _gb):gb(_gb){
         
-        current_filter = filter_gb_rom_files;
-
-        memset(name_buffer,0,sizeof(name_buffer));
-
         set_current_path(std::filesystem::current_path());
 
         sort_column_index = 0;
@@ -249,6 +247,7 @@ public:
 
                     if(ImGui::Selectable(entry.name.c_str())){
                         std::cout << entry.path << std::endl;
+                        gb_insert_cartridge(gb,entry.path.c_str());
                         opened = false;
                     }
 
@@ -374,6 +373,7 @@ public:
                     }
                     else{
                         std::cout << path << std::endl;
+                        gb_insert_cartridge(gb,path.c_str());
                         opened = false;
                     }
                 }
@@ -422,16 +422,14 @@ private:
 };
 
 class tilemap_viewer_t {
-public:
+private:
     gb_t* gb = nullptr;
 
-    bool opened = false;
-
     SDL_Texture* tilemap_texture[2];
-    
-    ImU32 grid_color = ImGui::ColorConvertFloat4ToU32(ImVec4(1.0f,1.0f,1.0f,0.5f));
-    ImU32 scroll_overlay_border_color = ImGui::ColorConvertFloat4ToU32(ImVec4(1.0f,1.0f,1.0f,1.0f));
-    ImU32 scroll_overlay_background_color = ImGui::ColorConvertFloat4ToU32(ImVec4(1.0f,1.0f,1.0f,0.2f));
+
+    ImU32 grid_color = 0;
+    ImU32 scroll_overlay_border_color = 0;
+    ImU32 scroll_overlay_background_color = 0;
 
     bool show_tile_grid = false;
     bool show_scroll_overlay = false;
@@ -440,38 +438,61 @@ public:
     const float max_scale = 10.0f;
     float scale = min_scale;
 
-    bool cgb_mode;
-    bool bg_and_window_tiledata_area;
+    float input_scalar_width = 0.0f;
+    int input_scalar_step = 1;
+    int input_scalar_step_fast = 100;
+
+    bool cgb_mode = false;
+    bool tiledata_area = false;
     uint8_t scx = 0;
     uint8_t scy = 0;
-    uint8_t bgp;
-    gb_rgb_t cgb_bg_cram_converted[0x20];
-    uint8_t vram[0x02][0x2000];
+    uint8_t bgp = 0;
+    gb_rgb_t cgb_bg_cram_converted[0x20] = {0};
+    uint8_t vram[0x4000] = {0};
 
-    std::atomic_bool update;
+    gb_callback_handler_t callback_handler = {callback,this,gb_vblank_scanline,0};
+public:
 
-    tilemap_viewer_t(SDL_Renderer* renderer){
-        tilemap_texture[0] = SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGB888,SDL_TEXTUREACCESS_STREAMING,256,256);
-        tilemap_texture[1] = SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGB888,SDL_TEXTUREACCESS_STREAMING,256,256);
+    bool open = false;
+
+    tilemap_viewer_t(gb_t* _gb,SDL_Renderer* renderer):gb(_gb){
+        
+        tilemap_texture[0] = SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGB24,SDL_TEXTUREACCESS_STREAMING,256,256);
+        tilemap_texture[1] = SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGB24,SDL_TEXTUREACCESS_STREAMING,256,256);
+
+        grid_color = ImGui::ColorConvertFloat4ToU32(ImVec4(1.0f,1.0f,1.0f,0.5f));
+        scroll_overlay_border_color = ImGui::ColorConvertFloat4ToU32(ImVec4(1.0f,1.0f,1.0f,1.0f));
+        scroll_overlay_background_color = ImGui::ColorConvertFloat4ToU32(ImVec4(1.0f,1.0f,1.0f,0.2f));
+
+        ImGuiStyle& style = ImGui::GetStyle();
+
+        input_scalar_width = ImGui::CalcTextSize("000").x + style.FramePadding.x * 2.0f + (ImGui::GetFrameHeight() + style.ItemInnerSpacing.x) * 2.0f;
+
+        gb_add_callback(gb,&callback_handler);
     }
 
     ~tilemap_viewer_t(){
+        gb_remove_callback(gb,&callback_handler);
+
         SDL_DestroyTexture(tilemap_texture[0]);
         SDL_DestroyTexture(tilemap_texture[1]);
     }
 
+
     static void callback(void* data){
         tilemap_viewer_t* tmv = (tilemap_viewer_t*)data;
+
         gb_t* gb = tmv->gb;
+
         tmv->cgb_mode = gb->cgb_mode;
-        tmv->bg_and_window_tiledata_area = gb->ppu.lcdc.bg_and_window_tiledata_area;
+        tmv->tiledata_area = gb->ppu.lcdc.tiledata_area;
         tmv->scx = gb->ppu.scx;
         tmv->scy = gb->ppu.scy;
         tmv->bgp = gb->palette.bgp;
         memcpy(tmv->cgb_bg_cram_converted,gb->palette.cgb_bg_cram_converted,sizeof(tmv->cgb_bg_cram_converted));
-        memcpy(tmv->vram,gb->memory.vram,sizeof(tmv->vram));
-        tmv->update.store(true,std::memory_order_relaxed);
+        memcpy(tmv->vram,gb->ppu.vram,sizeof(tmv->vram));
     }
+
 
     gb_rgb_t get_dmg_color(uint8_t palette_index){
         return dmg_palette[(bgp >> ((palette_index & 0x03) << 0x01)) & 0x03];
@@ -485,10 +506,11 @@ public:
         return cgb_bg_cram_converted[(bgp >> ((palette_index & 0x03) << 0x01)) & 0x03];
     }
 
+    
     void update_tilemap_texture(uint8_t map_index){
-        uint16_t base_address = (map_index == 0x01) ? 0x0C00 : 0x0800;
-        uint8_t* map = vram[0x00] + base_address;
-        uint8_t* map_attribute = vram[0x01] + base_address;
+        uint16_t base_address = (map_index == 0x01) ? 0x1C00 : 0x1800;
+        uint8_t* map = vram + base_address;
+        uint8_t* map_attribute = vram + (0x2000 | base_address);
 
         gb_rgb_t color = {0};
 
@@ -499,15 +521,15 @@ public:
         for(int row = 0; row < 32; ++row){
             for(int col = 0; col < 32; ++col){
                 
-                uint8_t index = (row << 0x05) | col;
+                uint16_t index = (row << 0x05) | col;
                 
                 uint8_t tile_index = map[index];
 
                 uint8_t attribute = cgb_mode ? map_attribute[index] : 0x00;
 
-                uint16_t tile_address = (bg_and_window_tiledata_area ? 0x1000 + ((int8_t)tile_index << 0x04) : tile_index << 0x04);
+                uint16_t tile_address = tiledata_area ? tile_index << 0x04 : 0x1000 + ((int8_t)tile_index << 0x04);
 
-                uint8_t* tile_data = vram[(attribute & 0x08) ? 0x01 : 0x00] + tile_address;
+                uint8_t* tile_data = vram + (((attribute & 0x08) ? 0x2000 : 0x0000) | tile_address);
 
                 for(int y = 0; y < 8; ++y){
                     
@@ -517,7 +539,7 @@ public:
                     uint8_t hi = tile_data[tile_byte_address + 0x01];
                     
                     for(int x = 0; x < 8; ++x){
-                        uint8_t bit = 1 << ((attribute & 0x20) ? x : 0x07 ^ x);
+                        uint8_t bit = 0x01 << ((attribute & 0x20) ? x : 0x07 ^ x);
                         uint8_t index = ((hi & bit) ? 0x02 : 0x00) | ((lo & bit) ? 0x01 : 0x00);
 
                         if(gb->type == gb_cgb){
@@ -544,6 +566,7 @@ public:
         SDL_UnlockTexture(tilemap_texture[map_index]);
     }
 
+
     void render_grid(){
         ImVec2 start = ImGui::GetItemRectMin();
         ImDrawList* draw_list = ImGui::GetWindowDrawList();
@@ -559,8 +582,8 @@ public:
 
         ImDrawList* draw_list = ImGui::GetWindowDrawList();
         
-        int scx_right = scx + 143;
-        int scy_bottom = scy + 159;
+        int scx_right = scx + 159;
+        int scy_bottom = scy + 143;
         ImVec2 min;
         ImVec2 max;
 
@@ -587,29 +610,29 @@ public:
         }
         else if(scx_right > 255){
             min = ImVec2(start.x,start.y + scy * scale);
-            max = ImVec2(start.x + (scx_right - 255) * scale,min.y + 160 * scale);
+            max = ImVec2(start.x + (scx_right - 255) * scale,min.y + 144 * scale);
             draw_list->AddRectFilled(min,max,scroll_overlay_background_color);
             draw_list->AddRect(min,max,scroll_overlay_border_color);
 
             min = ImVec2(start.x + scx * scale,start.y + scy * scale);
-            max = ImVec2(end.x,min.y + 160 * scale);
+            max = ImVec2(end.x,min.y + 144 * scale);
             draw_list->AddRectFilled(min,max,scroll_overlay_background_color);
             draw_list->AddRect(min,max,scroll_overlay_border_color);
         }
         else if(scy_bottom > 255){
             min = ImVec2(start.x + scx * scale,start.y);
-            max = ImVec2(min.x + 144 * scale,start.y + (scy_bottom - 255) * scale);
+            max = ImVec2(min.x + 160 * scale,start.y + (scy_bottom - 255) * scale);
             draw_list->AddRectFilled(min,max,scroll_overlay_background_color);
             draw_list->AddRect(min,max,scroll_overlay_border_color);
 
             min = ImVec2(start.x + scx * scale,start.y + scy * scale);
-            max = ImVec2(min.x + 144 * scale,end.y);
+            max = ImVec2(min.x + 160 * scale,end.y);
             draw_list->AddRectFilled(min,max,scroll_overlay_background_color);
             draw_list->AddRect(min,max,scroll_overlay_border_color);
         }
         else{
             min = ImVec2(start.x + scx * scale,start.y + scy * scale);
-            max = ImVec2(min.x + 144 * scale,min.y + 160 * scale);
+            max = ImVec2(min.x + 160 * scale,min.y + 144 * scale);
             draw_list->AddRectFilled(min,max,scroll_overlay_background_color);
             draw_list->AddRect(min,max,scroll_overlay_border_color);
         }
@@ -618,11 +641,11 @@ public:
 
     void render(){
         
-        if(!opened) return;
+        if(!open) return;
 
-        if(ImGui::Begin("Tilemap Viewer",&opened)){
+        if(ImGui::Begin("Tilemap Viewer",&open)){
 
-            if(ImGui::BeginTable("LayoutTable",2,ImGuiTableFlags_Borders)){
+            if(ImGui::BeginTable("LayoutTable",2)){
 
                 ImGui::TableSetupColumn("Left",ImGuiTableColumnFlags_WidthStretch);
                 ImGui::TableSetupColumn("Right",ImGuiTableColumnFlags_WidthFixed);
@@ -635,8 +658,10 @@ public:
                     
                     if(ImGui::BeginTabItem("9800")){
                         
-                        if(ImGui::BeginChild("Tilemap",ImVec2(0.0f,0.0f),ImGuiChildFlags_Borders,ImGuiWindowFlags_HorizontalScrollbar)){
+                        if(ImGui::BeginChild("Tilemap0",ImVec2(0.0f,0.0f),ImGuiChildFlags_Borders,ImGuiWindowFlags_HorizontalScrollbar)){
                             
+                            update_tilemap_texture(0);
+
                             ImGui::Image((ImTextureRef)tilemap_texture[0],ImVec2(256.0f * scale,256.0f * scale));
                             
                             if(show_tile_grid) render_grid();
@@ -648,6 +673,18 @@ public:
                     }
                     
                     if(ImGui::BeginTabItem("9C00")){
+
+                        if(ImGui::BeginChild("Tilemap1",ImVec2(0.0f,0.0f),ImGuiChildFlags_Borders,ImGuiWindowFlags_HorizontalScrollbar)){
+                            
+                            update_tilemap_texture(1);
+
+                            ImGui::Image((ImTextureRef)tilemap_texture[1],ImVec2(256.0f * scale,256.0f * scale));
+                            
+                            if(show_tile_grid) render_grid();
+                            if(show_scroll_overlay) render_scroll_overlay();
+                        }
+                        ImGui::EndChild();
+
                         ImGui::EndTabItem();
                     }
 
@@ -657,7 +694,25 @@ public:
                 ImGui::TableNextColumn();
 
                 ImGui::Checkbox("Show Tile Grid",&show_tile_grid);
+
                 ImGui::Checkbox("Shwo Scroll Overlay",&show_scroll_overlay);
+
+                ImGui::SetNextItemWidth(input_scalar_width);
+                if(ImGui::InputScalar("Refresh on scanline",ImGuiDataType_U8,&callback_handler.scanline,&input_scalar_step,&input_scalar_step_fast)){
+                    if(callback_handler.scanline >= gb_scanlines){
+                        callback_handler.scanline = gb_scanlines - 1;
+                    }
+                }
+
+                ImGui::SetNextItemWidth(input_scalar_width);
+                if(ImGui::InputScalar("Refresh on cycle",ImGuiDataType_U16,&callback_handler.cycle,&input_scalar_step,&input_scalar_step_fast)){
+                    if(callback_handler.cycle >= gb_scanline_cycles){
+                        callback_handler.cycle = gb_scanline_cycles - 1;
+                    }
+                }
+
+                //ImGui::InputScalar("scx",ImGuiDataType_U8,&scx,&input_scalar_step,&input_scalar_step_fast);
+                //ImGui::InputScalar("scy",ImGuiDataType_U8,&scy,&input_scalar_step,&input_scalar_step_fast);
 
                 ImGui::EndTable();
             }
@@ -682,13 +737,27 @@ public:
         }
         ImGui::End();
     }
-
-private:
 };
+
+
+void joypad_callback(void* data,gb_joypad_key_t* key){
+    const uint8_t* keyboard = SDL_GetKeyboardState(NULL);
+    key->down = keyboard[SDL_SCANCODE_S];
+    key->up = keyboard[SDL_SCANCODE_W];
+    key->left = keyboard[SDL_SCANCODE_A];
+    key->right = keyboard[SDL_SCANCODE_D];
+    key->start = keyboard[SDL_SCANCODE_P];
+    key->select = keyboard[SDL_SCANCODE_O];
+    key->a = keyboard[SDL_SCANCODE_L];
+    key->b = keyboard[SDL_SCANCODE_K];
+}
 
 int main(int n_args,char** args){
 
     SDL_Init(SDL_INIT_EVERYTHING);
+
+    int window_width = 640;
+    int window_height = 480;
 
     SDL_Window* window = SDL_CreateWindow("NanoBoy",SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,640,480,SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
     SDL_Renderer* renderer = SDL_CreateRenderer(window,-1,SDL_RENDERER_ACCELERATED);
@@ -707,17 +776,77 @@ int main(int n_args,char** args){
     ImGui::NewFrame();
     ImGui::Render();
 
+    int main_menu_bar_height = ImGui::GetFrameHeight();
+
+    SDL_Texture* screen_texture = SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGB24,SDL_TEXTUREACCESS_STREAMING,gb_screen_width,gb_screen_height);
+    SDL_Rect screen_rect = {
+        0,
+        0 + main_menu_bar_height,
+        window_width,
+        window_height - main_menu_bar_height
+    };
+
+    gb_t* gb = (gb_t*)malloc(sizeof(gb_t));
+    gb_init(gb);
+    gb_set_joypad_callback(gb,joypad_callback,NULL);
+
+    file_selector_t file_selector(gb);
+    tilemap_viewer_t* tilemap_viewer = new tilemap_viewer_t(gb,renderer);
+
     bool running = true;
+    bool paused = false;
+    SDL_Event event = {0};
 
-    file_selector_t file_selector;
-    tilemap_viewer_t tilemap_viewer(renderer);
-    
-    SDL_Event event;
     while(running){
-        SDL_PollEvent(&event);
-        ImGui_ImplSDL2_ProcessEvent(&event);
 
-        if(event.type == SDL_QUIT) running = false;
+        auto start = std::chrono::steady_clock::now();
+
+        if(!paused && gb->cartridge_inserted){
+            uint64_t frame = gb->ppu.frame_count;
+            while(frame == gb->ppu.frame_count){
+                gb_cpu_execute(&gb->cpu);
+            }
+            uint8_t* pixels = NULL;
+            int pitch = 0;
+            SDL_LockTexture(screen_texture,NULL,(void**)&pixels,&pitch);
+            memcpy(pixels,gb->ppu.screen,sizeof(gb->ppu.screen));
+            SDL_UnlockTexture(screen_texture);
+        }
+
+        while(SDL_PollEvent(&event)){
+            
+            ImGui_ImplSDL2_ProcessEvent(&event);
+
+            switch(event.type){
+                case SDL_QUIT:{
+                    running = false;
+                    break;
+                }
+                case SDL_WINDOWEVENT:{
+                    if(event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED){
+                        SDL_GetWindowSize(window,&window_width,&window_height);
+                        screen_rect.w = window_width;
+                        screen_rect.h = window_height - main_menu_bar_height;
+                    }
+                    break;
+                }
+                case SDL_KEYDOWN:{
+                    if(gb->cartridge_inserted){
+                        if(SDL_GetModState() & KMOD_CTRL){
+                            if(event.key.keysym.scancode == SDL_SCANCODE_R){
+                                gb_reset(gb);
+                            }
+                        }
+                        else{
+                            if(event.key.keysym.scancode == SDL_SCANCODE_ESCAPE){
+                                paused = !paused;
+                            }
+                        }
+                    }
+                    break;
+                }
+            }
+        }
 
         ImGui_ImplSDLRenderer2_NewFrame();
         ImGui_ImplSDL2_NewFrame();
@@ -734,9 +863,18 @@ int main(int n_args,char** args){
                 }
                 ImGui::EndMenu();
             }
+            if(ImGui::BeginMenu("Game")){
+                if(ImGui::MenuItem("Pause","Esq",nullptr,gb->cartridge_inserted)){
+                    paused = !paused;
+                }
+                if(ImGui::MenuItem("Reset","Ctrl+R",nullptr,gb->cartridge_inserted)){
+                    gb_reset(gb);
+                }
+                ImGui::EndMenu();
+            }
             if(ImGui::BeginMenu("Debug")){
-                if(ImGui::MenuItem("Tilemap Viewer")){
-                    tilemap_viewer.opened = true;
+                if(ImGui::MenuItem("Tilemap Viewer",nullptr,nullptr,gb->cartridge_inserted)){
+                    tilemap_viewer->open = true;
                 }
                 ImGui::EndMenu();
             }
@@ -745,14 +883,33 @@ int main(int n_args,char** args){
 
         file_selector.render();
         
-        tilemap_viewer.render();
+        if(gb->cartridge_inserted){
+            tilemap_viewer->render();
+        }
 
         ImGui::Render();
 
         SDL_RenderClear(renderer);
+        SDL_RenderCopy(renderer,screen_texture,NULL,&screen_rect);
         ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer);
         SDL_RenderPresent(renderer);
+
+        auto end = std::chrono::steady_clock::now();
+        auto elapsed = end - start;
+
+        auto frame_time = std::chrono::duration<double>(1.0f / 60.0f);
+        
+        if(elapsed < frame_time){
+            std::this_thread::sleep_for(frame_time - elapsed);
+        }
     }
+
+    delete tilemap_viewer;
+
+    free(gb);
+
+    
+    SDL_DestroyTexture(screen_texture);
 
     ImGui_ImplSDLRenderer2_Shutdown();
     ImGui_ImplSDL2_Shutdown();

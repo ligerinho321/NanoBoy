@@ -4,6 +4,8 @@
 void gb_apu_init(gb_apu_t* apu,gb_t* gb){
     apu->gb = gb;
 
+    gb_apu_map_registers(apu);
+    
     apu->pcm12_register_handler = (gb_memory_handler_t){
         NULL,
         gb_apu_read_pcm12_register,

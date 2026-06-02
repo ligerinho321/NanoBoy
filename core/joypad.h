@@ -38,8 +38,6 @@ typedef struct _gb_joypad_t {
 
 void gb_joypad_init(gb_joypad_t* joypad,gb_t* gb);
 
-void gb_joypad_set_callback(gb_joypad_t* joypad,gb_joypad_callback_t callback,void* data);
-
 void gb_joypad_update(gb_joypad_t* joypad);
 
 void gb_joypad_write_register(void* data,uint8_t value,uint16_t address);

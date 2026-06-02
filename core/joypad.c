@@ -7,16 +7,7 @@ void gb_joypad_init(gb_joypad_t* joypad,gb_t* gb){
     joypad->callback = NULL;
     joypad->data = NULL;
 
-    joypad->register_handler = (gb_memory_handler_t){
-        gb_joypad_write_register,
-        gb_joypad_read_register,
-        joypad
-    };
-}
-
-void gb_joypad_set_callback(gb_joypad_t* joypad,gb_joypad_callback_t callback,void* data){
-    joypad->callback = callback;
-    joypad->data = data;
+    gb_joypad_map_registers(joypad);
 }
 
 void gb_joypad_update(gb_joypad_t* joypad){
@@ -45,8 +36,8 @@ void gb_joypad_update(gb_joypad_t* joypad){
 
 void gb_joypad_write_register(void* data,uint8_t value,uint16_t address){
     gb_joypad_t* joypad = (gb_joypad_t*)data;
-    joypad->select_buttons = value & 0x20;
-    joypad->select_directions = value & 0x10;
+    joypad->select_buttons = !(value & 0x20);
+    joypad->select_directions = !(value & 0x10);
 }
 
 uint8_t gb_joypad_read_register(void* data,uint16_t address){
@@ -55,7 +46,7 @@ uint8_t gb_joypad_read_register(void* data,uint16_t address){
     uint8_t value = 0xFF;
 
     if(joypad->select_buttons){
-        value = ~(
+        value &= ~(
             0x20 | 
             (joypad->key.start ? 0x08 : 0x00) | 
             (joypad->key.select ? 0x04 : 0x00) | 
@@ -65,7 +56,7 @@ uint8_t gb_joypad_read_register(void* data,uint16_t address){
     }
 
     if(joypad->select_directions){
-        value = ~(
+        value &= ~(
             0x10 |
             (joypad->key.down ? 0x08 : 0x00) |
             (joypad->key.up ? 0x04 : 0x00) |
@@ -78,7 +69,15 @@ uint8_t gb_joypad_read_register(void* data,uint16_t address){
 }
 
 void gb_joypad_map_registers(gb_joypad_t* joypad){
+
+    joypad->register_handler = (gb_memory_handler_t){
+        gb_joypad_write_register,
+        gb_joypad_read_register,
+        joypad
+    };
+
     gb_memory_handler_t** bus = joypad->gb->memory.bus;
+
     bus[0xFF00] = &joypad->register_handler;
 }
 

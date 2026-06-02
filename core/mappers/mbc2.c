@@ -3,6 +3,8 @@
 
 void gb_mbc2_init(gb_cartridge_t* cartridge,uint8_t flags){
 
+    printf("Mapper: MBC2\n");
+    
     cartridge->rom0_handler.write = gb_mbc2_write_register;
 
     gb_cartridge_set_rom0_bank(cartridge,0x00);
