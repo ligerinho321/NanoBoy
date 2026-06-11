@@ -22,6 +22,191 @@ void gb_ppu_clear_screen(gb_ppu_t* ppu){
     memset(ppu->screen,0xFF,sizeof(ppu->screen));
 }
 
+void gb_ppu_init_line_renderer(gb_ppu_t* ppu){
+    ppu->wx_enabled = false;
+
+    ppu->tile_fetcher.step = 0x00;
+    ppu->sprite_fetcher.step = 0x00;
+
+    ppu->sprite_found_index = 0xFF;
+    ppu->fetch_window = false;
+    ppu->fetch_column = 0x00;
+    ppu->drawn_pixels = -0x08 - (ppu->scx & 0x07);
+    ppu->fictitious_fetch = true;
+
+    ppu->tile_fifo.length = 0x08;
+
+    ppu->sprite_fifo.length = 0x00;
+    memset(ppu->sprite_fifo.data,0x00,sizeof(ppu->sprite_fifo.data));
+}
+
+void gb_ppu_visible_scanline(gb_ppu_t* ppu){
+    switch(ppu->cycle){
+        case 4:{
+            ppu->_lyc = ppu->lyc;
+
+            if(ppu->_ly != 0 || !ppu->first_frame){
+                ppu->status.mode = gb_ppu_oam_mode;
+
+                ppu->sprite_buffer_length = 0;
+                ppu->oam_address = 0;
+
+                ppu->oam_blocked = true;
+            }
+            break;
+        }
+        case 84:{
+            ppu->status.mode = gb_ppu_drawing_mode;
+
+            ppu->vram_blocked = true;
+            ppu->oam_blocked = true;
+
+            gb_ppu_init_line_renderer(ppu);
+            break;
+        }
+        case 89:{
+            ppu->fictitious_fetch = false;
+            break;
+        }
+        case 456:{
+            ppu->cycle = 0;
+            ppu->_ly++;
+            ppu->ly = ppu->_ly;
+
+            ppu->_lyc = 0xFFFF;
+
+            if(!ppu->wy_enabled){
+                ppu->wy_enabled = ppu->ly == ppu->wy;
+            }
+            break;
+        }
+    }
+}
+
+void gb_ppu_vblank_scanline(gb_ppu_t* ppu){
+    switch(ppu->cycle){
+        case 4:{
+            ppu->_lyc = ppu->lyc;
+
+            if(ppu->_ly == 144){
+                ppu->frame_count++;
+                ppu->first_frame = false;
+
+                gb_joypad_update(&ppu->gb->joypad);
+
+                ppu->status.mode = gb_ppu_vblank_mode;
+
+                ppu->gb->interrupt.flag |= gb_interrupt_vblank_flag;
+
+                ppu->wy_enabled = false;
+            }
+            break;
+        }
+        case 5:{
+            if(ppu->_ly == 153){
+                ppu->ly = 0;
+                ppu->_lyc = 0xFFFF;
+            }
+            break;
+        }
+        case 12:{
+            if(ppu->_ly == 153){
+                ppu->_lyc = ppu->lyc;
+            }
+            break;
+        }
+        case 456:{
+            ppu->cycle = 0;
+            ppu->_ly++;
+            ppu->ly = ppu->_ly;
+
+            ppu->_lyc = 0xFFFF;
+
+            if(ppu->_ly >= 154){
+                ppu->_ly = 0;
+                ppu->ly = ppu->_ly;
+
+                ppu->wy_enabled = ppu->ly == ppu->wy;
+                ppu->window_ly = -1;
+            }
+        }
+        break;
+    }
+}
+
+void gb_ppu_update_irq_line(gb_ppu_t* ppu){
+    
+    //No primeiro frame quando a PPU é ligada a primeira scanline começa no modo 0 inves do 2 e vai diretamente para o 3
+    //e durante o modo 0 mesmo que STAT bit3 esteja definido STAT IF não é ativado
+
+    bool new_irq_line = (
+        (ppu->status.lcy_equals_ly && ppu->status.lyc_enabled) ||
+        (ppu->status.mode == gb_ppu_hblank_mode && (ppu->status.hblank_enabled && !(ppu->first_frame && ppu->ly == 0 && ppu->cycle < 84))) ||
+        (ppu->status.mode == gb_ppu_vblank_mode && (ppu->status.vblank_enabled || (ppu->ly == 144 && ppu->cycle == 4 && ppu->status.oam_enabled))) || 
+        (ppu->status.mode == gb_ppu_oam_mode && ppu->status.oam_enabled)
+    );
+
+    if(!ppu->status_irq_line && new_irq_line){
+        ppu->gb->interrupt.flag |= gb_interrupt_lcd_flag;
+    }
+
+    ppu->status_irq_line = new_irq_line;
+}
+
+void gb_ppu_oam_evaluation(gb_ppu_t* ppu){
+    if(!(ppu->cycle & 0x01) || ppu->sprite_buffer_length >= 0x0A) return;
+
+    uint8_t ly = ppu->ly + 0x10;
+    uint8_t sprite_height = ppu->lcdc.sprite_size ? 0x10 : 0x08;
+    gb_sprite_t* sprite = (gb_sprite_t*)(ppu->oam + ppu->oam_address);
+
+    if(ly >= sprite->y && ly < (sprite->y + sprite_height)){
+        memcpy(ppu->sprite_buffer + ppu->sprite_buffer_length++,sprite,0x04);
+    }
+
+    ppu->oam_address += 0x04;
+}
+
+void gb_ppu_drawing(gb_ppu_t* ppu){
+    if(ppu->fictitious_fetch) return;
+
+    if(!ppu->wx_enabled){
+        ppu->wx_enabled = ppu->drawn_pixels == (ppu->wx - 0x07);
+
+        bool fetch_window = ppu->lcdc.window_enabled && ppu->wx_enabled && ppu->wy_enabled;
+
+        if(ppu->fetch_window != fetch_window){
+            ppu->window_ly++;
+            ppu->tile_fetcher.step = 0;
+            ppu->fetch_window = fetch_window;
+            ppu->fetch_column = 0;
+            ppu->tile_fifo.length = 0;
+        }
+    }
+
+    //O buscador de sprite espera que o fifo de tiles não esteja vazio
+    //O buscador de sprite espera até que o buscador de tile termine para começar a sua busca
+    //O primero ciclo do buscador de sprite se sobrepoem ao ultimo ciclo do buscador de tile
+
+    if(ppu->sprite_found_index == 0xFF){
+        for(uint8_t i = 0x00; i < ppu->sprite_buffer_length; ++i){
+            if((int)ppu->sprite_buffer[i].x - 0x08 == ppu->drawn_pixels){
+                ppu->sprite_found_index = i;
+                break;
+            }
+        }
+    }
+
+    if(ppu->sprite_found_index != 0xFF && ppu->tile_fetcher.step >= 0x05 && ppu->tile_fifo.length > 0x00){
+        gb_ppu_sprite_fetcher_step(ppu);
+    }
+    else{
+        gb_ppu_tile_fetcher_step(ppu);
+
+        gb_ppu_render_pixel(ppu);
+    }
+}
+
 
 void gb_ppu_off_clock(gb_ppu_t* ppu){
     if(++ppu->off_cycle >= 70224){
@@ -34,159 +219,31 @@ void gb_ppu_on_clock(gb_ppu_t* ppu){
     
     ppu->cycle++;
 
-    if(ppu->ly < gb_vblank_scanline){
-        switch(ppu->cycle){
-            case 0:{
-                ppu->status.mode = gb_ppu_oam_mode;
-
-                ppu->sprite_buffer_length = 0;
-                ppu->oam_index = 0;
-                break;
-            }
-            case 80:{
-                ppu->status.mode = gb_ppu_drawing_mode;
-
-                ppu->wx_enabled = false;
-
-                ppu->tile_fetcher.step = 0x00;
-                ppu->sprite_fetcher.step = 0x00;
-
-                ppu->sprite_found_index = 0xFF;
-                ppu->fetch_window = false;
-                ppu->fetch_column = 0x00;
-                ppu->drawn_pixels = -0x08 - (ppu->scx & 0x07);
-                ppu->fictitious_fetch = true;
-
-                ppu->tile_fifo.length = 0x08;
-
-                ppu->sprite_fifo.length = 0x00;
-                memset(ppu->sprite_fifo.data,0x00,sizeof(ppu->sprite_fifo.data));
-
-                break;
-            }
-            case 85:{
-                ppu->fictitious_fetch = false;
-                break;
-            }
-            case gb_scanline_cycles:{
-                ppu->cycle = 0;
-                ppu->ly++;
-
-                if(ppu->ly == gb_vblank_scanline){
-                    ppu->frame_count++;
-                    
-                    gb_joypad_update(&ppu->gb->joypad);
-
-                    ppu->status.mode = gb_ppu_vblank_mode;
-                    ppu->gb->interrupt.flag |= gb_interrupt_vblank_flag;
-
-                    ppu->wy_enabled = false;
-                }
-                else{
-                    ppu->status.mode = gb_ppu_oam_mode;
-                    
-                    ppu->sprite_buffer_length = 0;
-                    ppu->oam_index = 0;
-
-                    if(!ppu->wy_enabled){
-                        ppu->wy_enabled = ppu->ly == ppu->wy;
-                    }
-                }
-                break;
-            }
-        }
+    if(ppu->_ly < gb_vblank_scanline){
+        gb_ppu_visible_scanline(ppu);
     }
     else{
-        switch(ppu->cycle){
-            case gb_scanline_cycles:{
-                ppu->cycle = 0;
-                ppu->ly++;
-
-                if(ppu->ly >= gb_scanlines){
-                    ppu->ly = 0;
-
-                    ppu->status.mode = gb_ppu_oam_mode;
-                    ppu->sprite_buffer_length = 0;
-                    ppu->oam_index = 0;
-
-                    ppu->wy_enabled = ppu->ly == ppu->wy;
-                    ppu->window_ly = -1;
-                }
-            }
-            break;
-        }
+        gb_ppu_vblank_scanline(ppu);
     }
 
     if(ppu->status.mode == gb_ppu_oam_mode){
-        if((ppu->cycle & 0x01) && ppu->sprite_buffer_length < 0x0A){
-            uint8_t ly = ppu->ly + 0x10;
-            uint8_t sprite_height = ppu->lcdc.sprite_size ? 0x10 : 0x08;
-            gb_sprite_t* sprite = (gb_sprite_t*)(ppu->oam + (ppu->oam_index << 0x02));
-
-            if(ly >= sprite->y && ly < (sprite->y + sprite_height)){
-                memcpy(ppu->sprite_buffer + ppu->sprite_buffer_length++,sprite,0x04);
-            }
-
-            ppu->oam_index++;
-        }
+        gb_ppu_oam_evaluation(ppu);
     }
-    else if(ppu->status.mode == gb_ppu_drawing_mode && !ppu->fictitious_fetch){
+    else if(ppu->status.mode == gb_ppu_drawing_mode){
 
-        if(!ppu->wx_enabled){
-            ppu->wx_enabled = ppu->drawn_pixels == (ppu->wx - 0x07);
+        gb_ppu_drawing(ppu);
 
-            bool fetch_window = ppu->lcdc.window_enabled && ppu->wx_enabled && ppu->wy_enabled;
-
-            if(ppu->fetch_window != fetch_window){
-                ppu->window_ly++;
-                ppu->tile_fetcher.step = 0;
-                ppu->fetch_window = fetch_window;
-                ppu->fetch_column = 0;
-                ppu->tile_fifo.length = 0;
-            }
-        }
-
-        //O buscador de sprite espera que o fifo de tiles não esteja vazio
-        //O buscador de sprite espera até que o buscador de tile termine para começar a sua busca
-        //O primero ciclo do buscador de sprite se sobrepoem ao ultimo ciclo do buscador de tile
-
-        if(ppu->sprite_found_index == 0xFF){
-            for(uint8_t i = 0x00; i < ppu->sprite_buffer_length; ++i){
-                if((int)ppu->sprite_buffer[i].x - 0x08 == ppu->drawn_pixels){
-                    ppu->sprite_found_index = i;
-                    break;
-                }
-            }
-        }
-
-        if(ppu->sprite_found_index != 0xFF && ppu->tile_fetcher.step >= 0x05 && ppu->tile_fifo.length > 0x00){
-            gb_ppu_sprite_fetcher_step(ppu);
-        }
-        else{
-            gb_ppu_tile_fetcher_step(ppu);
-
-            gb_ppu_render_pixel(ppu);
-        }
-        
         if(ppu->drawn_pixels >= gb_screen_width){
             ppu->status.mode = gb_ppu_hblank_mode;
+
+            ppu->vram_blocked = false;
+            ppu->oam_blocked = false;
         }
     }
 
-    ppu->status.lcy_equals_ly = ppu->ly == ppu->lyc;
+    ppu->status.lcy_equals_ly = ppu->ly == ppu->_lyc;
 
-    bool new_irq_line = (
-        (ppu->status.lcy_equals_ly && ppu->status.lyc_enabled) ||
-        (ppu->status.mode == gb_ppu_hblank_mode && ppu->status.hblank_enabled) ||
-        (ppu->status.mode == gb_ppu_vblank_mode && ppu->status.vblank_enabled) || 
-        (ppu->status.mode == gb_ppu_oam_mode && ppu->status.oam_enabled)
-    );
-
-    if(!ppu->status_irq_line && new_irq_line){
-        ppu->gb->interrupt.flag |= gb_interrupt_lcd_flag;
-    }
-
-    ppu->status_irq_line = new_irq_line;
+    gb_ppu_update_irq_line(ppu);
 
     if(ppu->gb->callback_handles != NULL){
         gb_callback_handler_t* handler = ppu->gb->callback_handles;
@@ -323,7 +380,9 @@ void gb_ppu_render_pixel(gb_ppu_t* ppu){
 
     if(!ppu->tile_fifo.length || ppu->sprite_found_index != 0xFF) return;
 
-    if(ppu->drawn_pixels >= 0){
+    //No primeiro frame apos a PPU ser ligada os pixels não são enviados para a tela segundo o teste firstwhite.gb
+
+    if(ppu->drawn_pixels >= 0 && !ppu->first_frame){
 
         gb_pixel_fifo_entry_t tile = ppu->tile_fifo.data[ppu->tile_fifo.front];
         gb_pixel_fifo_entry_t sprite = ppu->sprite_fifo.data[ppu->sprite_fifo.front];
@@ -372,12 +431,17 @@ void gb_ppu_render_pixel(gb_ppu_t* ppu){
 
 void gb_ppu_write_vram(void* data,uint8_t value,uint16_t address){
     gb_ppu_t* ppu = (gb_ppu_t*)data;
-    ppu->vram_bank_ptr[address & 0x1FFF] = value;
+    if(!ppu->vram_blocked){
+        ppu->vram_bank_ptr[address & 0x1FFF] = value;
+    }
 }
 
 uint8_t gb_ppu_read_vram(void* data,uint16_t address){
     gb_ppu_t* ppu = (gb_ppu_t*)data;
-    return ppu->vram_bank_ptr[address & 0x1FFF];
+    if(!ppu->vram_blocked){
+        return ppu->vram_bank_ptr[address & 0x1FFF];
+    }
+    return 0xFF;
 }
 
 
@@ -398,20 +462,31 @@ void gb_ppu_write_register(void* data,uint8_t value,uint16_t address){
             bool lcd_enabled = value & 0x80;
 
             if(ppu->lcdc.lcd_enabled && !lcd_enabled){
+
                 ppu->lcdc.lcd_enabled = false;
-                
-                ppu->ly = 0;
-                ppu->cycle = -1;
+
+                ppu->status.mode = gb_ppu_hblank_mode;
 
                 gb_ppu_clear_screen(ppu);
                 ppu->off_cycle = ppu->ly * gb_scanline_cycles + ppu->cycle;
+                
+                ppu->ly = 0x00;
+                ppu->_ly = 0x00;
+                ppu->cycle = 0x00;
+
+                ppu->vram_blocked = false;
+                ppu->oam_blocked = false;
 
                 ppu->clock = gb_ppu_off_clock;
             }
             else if(!ppu->lcdc.lcd_enabled && lcd_enabled){
+
                 ppu->lcdc.lcd_enabled = true;
 
-                ppu->status_irq_line = false;
+                //Quando a PPU é ligado a linha 0 é mais curta em 5 T-cycles
+                ppu->cycle = 0x04;
+
+                ppu->first_frame = true;
 
                 ppu->clock = gb_ppu_on_clock;
             }
@@ -433,15 +508,15 @@ void gb_ppu_write_register(void* data,uint8_t value,uint16_t address){
         }
         //SCX
         case 0xFF43:{
-            if(ppu->ly == 0x00 && ppu->lcdc.lcd_enabled){
-                printf("break\n");
-            }
             ppu->scx = value;
             break;
         }
         //LYC
         case 0xFF45:{
             ppu->lyc = value;
+            if(ppu->_lyc != 0xFFFF){
+                ppu->_lyc = ppu->lyc;
+            }
             break;
         }
         //WY
@@ -540,14 +615,14 @@ uint8_t gb_ppu_read_vbk_register(void* data,uint16_t address){
 
 void gb_ppu_write_oam(void* data,uint8_t value,uint16_t address){
     gb_ppu_t* ppu = (gb_ppu_t*)data;
-    if(!ppu->gb->dma.oam_running){
+    if(!ppu->gb->dma.oam_running && !ppu->oam_blocked){
         ppu->oam[address & 0xFF] = value;
     }
 }
 
 uint8_t gb_ppu_read_oam(void* data,uint16_t address){
     gb_ppu_t* ppu = (gb_ppu_t*)data;
-    if(!ppu->gb->dma.oam_running){
+    if(!ppu->gb->dma.oam_running && !ppu->oam_blocked){
         return ppu->oam[address & 0xFF];
     }
     return 0xFF;
@@ -603,8 +678,13 @@ void gb_ppu_reset(gb_ppu_t* ppu){
 
     ppu->scy = 0x00;
     ppu->scx = 0x00;
+    
     ppu->ly = 0x00;
+    ppu->_ly = 0x00;
+    ppu->cycle = 0x00;
+
     ppu->lyc = 0x00;
+    ppu->_lyc = 0x00;
 
     ppu->wy = 0x00;
     ppu->wx = 0x00;
@@ -612,21 +692,38 @@ void gb_ppu_reset(gb_ppu_t* ppu){
     ppu->wx_enabled = false;
     ppu->window_ly = 0x00;
 
+    memset(&ppu->tile_fetcher,0x00,sizeof(ppu->tile_fetcher));
+    memset(&ppu->sprite_fetcher,0x00,sizeof(ppu->sprite_fetcher));
+
+    ppu->sprite_found_index = 0x00;
+    ppu->fetch_window = false;
+    ppu->fetch_column = 0x00;
+    ppu->drawn_pixels = 0x00;
+    ppu->fictitious_fetch = false;
+
     memset(ppu->sprite_buffer,0x00,sizeof(ppu->sprite_buffer));
     ppu->sprite_buffer_length = 0x00;
+
+    memset(&ppu->tile_fifo,0x00,sizeof(ppu->tile_fifo));
+    memset(&ppu->sprite_fifo,0x00,sizeof(ppu->sprite_fifo));
 
     memset(ppu->vram,0x00,sizeof(ppu->vram));
     ppu->vram_bank_ptr = ppu->vram;
     ppu->vram_bank = 0x00;
+    ppu->vram_blocked = false;
 
     memset(ppu->oam,0x00,sizeof(ppu->oam));
-    ppu->oam_index = 0x00;
+    ppu->oam_address = 0x00;
+    ppu->oam_blocked = false;
 
-    ppu->cycle = 0;
+    ppu->status_irq_line = false;
+    
     ppu->off_cycle = 0;
-    ppu->frame_count = 0;
 
-    ppu->clock = gb_ppu_off_clock;
+    ppu->frame_count = 0;
+    ppu->first_frame = false;
 
     gb_ppu_clear_screen(ppu);
+
+    ppu->clock = gb_ppu_off_clock;
 }

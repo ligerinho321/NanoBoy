@@ -31,7 +31,7 @@ void gb_cartridge_init(gb_cartridge_t* cartridge,gb_t* gb){
 bool gb_cartridge_load(gb_cartridge_t* cartridge,const char* path){
     FILE* file = fopen(path,"rb");
     if(!file){
-        PRINTF_ERRNO(fopen);
+        gb_printf_errno(fopen);
         return false;
     }
 
@@ -58,7 +58,7 @@ bool gb_cartridge_load(gb_cartridge_t* cartridge,const char* path){
 
     invalid_rom:
 
-    PRINTF_ERROR("Invalid ROM");
+    gb_printf_error("Invalid ROM");
     
     gb_cartridge_clear(cartridge);
 

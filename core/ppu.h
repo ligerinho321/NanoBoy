@@ -6,22 +6,11 @@
 extern "C" {
 #endif
 
-#define gb_screen_width 160
-#define gb_screen_height 144
-#define gb_screen_bytes_per_pixel 3
-#define gb_screen_pitch 480 //gb_screen_width * gb_screen_bytes_per_pixel
-#define gb_screen_length 69120 //gb_screen_pitch * gb_screen_height
-
-#define gb_vblank_scanline 144
-#define gb_scanlines 154
-#define gb_scanline_cycles 456
-#define gb_frame_cycles 70224
-
 typedef enum _gb_ppu_mode_t {
     gb_ppu_hblank_mode = 0x00,
     gb_ppu_vblank_mode = 0x01,
     gb_ppu_oam_mode = 0x02,
-    gb_ppu_drawing_mode = 0x03
+    gb_ppu_drawing_mode = 0x03,
 } gb_ppu_mode_t;
 
 typedef struct _gb_ppu_lcdc_t {
@@ -74,8 +63,13 @@ typedef struct _gb_ppu_t {
     
     uint8_t scy;
     uint8_t scx;
+    
     uint8_t ly;
+    uint8_t _ly;
+    uint16_t cycle;
+
     uint8_t lyc;
+    uint16_t _lyc;
 
     uint8_t wy;
     uint8_t wx;
@@ -101,24 +95,27 @@ typedef struct _gb_ppu_t {
     uint8_t vram[0x4000];
     uint8_t* vram_bank_ptr;
     uint8_t vram_bank;
+    bool vram_blocked;
+    gb_memory_handler_t vram_handler;
+    gb_memory_handler_t vbk_register_handler;
 
     uint8_t oam[0xA0];
-    uint8_t oam_index;
+    uint8_t oam_address;
+    bool oam_blocked;
+    gb_memory_handler_t oam_handler;
 
     bool status_irq_line;
 
-    uint16_t cycle;
     uint32_t off_cycle;
+
     uint64_t frame_count;
+    bool first_frame;
 
     uint8_t screen[gb_screen_length];
 
     void (*clock)(struct _gb_ppu_t* ppu);
 
-    gb_memory_handler_t vram_handler;
     gb_memory_handler_t register_handler;
-    gb_memory_handler_t vbk_register_handler;
-    gb_memory_handler_t oam_handler;
 } gb_ppu_t;
 
 void gb_ppu_init(gb_ppu_t* ppu,gb_t* gb);

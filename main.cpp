@@ -13,6 +13,14 @@
 #include <string>
 #include <thread>
 
+void texture_clear(SDL_Texture* texture,int height){
+    uint8_t* pixels = nullptr;
+    int pitch = 0;
+    SDL_LockTexture(texture,NULL,(void**)&pixels,&pitch);
+    memset(pixels,0,pitch * height);
+    SDL_UnlockTexture(texture);
+}
+
 constexpr uintmax_t gigabytes = 0x01 << 0x1E;
 constexpr uintmax_t megabytes = 0x01 << 0x14;
 constexpr uintmax_t kilobytes = 0x01 << 0x0A;
@@ -21,7 +29,6 @@ const char* filters_name[2] = {
     "All files",
     "GB ROM files"
 };
-
 
 class file_selector_t {
 public:
@@ -99,6 +106,7 @@ public:
         window_max.x = FLT_MAX;
         window_max.y = FLT_MAX;
     }
+
 
     void set_current_path(std::filesystem::path path){
         current_path = path;
@@ -711,9 +719,6 @@ public:
                     }
                 }
 
-                //ImGui::InputScalar("scx",ImGuiDataType_U8,&scx,&input_scalar_step,&input_scalar_step_fast);
-                //ImGui::InputScalar("scy",ImGuiDataType_U8,&scy,&input_scalar_step,&input_scalar_step_fast);
-
                 ImGui::EndTable();
             }
 
@@ -739,6 +744,33 @@ public:
     }
 };
 
+class wave_form_t {
+    gb_t *gb = nullptr;
+
+    bool open = false;
+
+    wave_form_t(gb_t* _gb):gb(_gb){}
+
+    void render(){
+        if(ImGui::Begin("Wave Form",&open)){
+
+        }
+        ImGui::End();
+    }
+};
+
+class nanoboy_t {
+    gb_t* gb = nullptr;
+
+    nanoboy_t(){
+        gb = gb_new();
+    }
+
+    ~nanoboy_t(){
+        gb_delete(gb);
+    }
+};
+
 
 void joypad_callback(void* data,gb_joypad_key_t* key){
     const uint8_t* keyboard = SDL_GetKeyboardState(NULL);
@@ -752,7 +784,26 @@ void joypad_callback(void* data,gb_joypad_key_t* key){
     key->b = keyboard[SDL_SCANCODE_K];
 }
 
+void audio_callback(void* userdata,uint8_t* data,int len){
+    gb_apu_t* apu = (gb_apu_t*)userdata;
+
+    size_t readable = gb_ring_buffer_readable(&apu->ring_buffer);
+
+    readable = gb_min(len,readable);
+
+    if(readable > 0){
+        gb_ring_buffer_read(&apu->ring_buffer,data,readable);
+
+        if(readable < len){
+            printf("readable: %lu len: %d\n",readable,len);
+        }
+    }
+}
+
 int main(int n_args,char** args){
+
+    gb_t* gb = gb_new();
+    gb_set_joypad_callback(gb,joypad_callback,NULL);
 
     SDL_Init(SDL_INIT_EVERYTHING);
 
@@ -786,11 +837,19 @@ int main(int n_args,char** args){
         window_height - main_menu_bar_height
     };
 
-    gb_t* gb = (gb_t*)malloc(sizeof(gb_t));
-    gb_init(gb);
-    gb_set_joypad_callback(gb,joypad_callback,NULL);
+    SDL_AudioSpec audio_spec = {0};
+    audio_spec.freq = gb_audio_sample_rate;
+    audio_spec.format = AUDIO_S16;
+    audio_spec.channels = gb_audio_channels;
+    audio_spec.samples = gb_audio_buffer_samples;
+    audio_spec.callback = audio_callback;
+    audio_spec.userdata = &gb->apu;
 
-    file_selector_t file_selector(gb);
+    SDL_AudioDeviceID audio_device = SDL_OpenAudioDevice(NULL,0,&audio_spec,NULL,0);
+
+    SDL_PauseAudioDevice(audio_device,0);
+
+    file_selector_t* file_selector = new file_selector_t(gb);
     tilemap_viewer_t* tilemap_viewer = new tilemap_viewer_t(gb,renderer);
 
     bool running = true;
@@ -798,8 +857,6 @@ int main(int n_args,char** args){
     SDL_Event event = {0};
 
     while(running){
-
-        auto start = std::chrono::steady_clock::now();
 
         if(!paused && gb->cartridge_inserted){
             uint64_t frame = gb->ppu.frame_count;
@@ -856,7 +913,7 @@ int main(int n_args,char** args){
         if(ImGui::BeginMainMenuBar()){
             if(ImGui::BeginMenu("File")){
                 if(ImGui::MenuItem("Open File")){
-                    file_selector.opened = true;
+                    file_selector->opened = true;
                 }
                 if(ImGui::MenuItem("Exit")){
                     running = false;
@@ -870,6 +927,10 @@ int main(int n_args,char** args){
                 if(ImGui::MenuItem("Reset","Ctrl+R",nullptr,gb->cartridge_inserted)){
                     gb_reset(gb);
                 }
+                if(ImGui::MenuItem("Power off",nullptr,nullptr,gb->cartridge_inserted)){
+                    gb_remove_cartridge(gb);
+                    texture_clear(screen_texture,gb_screen_height);
+                }
                 ImGui::EndMenu();
             }
             if(ImGui::BeginMenu("Debug")){
@@ -881,7 +942,7 @@ int main(int n_args,char** args){
             ImGui::EndMainMenuBar();
         }
 
-        file_selector.render();
+        file_selector->render();
         
         if(gb->cartridge_inserted){
             tilemap_viewer->render();
@@ -893,22 +954,12 @@ int main(int n_args,char** args){
         SDL_RenderCopy(renderer,screen_texture,NULL,&screen_rect);
         ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer);
         SDL_RenderPresent(renderer);
-
-        auto end = std::chrono::steady_clock::now();
-        auto elapsed = end - start;
-
-        auto frame_time = std::chrono::duration<double>(1.0f / 60.0f);
-        
-        if(elapsed < frame_time){
-            std::this_thread::sleep_for(frame_time - elapsed);
-        }
     }
 
     delete tilemap_viewer;
 
-    free(gb);
+    SDL_CloseAudioDevice(audio_device);
 
-    
     SDL_DestroyTexture(screen_texture);
 
     ImGui_ImplSDLRenderer2_Shutdown();
@@ -918,6 +969,8 @@ int main(int n_args,char** args){
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
+
+    gb_delete(gb);
 
     return 0;
 }

@@ -25,7 +25,7 @@ static inline void gb_timer_set_div(gb_timer_t* timer,uint16_t new_div){
     uint16_t bit = timer->gb->double_speed ? 0x2000 : 0x1000;
 
     if((timer->div & bit) && !(new_div & bit)){
-        gb_apu_frame_sequency_clock(&timer->gb->apu);
+        gb_apu_frame_sequencer_clock(&timer->gb->apu);
     }
 
     timer->div = new_div;

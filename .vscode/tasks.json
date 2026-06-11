@@ -10,11 +10,12 @@
                 "-fansi-escape-codes",
                 "-std=c++17",
                 
-                //"-g",
-                "-O2",
+                "-g",
+                //"-O2",
                 
                 "${workspaceFolder}/main.cpp",
 
+                "${workspaceFolder}/core/blip_buf/blip_buf.c",
                 "${workspaceFolder}/core/mappers/mbc1.c",
                 "${workspaceFolder}/core/mappers/mbc2.c",
                 "${workspaceFolder}/core/mappers/mbc3.c",

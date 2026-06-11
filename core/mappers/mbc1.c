@@ -23,23 +23,27 @@ void gb_mbc1_init(gb_cartridge_t* cartridge,uint8_t flags){
 }
 
 void gb_mbc1_update_mapping(gb_cartridge_t* cartridge){
+
     if(cartridge->mbc1.mode){
         gb_cartridge_set_rom0_bank(cartridge,cartridge->mbc1.bank[1] << (cartridge->mbc1.is_mbc1m ? 0x04 : 0x05));
+        
         if(cartridge->ram_size){
             gb_cartridge_set_ram_bank(cartridge,cartridge->mbc1.bank[1]);
         }
     }
     else{
         gb_cartridge_set_rom0_bank(cartridge,0x00);
+        
         if(cartridge->ram_size){
             gb_cartridge_set_ram_bank(cartridge,0x00);
         }
     }
+
     if(cartridge->mbc1.is_mbc1m){
         gb_cartridge_set_rom1_bank(cartridge,(cartridge->mbc1.bank[1] << 0x04) | (cartridge->mbc1.bank[0] & 0x0F));   
     }
     else{
-        gb_cartridge_set_rom1_bank(cartridge,(cartridge->mbc1.bank[1] << 0x05) | cartridge->mbc1.bank[0]);
+        gb_cartridge_set_rom1_bank(cartridge,(cartridge->mbc1.bank[1] << 0x05) | (cartridge->mbc1.bank[0] & 0x1F));
     }
 }
 

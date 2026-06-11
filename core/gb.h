@@ -54,7 +54,7 @@ typedef struct _gb_t {
     gb_callback_handler_t* callback_handles;
 } gb_t;
 
-void gb_init(gb_t* gb);
+gb_t* gb_new();
 
 void gb_master_clock(gb_t* gb);
 
@@ -75,6 +75,8 @@ void gb_write_opri_register(void* data,uint8_t value,uint16_t address);
 uint8_t gb_read_opri_register(void* data,uint16_t address);
 
 void gb_reset(gb_t* gb);
+
+void gb_delete(gb_t* gb);
 
 #ifdef __cplusplus
 }

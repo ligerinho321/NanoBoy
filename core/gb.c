@@ -1,6 +1,12 @@
 #include "gb.h"
 
-void gb_init(gb_t* gb){
+gb_t* gb_new(){
+    gb_t* gb = (gb_t*)malloc(sizeof(gb_t));
+    
+    if(!gb){
+        gb_printf_errno(malloc);
+        return NULL;
+    }
 
     memset(gb,0x00,sizeof(gb_t));
 
@@ -37,6 +43,8 @@ void gb_init(gb_t* gb){
         gb_read_opri_register,
         gb
     };
+
+    return gb;
 }
 
 
@@ -102,6 +110,8 @@ void gb_master_clock(gb_t* gb){
 
     if(!gb->double_speed || (gb->cycles & 0x01)){
         gb->ppu.clock(&gb->ppu);
+
+        gb_apu_clock(&gb->apu);
     }
 }
 
@@ -145,7 +155,7 @@ void gb_reset(gb_t* gb){
     
     gb_cpu_reset(&gb->cpu);
     gb_ppu_reset(&gb->ppu);
-    gb_apu_reset(&gb->apu);
+    gb_apu_reset(&gb->apu,true);
     gb_joypad_reset(&gb->joypad);
     gb_interrupt_reset(&gb->interrupt);
     gb_timer_reset(&gb->timer);
@@ -158,4 +168,10 @@ void gb_reset(gb_t* gb){
     if(gb->cartridge.reset){
         gb->cartridge.reset(&gb->cartridge);
     }
+}
+
+
+void gb_delete(gb_t* gb){
+    gb_apu_free(&gb->apu);
+    free(gb);
 }

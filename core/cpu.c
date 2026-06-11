@@ -1601,7 +1601,7 @@ void gb_cpu_execute(gb_cpu_t* cpu){
     else{
         gb_master_clock(cpu->gb);
         gb_master_clock(cpu->gb);
-        gb_master_clock(cpu->gb);
+        gb_master_clock(cpu->gb);        
         gb_master_clock(cpu->gb);
 
         if(cpu->gb->interrupt.enable & cpu->gb->interrupt.flag){
