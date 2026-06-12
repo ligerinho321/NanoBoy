@@ -24,38 +24,50 @@ extern "C" {
 
 #define gb_min(x,y) ((x < y) ? x : y)
 
-#define gb_clock_rate 4194304
+#define gb_speed_step 0.25f
+#define gb_speed_min 1.0f
+#define gb_speed_max 10.0f
 
-#define gb_screen_width 160
-#define gb_screen_height 144
-#define gb_screen_bytes_per_pixel 3
-#define gb_screen_pitch 480 // gb_screen_width * gb_screen_bytes_per_pixel
-#define gb_screen_length 69120 // gb_screen_pitch * gb_screen_height
+#define gb_high_pass_factor 0.996013f
 
-#define gb_vblank_scanline 144
-#define gb_scanlines 154
-#define gb_scanline_cycles 456
-#define gb_frame_cycles 70224
+enum{
+    gb_clock_rate = 4194304,
 
-#define gb_audio_sample_rate 44100
-#define gb_audio_bytes_per_sample 2
-#define gb_audio_channels 2
-#define gb_audio_frame_samples 1293 // gb_frame_cycles / (gb_clock_rate / (gb_sample_rate * 1.75))
+    gb_screen_width = 160,
+    gb_screen_height = 144,
+    gb_screen_bytes_per_pixel = 3,
+    gb_screen_pitch = gb_screen_width * gb_screen_bytes_per_pixel,
+    gb_screen_length = gb_screen_pitch * gb_screen_height,
 
-#define gb_audio_buffer_samples (gb_audio_frame_samples * gb_audio_channels)
+    gb_vblank_scanline = 144,
+    gb_scanlines = 154,
+    gb_scanline_cycles = 456,
+    gb_frame_cycles = 70224,
 
-#define gb_ring_buffer_frames 4
-#define gb_ring_buffer_length (gb_audio_frame_samples * gb_audio_channels * gb_audio_bytes_per_sample * gb_ring_buffer_frames + 1)
+    gb_audio_sample_rate = 44100,
+    gb_audio_bytes_per_sample = sizeof(int16_t),
+    gb_audio_channels = 2,
+    gb_audio_frame_samples = 739, // gb_frame_cycles / (gb_clock_rate / gb_sample_rate)
+
+    gb_audio_channel_volume_shift = 5,
+    gb_audio_channel_min_output = -8 << gb_audio_channel_volume_shift,
+    gb_audio_channel_max_output = +7 << gb_audio_channel_volume_shift,
+
+    gb_audio_mixer_buffer_samples = gb_audio_frame_samples * gb_audio_channels,
+
+    gb_ring_buffer_frames = 2,
+    gb_ring_buffer_size = gb_audio_mixer_buffer_samples * gb_audio_bytes_per_sample * gb_ring_buffer_frames
+};
 
 typedef struct _gb_t gb_t;
 
-typedef struct _gb_callback_handler_t {
+typedef struct _gb_ppu_callback_handler_t {
     void (*callback)(void* data);
     void* data;
     uint8_t scanline;
     uint16_t cycle;
-    struct _gb_callback_handler_t* next;
-} gb_callback_handler_t;
+    struct _gb_ppu_callback_handler_t* next;
+} gb_ppu_callback_handler_t;
 
 typedef struct _gb_memory_handler_t {
     void (*write)(void*,uint8_t,uint16_t);
@@ -81,10 +93,13 @@ void gb_pixel_fifo_pop(gb_pixel_fifo_t* fifo);
 
 
 typedef struct _gb_ring_buffer_t {
-    uint8_t data[gb_ring_buffer_length];
+    uint8_t *data;
+    size_t size;
     atomic_size_t read;
     atomic_size_t write;
 } gb_ring_buffer_t;
+
+void gb_ring_buffer_init(gb_ring_buffer_t* ring_buffer,size_t size);
 
 size_t gb_ring_buffer_writeable(gb_ring_buffer_t* ring_buffer);
 
@@ -95,6 +110,9 @@ size_t gb_ring_buffer_write(gb_ring_buffer_t* ring_buffer,const uint8_t* src,siz
 size_t gb_ring_buffer_read(gb_ring_buffer_t* ring_buffer,uint8_t* dst,size_t len);
 
 void gb_ring_buffer_clear(gb_ring_buffer_t* ring_buffer);
+
+void gb_ring_buffer_free(gb_ring_buffer_t* ring_buffer);
+
 
 void gb_sleep(int ms);
 

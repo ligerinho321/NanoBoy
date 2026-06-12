@@ -208,51 +208,53 @@ void gb_ppu_drawing(gb_ppu_t* ppu){
 }
 
 
-void gb_ppu_off_clock(gb_ppu_t* ppu){
-    if(++ppu->off_cycle >= 70224){
-        ppu->off_cycle = 0;
+void gb_ppu_off_clock(gb_ppu_t* ppu,int cycles){
+    ppu->off_cycle += cycles;
+    while(ppu->off_cycle >= gb_frame_cycles){
+        ppu->off_cycle -= gb_frame_cycles;
         ppu->frame_count++;
     }
 }
 
-void gb_ppu_on_clock(gb_ppu_t* ppu){
-    
-    ppu->cycle++;
+void gb_ppu_on_clock(gb_ppu_t* ppu,int cycles){
+    while(cycles--){
+        ppu->cycle++;
 
-    if(ppu->_ly < gb_vblank_scanline){
-        gb_ppu_visible_scanline(ppu);
-    }
-    else{
-        gb_ppu_vblank_scanline(ppu);
-    }
-
-    if(ppu->status.mode == gb_ppu_oam_mode){
-        gb_ppu_oam_evaluation(ppu);
-    }
-    else if(ppu->status.mode == gb_ppu_drawing_mode){
-
-        gb_ppu_drawing(ppu);
-
-        if(ppu->drawn_pixels >= gb_screen_width){
-            ppu->status.mode = gb_ppu_hblank_mode;
-
-            ppu->vram_blocked = false;
-            ppu->oam_blocked = false;
+        if(ppu->_ly < gb_vblank_scanline){
+            gb_ppu_visible_scanline(ppu);
         }
-    }
+        else{
+            gb_ppu_vblank_scanline(ppu);
+        }
 
-    ppu->status.lcy_equals_ly = ppu->ly == ppu->_lyc;
+        if(ppu->status.mode == gb_ppu_oam_mode){
+            gb_ppu_oam_evaluation(ppu);
+        }
+        else if(ppu->status.mode == gb_ppu_drawing_mode){
 
-    gb_ppu_update_irq_line(ppu);
+            gb_ppu_drawing(ppu);
 
-    if(ppu->gb->callback_handles != NULL){
-        gb_callback_handler_t* handler = ppu->gb->callback_handles;
-        do{
-            if(handler->scanline == ppu->ly && handler->cycle == ppu->cycle){
-                handler->callback(handler->data);
+            if(ppu->drawn_pixels >= gb_screen_width){
+                ppu->status.mode = gb_ppu_hblank_mode;
+
+                ppu->vram_blocked = false;
+                ppu->oam_blocked = false;
             }
-            handler = handler->next;
-        }while(handler != NULL);
+        }
+
+        ppu->status.lcy_equals_ly = ppu->ly == ppu->_lyc;
+
+        gb_ppu_update_irq_line(ppu);
+
+        if(ppu->gb->callback_handles != NULL){
+            gb_ppu_callback_handler_t* handler = ppu->gb->callback_handles;
+            do{
+                if(handler->scanline == ppu->ly && handler->cycle == ppu->cycle){
+                    handler->callback(handler->data);
+                }
+                handler = handler->next;
+            }while(handler != NULL);
+        }
     }
 }
 

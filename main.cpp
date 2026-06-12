@@ -458,7 +458,7 @@ private:
     gb_rgb_t cgb_bg_cram_converted[0x20] = {0};
     uint8_t vram[0x4000] = {0};
 
-    gb_callback_handler_t callback_handler = {callback,this,gb_vblank_scanline,0};
+    gb_ppu_callback_handler_t callback_handler = {callback,this,gb_vblank_scanline,0};
 public:
 
     bool open = false;
@@ -476,11 +476,11 @@ public:
 
         input_scalar_width = ImGui::CalcTextSize("000").x + style.FramePadding.x * 2.0f + (ImGui::GetFrameHeight() + style.ItemInnerSpacing.x) * 2.0f;
 
-        gb_add_callback(gb,&callback_handler);
+        gb_add_ppu_callback(gb,&callback_handler);
     }
 
     ~tilemap_viewer_t(){
-        gb_remove_callback(gb,&callback_handler);
+        gb_remove_ppu_callback(gb,&callback_handler);
 
         SDL_DestroyTexture(tilemap_texture[0]);
         SDL_DestroyTexture(tilemap_texture[1]);
@@ -745,14 +745,125 @@ public:
 };
 
 class wave_form_t {
+public:
     gb_t *gb = nullptr;
 
     bool open = false;
 
-    wave_form_t(gb_t* _gb):gb(_gb){}
+    struct channel_frame_t {
+        int16_t samples[gb_audio_frame_samples];
+        int count;
+    };
+
+    channel_frame_t square1 = {0};
+    channel_frame_t square2 = {0};
+    channel_frame_t wave = {0};
+    channel_frame_t noise = {0};
+
+    wave_form_t(gb_t* _gb):gb(_gb){
+        gb_set_apu_callback(gb,frame_callback,this);
+    }
+
+    ~wave_form_t(){
+        gb_remove_apu_callback(gb);
+    }
+
+    static void frame_callback(void* data){
+        wave_form_t* wf = (wave_form_t*)data;
+        gb_apu_t* apu = &wf->gb->apu;
+
+        memcpy(wf->square1.samples,apu->square1_frame.samples,sizeof(wf->square1.samples));
+        wf->square1.count = apu->square1_frame.samples_count;
+
+        memcpy(wf->square2.samples,apu->square2_frame.samples,sizeof(wf->square2.samples));
+        wf->square2.count = apu->square2_frame.samples_count;
+
+        memcpy(wf->wave.samples,apu->wave_frame.samples,sizeof(wf->wave.samples));
+        wf->wave.count = apu->wave_frame.samples_count;
+
+        memcpy(wf->noise.samples,apu->noise_frame.samples,sizeof(wf->noise.samples));
+        wf->noise.count = apu->noise_frame.samples_count;
+    }
+
+    static float get_sample(void* data,int idx){
+        channel_frame_t* cf = (channel_frame_t*)data;
+        return (float)cf->samples[idx]; 
+    }
 
     void render(){
+        if(!open) return;
+
         if(ImGui::Begin("Wave Form",&open)){
+
+            ImGuiStyle& style = ImGui::GetStyle();
+            ImVec2 table_size = ImGui::GetContentRegionAvail();
+            float row_height = table_size.y / 2.0f;
+            ImVec2 graph_size = ImVec2(-FLT_MIN,row_height - ImGui::GetFrameHeight() - style.CellPadding.y * 2.0f - style.ItemSpacing.y);
+
+            if(ImGui::BeginTable("WavesTable",2,ImGuiTableFlags_None,table_size)){
+
+                ImGui::TableNextRow();
+
+                ImGui::TableNextColumn();
+                ImGui::Checkbox("Square1",&gb->apu.square1_external_enabled);
+                ImGui::PlotLines(
+                    "##GraphSquare1",
+                    get_sample,
+                    &square1,
+                    square1.count,
+                    0,
+                    nullptr,
+                    gb_audio_channel_min_output,
+                    gb_audio_channel_max_output,
+                    graph_size
+                );
+
+                ImGui::TableNextColumn();
+                ImGui::Checkbox("Square2",&gb->apu.square2_external_enabled);
+                ImGui::PlotLines(
+                    "##GraphSquare2",
+                    get_sample,
+                    &square2,
+                    square2.count,
+                    0,
+                    nullptr,
+                    gb_audio_channel_min_output,
+                    gb_audio_channel_max_output,
+                    graph_size
+                );
+
+                ImGui::TableNextRow();
+
+                ImGui::TableNextColumn();
+                ImGui::Checkbox("Wave",&gb->apu.wave_external_enabled);
+                ImGui::PlotLines(
+                    "##GraphWave",
+                    get_sample,
+                    &wave,
+                    wave.count,
+                    0,
+                    nullptr,
+                    gb_audio_channel_min_output,
+                    gb_audio_channel_max_output,
+                    graph_size
+                );
+
+                ImGui::TableNextColumn();
+                ImGui::Checkbox("Noise",&gb->apu.noise_external_enabled);
+                ImGui::PlotLines(
+                    "##GraphNoise",
+                    get_sample,
+                    &noise,
+                    noise.count,
+                    0,
+                    nullptr,
+                    gb_audio_channel_min_output,
+                    gb_audio_channel_max_output,
+                    graph_size
+                );
+                
+                ImGui::EndTable();
+            }
 
         }
         ImGui::End();
@@ -793,10 +904,9 @@ void audio_callback(void* userdata,uint8_t* data,int len){
 
     if(readable > 0){
         gb_ring_buffer_read(&apu->ring_buffer,data,readable);
-
-        if(readable < len){
-            printf("readable: %lu len: %d\n",readable,len);
-        }
+    }
+    else{
+        memset(data,0,len);
     }
 }
 
@@ -810,7 +920,7 @@ int main(int n_args,char** args){
     int window_width = 640;
     int window_height = 480;
 
-    SDL_Window* window = SDL_CreateWindow("NanoBoy",SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,640,480,SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+    SDL_Window* window = SDL_CreateWindow("NanoBoy - (0.0 fps)",SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,640,480,SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
     SDL_Renderer* renderer = SDL_CreateRenderer(window,-1,SDL_RENDERER_ACCELERATED);
 
     ImGui::CreateContext();
@@ -841,7 +951,7 @@ int main(int n_args,char** args){
     audio_spec.freq = gb_audio_sample_rate;
     audio_spec.format = AUDIO_S16;
     audio_spec.channels = gb_audio_channels;
-    audio_spec.samples = gb_audio_buffer_samples;
+    audio_spec.samples = 512;
     audio_spec.callback = audio_callback;
     audio_spec.userdata = &gb->apu;
 
@@ -851,10 +961,15 @@ int main(int n_args,char** args){
 
     file_selector_t* file_selector = new file_selector_t(gb);
     tilemap_viewer_t* tilemap_viewer = new tilemap_viewer_t(gb,renderer);
+    wave_form_t* wave_form = new wave_form_t(gb);
 
     bool running = true;
     bool paused = false;
     SDL_Event event = {0};
+
+    uint32_t frame_count = 0;
+    auto last_time = std::chrono::steady_clock::now();
+    char buffer[256] = {0};
 
     while(running){
 
@@ -898,6 +1013,14 @@ int main(int n_args,char** args){
                             if(event.key.keysym.scancode == SDL_SCANCODE_ESCAPE){
                                 paused = !paused;
                             }
+                            else if(event.key.keysym.scancode == SDL_SCANCODE_EQUALS){
+                                gb_set_speed(gb,gb->speed + gb_speed_step);
+                                printf("speed: %f\n",gb->speed);
+                            }
+                            else if(event.key.keysym.scancode == SDL_SCANCODE_MINUS){
+                                gb_set_speed(gb,gb->speed - gb_speed_step);
+                                printf("speed: %f\n",gb->speed);
+                            }
                         }
                     }
                     break;
@@ -927,9 +1050,18 @@ int main(int n_args,char** args){
                 if(ImGui::MenuItem("Reset","Ctrl+R",nullptr,gb->cartridge_inserted)){
                     gb_reset(gb);
                 }
+                if(ImGui::MenuItem("Increase speed","=",nullptr,gb->cartridge_inserted)){
+                    gb_set_speed(gb,gb->speed + gb_speed_step);
+                }
+                if(ImGui::MenuItem("Decrease speed","-",nullptr,gb->cartridge_inserted)){
+                    gb_set_speed(gb,gb->speed - gb_speed_step);
+                }
                 if(ImGui::MenuItem("Power off",nullptr,nullptr,gb->cartridge_inserted)){
                     gb_remove_cartridge(gb);
                     texture_clear(screen_texture,gb_screen_height);
+                    
+                    tilemap_viewer->open = false;
+                    wave_form->open = false;
                 }
                 ImGui::EndMenu();
             }
@@ -937,16 +1069,17 @@ int main(int n_args,char** args){
                 if(ImGui::MenuItem("Tilemap Viewer",nullptr,nullptr,gb->cartridge_inserted)){
                     tilemap_viewer->open = true;
                 }
+                if(ImGui::MenuItem("Wave Form",nullptr,nullptr,gb->cartridge_inserted)){
+                    wave_form->open = true;
+                }
                 ImGui::EndMenu();
             }
             ImGui::EndMainMenuBar();
         }
 
         file_selector->render();
-        
-        if(gb->cartridge_inserted){
-            tilemap_viewer->render();
-        }
+        tilemap_viewer->render();
+        wave_form->render();
 
         ImGui::Render();
 
@@ -954,9 +1087,23 @@ int main(int n_args,char** args){
         SDL_RenderCopy(renderer,screen_texture,NULL,&screen_rect);
         ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer);
         SDL_RenderPresent(renderer);
+
+        frame_count++;
+        auto current_time = std::chrono::steady_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(current_time - last_time);
+        
+        if(elapsed.count() > 1000){
+            last_time = current_time;
+            float fps = frame_count / (elapsed.count() / 1000.0f);
+            snprintf(buffer,sizeof(buffer),"NanoBoy - (%.1f fps)",fps);
+            SDL_SetWindowTitle(window,buffer);
+            frame_count = 0;
+        }
     }
 
+    delete wave_form;
     delete tilemap_viewer;
+    delete file_selector;
 
     SDL_CloseAudioDevice(audio_device);
 

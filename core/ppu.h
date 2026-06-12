@@ -113,7 +113,7 @@ typedef struct _gb_ppu_t {
 
     uint8_t screen[gb_screen_length];
 
-    void (*clock)(struct _gb_ppu_t* ppu);
+    void (*clock)(struct _gb_ppu_t* ppu,int cycles);
 
     gb_memory_handler_t register_handler;
 } gb_ppu_t;

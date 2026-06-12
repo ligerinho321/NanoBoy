@@ -11,6 +11,7 @@ gb_t* gb_new(){
     memset(gb,0x00,sizeof(gb_t));
 
     gb->type = gb_dmg;
+    gb->speed = 1.0f;
     gb->cartridge_inserted = false;
     
     gb_cpu_init(&gb->cpu,gb);
@@ -61,9 +62,9 @@ void gb_remove_cartridge(gb_t* gb){
 }
 
 
-void gb_add_callback(gb_t* gb,gb_callback_handler_t* callback){
+void gb_add_ppu_callback(gb_t* gb,gb_ppu_callback_handler_t* callback){
     if(gb->callback_handles != NULL){
-        gb_callback_handler_t* ptr = gb->callback_handles;
+        gb_ppu_callback_handler_t* ptr = gb->callback_handles;
         while(ptr->next != NULL){
             if(ptr == callback) return;
             ptr = ptr->next;
@@ -76,15 +77,15 @@ void gb_add_callback(gb_t* gb,gb_callback_handler_t* callback){
     }
 }
 
-void gb_remove_callback(gb_t* gb,gb_callback_handler_t* callback){
+void gb_remove_ppu_callback(gb_t* gb,gb_ppu_callback_handler_t* callback){
     if(gb->callback_handles == NULL) return;
 
     if(gb->callback_handles == callback){
         gb->callback_handles = callback->next;
     }
     else{
-        gb_callback_handler_t* prev = NULL;
-        gb_callback_handler_t* current = gb->callback_handles;
+        gb_ppu_callback_handler_t* prev = NULL;
+        gb_ppu_callback_handler_t* current = gb->callback_handles;
         while(current->next != NULL){
             prev = current;
             current = current->next;
@@ -95,24 +96,37 @@ void gb_remove_callback(gb_t* gb,gb_callback_handler_t* callback){
     }
 }
 
-void gb_set_joypad_callback(gb_t* gb,gb_joypad_callback_t callback,void* data){
-    gb->joypad.callback = callback;
-    gb->joypad.data = data;
+
+void gb_set_apu_callback(gb_t* gb,gb_apu_callback_t callback,void* data){
+    gb->apu.callback = callback;
+    gb->apu.callback_data = data;
 }
 
-void gb_master_clock(gb_t* gb){
-    gb->cycles++;
-    
-    if((gb->cycles & 0x03) == 0x03){
-        gb_dma_oam_clock(&gb->dma);
-        gb_timer_clock(&gb->timer);
-    }
+void gb_remove_apu_callback(gb_t* gb){
+    gb->apu.callback = NULL;
+    gb->apu.callback_data = NULL;
+}
 
-    if(!gb->double_speed || (gb->cycles & 0x01)){
-        gb->ppu.clock(&gb->ppu);
 
-        gb_apu_clock(&gb->apu);
-    }
+void gb_set_joypad_callback(gb_t* gb,gb_joypad_callback_t callback,void* data){
+    gb->joypad.callback = callback;
+    gb->joypad.callback_data = data;
+}
+
+
+void gb_set_speed(gb_t* gb,float new_speed){
+    if(new_speed < gb_speed_min || new_speed > gb_speed_max) return;
+    gb->speed = new_speed;
+    gb_apu_update_rates(&gb->apu);
+}
+
+
+void gb_machine_cycle(gb_t* gb){
+    gb->cycles += 4;
+    gb->apu.cycles += gb->double_speed ? 2 : 4;
+    gb->ppu.clock(&gb->ppu,gb->double_speed ? 2 : 4);
+    gb_dma_oam_clock(&gb->dma);
+    gb_timer_clock(&gb->timer);
 }
 
 

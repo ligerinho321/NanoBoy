@@ -31,7 +31,7 @@ typedef struct _gb_joypad_t {
     bool current_edge;
 
     gb_joypad_callback_t callback;
-    void* data;
+    void* callback_data;
 
     gb_memory_handler_t register_handler;
 } gb_joypad_t;

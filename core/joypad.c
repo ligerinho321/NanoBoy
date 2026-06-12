@@ -4,9 +4,6 @@
 void gb_joypad_init(gb_joypad_t* joypad,gb_t* gb){
     joypad->gb = gb;
 
-    joypad->callback = NULL;
-    joypad->data = NULL;
-
     gb_joypad_map_registers(joypad);
 }
 
@@ -15,7 +12,7 @@ void gb_joypad_update(gb_joypad_t* joypad){
 
     gb_joypad_key_t new_key = {0};
 
-    joypad->callback(joypad->data,&new_key);
+    joypad->callback(joypad->callback_data,&new_key);
 
     bool new_edge = false;
 

@@ -3,16 +3,10 @@
 
 #define gb_cpu_set_flag(flag,state) (state) ? (cpu->f |= (flag)) : (cpu->f &= ~(flag))
 
+#define gb_cpu_cycle(cpu) gb_machine_cycle((cpu)->gb)
+
 void gb_cpu_init(gb_cpu_t* cpu,gb_t* gb){
     cpu->gb = gb;
-}
-
-
-void gb_cpu_cycle(gb_cpu_t* cpu){
-    gb_master_clock(cpu->gb);
-    gb_master_clock(cpu->gb);
-    gb_master_clock(cpu->gb);
-    gb_master_clock(cpu->gb);
 }
 
 
@@ -1599,10 +1593,7 @@ void gb_cpu_execute(gb_cpu_t* cpu){
         }
     }
     else{
-        gb_master_clock(cpu->gb);
-        gb_master_clock(cpu->gb);
-        gb_master_clock(cpu->gb);        
-        gb_master_clock(cpu->gb);
+        gb_cpu_cycle(cpu);
 
         if(cpu->gb->interrupt.enable & cpu->gb->interrupt.flag){
             cpu->halted = false;
