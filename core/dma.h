@@ -6,6 +6,13 @@
 extern "C" {
 #endif
 
+typedef enum _gb_oam_dma_state_t {
+    gb_oam_dma_state_none,
+    gb_oam_dma_state_delay,
+    gb_oam_dma_state_setup,
+    gb_oam_dma_state_transfer
+} gb_oam_dma_state_t;
+
 typedef struct _gb_dma_t {
     gb_t* gb;
 
@@ -16,6 +23,10 @@ typedef struct _gb_dma_t {
     uint8_t oam_counter;
     uint8_t oam_byte;
 
+    uint16_t vram_src;
+    uint16_t vram_dst;
+    uint8_t vram_control;
+
     gb_memory_handler_t oam_register_handler;
     gb_memory_handler_t vram_register_handler;
 } gb_dma_t;
@@ -23,7 +34,7 @@ typedef struct _gb_dma_t {
 
 void gb_dma_init(gb_dma_t* dma,gb_t* gb);
 
-void gb_dma_oam_clock(gb_dma_t* dma);
+void gb_oam_dma_clock(gb_dma_t* dma);
 
 bool gb_dma_oam_bus_conflict(gb_dma_t* dma,uint16_t address);
 

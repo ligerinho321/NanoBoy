@@ -15,6 +15,7 @@ void gb_memory_init(gb_memory_t* memory,gb_t* gb){
     };
 }
 
+
 void gb_memory_write(gb_memory_t* memory,uint8_t value,uint16_t address){
     gb_memory_handler_t* handler = memory->bus[address];
 
@@ -40,6 +41,14 @@ uint8_t gb_memory_read(gb_memory_t* memory,uint16_t address){
     return 0xFF;
 }
 
+void gb_memory_dma_write(gb_memory_t* memory,uint8_t value,uint16_t address){
+    gb_memory_handler_t* handler = memory->bus[address];
+
+    if(handler && handler->write){
+        handler->write(handler->data,value,address);
+    }
+    
+}
 uint8_t gb_memory_dma_read(gb_memory_t* memory,uint16_t address){
     gb_memory_handler_t* handler = memory->bus[address];
 
@@ -53,6 +62,7 @@ uint8_t gb_memory_dma_read(gb_memory_t* memory,uint16_t address){
 
 void gb_memory_map(gb_memory_t* memory,gb_memory_handler_t* handler,uint32_t start,uint32_t end){
     gb_memory_handler_t** bus = memory->bus;
+    
     while(start <= end) bus[start++] = handler;
 }
 
@@ -133,47 +143,6 @@ void gb_memory_write_wbk_register(void* data,uint8_t value,uint16_t address){
 uint8_t gb_memory_read_wbk_register(void* data,uint16_t address){
     gb_memory_t* memory = (gb_memory_t*)data;
     return 0xF8 | (memory->wram_bank & 0x07);
-}
-
-
-void gb_memory_map_cgb_registers(gb_memory_t* memory){
-    gb_memory_handler_t** bus = memory->bus;
-    //KEY0
-    bus[0xFF4C] = &memory->gb->key0_register_handler;
-    //KEY1
-    bus[0xFF4D] = &memory->gb->key1_register_handler;
-    //VBK
-    bus[0xFF4F] = &memory->gb->ppu.vbk_register_handler;
-    //VRAM DMA
-    gb_dma_vram_map_registers(&memory->gb->dma);
-    //Palette
-    gb_palette_map_cgb_registers(&memory->gb->palette);
-    //OPRI
-    bus[0xFF6C] = &memory->gb->opri_register_handler;
-    //WBK
-    bus[0xFF70] = &memory->wbk_register_handler;
-    //PCM
-    gb_apu_map_pcm_registers(&memory->gb->apu);
-}
-
-void gb_memory_unmap_cgb_registers(gb_memory_t* memory){
-    gb_memory_handler_t** bus = memory->bus;
-    //KEY0
-    bus[0xFF4C] = NULL;
-    //KEY1
-    bus[0xFF4D] = NULL;
-    //VBK
-    bus[0xFF4F] = NULL;
-    //VRAM DMA
-    gb_dma_vram_unmap_registers(&memory->gb->dma);
-    //Palette
-    gb_palette_unmap_cgb_registers(&memory->gb->palette);
-    //OPRI
-    bus[0xFF6C] = NULL;
-    //WBK
-    bus[0xFF70] = NULL;
-    //PCM
-    gb_apu_unmap_pcm_registers(&memory->gb->apu);
 }
 
 

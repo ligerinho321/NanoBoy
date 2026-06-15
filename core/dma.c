@@ -1,11 +1,6 @@
 #include "dma.h"
 #include "gb.h"
 
-#define DMA_OAM_STATE_NONE 0x00
-#define DMA_OAM_STATE_DELAY 0x01
-#define DMA_OAM_STATE_SETUP 0x02
-#define DMA_OAM_STATE_TRANSFER 0x03
-
 void gb_dma_init(gb_dma_t* dma,gb_t* gb){
     dma->gb = gb;
 
@@ -19,25 +14,25 @@ void gb_dma_init(gb_dma_t* dma,gb_t* gb){
 }
 
 
-void gb_dma_oam_clock(gb_dma_t* dma){
-    if(dma->oam_state == DMA_OAM_STATE_NONE || dma->gb->cpu.halted) return;
-
+void gb_oam_dma_clock(gb_dma_t* dma){
+    if(dma->oam_state == gb_oam_dma_state_none || dma->gb->cpu.halted) return;
+    
     switch(dma->oam_state){
-        case DMA_OAM_STATE_DELAY:{
-            dma->oam_state = DMA_OAM_STATE_SETUP;
+        case gb_oam_dma_state_delay:{
+            dma->oam_state = gb_oam_dma_state_setup;
             break;
         }
-        case DMA_OAM_STATE_SETUP:{
+        case gb_oam_dma_state_setup:{
             dma->oam_byte = gb_memory_dma_read(&dma->gb->memory,dma->oam_hi_addr | dma->oam_counter);
-            dma->oam_state = DMA_OAM_STATE_TRANSFER;
+            dma->oam_state = gb_oam_dma_state_transfer;
             dma->oam_running = true;
             break;
         }
-        case DMA_OAM_STATE_TRANSFER:{
+        case gb_oam_dma_state_transfer:{
             dma->gb->ppu.oam[dma->oam_counter] = dma->oam_byte;
 
             if(++dma->oam_counter >= 0xA0){
-                dma->oam_state = DMA_OAM_STATE_NONE;
+                dma->oam_state = gb_oam_dma_state_none;
                 dma->oam_running = false;
             }
             else{
@@ -78,7 +73,7 @@ void gb_dma_oam_write_register(void* data,uint8_t value,uint16_t address){
 
     dma->oam_src = value;
 
-    dma->oam_state = DMA_OAM_STATE_DELAY;
+    dma->oam_state = gb_oam_dma_state_delay;
 
     dma->oam_hi_addr = value << 0x08;
     if(dma->oam_hi_addr > 0xFD00){
@@ -97,11 +92,46 @@ void gb_dma_vram_write_register(void* data,uint8_t value,uint16_t address){
     gb_dma_t* dma = (gb_dma_t*)data;
 
     switch(address){
-        case 0xFF51: break;
-        case 0xFF52: break;
-        case 0xFF53: break;
-        case 0xFF54: break;
-        case 0xFF55: break;
+        //Src msb
+        case 0xFF51: dma->vram_src = (value << 0x08) | (dma->vram_src & 0xF0); break;
+        //Src lsb
+        case 0xFF52: dma->vram_src = (dma->vram_src & 0xFF00) | (value & 0xF0); break;
+        //Dst msb
+        case 0xFF53: dma->vram_dst = ((value & 0x1F) << 0x08) | (dma->vram_dst & 0xF0); break;
+        //Dst lsb
+        case 0xFF54: dma->vram_dst = (dma->vram_dst & 0x1F00) | (value & 0xF0); break;
+        //Control
+        case 0xFF55:
+            uint16_t len = ((value & 0x7F) + 0x01) << 0x04;
+
+            //Hblank
+            if(value & 0x80){
+                printf("VRAM HBLANK DMA SRC: %04X DST: %04X LEN: %04X\n",dma->vram_src,dma->vram_dst,len);
+            }
+            //General
+            else{
+                printf("VRAM GENERAL DMA SRC: %04X DST: %04X LEN: %04X\n",dma->vram_src,dma->vram_dst,len);
+
+                gb_t* gb = dma->gb;
+                gb_memory_t* memory = &dma->gb->memory;
+
+                for(uint16_t i = 0; i < len; ++i){
+
+                    if(gb->double_speed){
+                        gb_machine_cycle(gb);
+                    }
+                    else{
+                        gb_half_machine_cycle(gb);
+                    }
+                    
+                    uint8_t byte = gb_memory_dma_read(memory,dma->vram_src + i);
+
+                    gb_memory_dma_write(memory,byte,dma->vram_dst + i);
+                }
+
+                dma->vram_control = 0xFF;
+            }
+            break;
     }
 }
 
@@ -111,7 +141,7 @@ uint8_t gb_dma_vram_read_register(void* data,uint16_t address){
     uint8_t value = 0xFF;
 
     if(address == 0xFF55){
-
+        value = dma->vram_control;
     }
 
     return value;
@@ -152,11 +182,15 @@ void gb_dma_vram_unmap_registers(gb_dma_t* dma){
 
 
 void gb_dma_reset(gb_dma_t* dma){
-    dma->oam_state = DMA_OAM_STATE_NONE;
+    dma->oam_state = gb_oam_dma_state_none;
     dma->oam_running = false;
 
     dma->oam_src = 0x00;
     dma->oam_hi_addr = 0x00;
     dma->oam_counter = 0x00;
     dma->oam_byte = 0x00;
+
+    dma->vram_src = 0x00;
+    dma->vram_dst = 0x00;
+    dma->vram_control = 0x00;
 }

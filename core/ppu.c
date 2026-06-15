@@ -18,11 +18,11 @@ void gb_ppu_init(gb_ppu_t* ppu,gb_t* gb){
 }
 
 
-void gb_ppu_clear_screen(gb_ppu_t* ppu){
+static inline void gb_ppu_clear_screen(gb_ppu_t* ppu){
     memset(ppu->screen,0xFF,sizeof(ppu->screen));
 }
 
-void gb_ppu_init_line_renderer(gb_ppu_t* ppu){
+static inline void gb_ppu_init_line_renderer(gb_ppu_t* ppu){
     ppu->wx_enabled = false;
 
     ppu->tile_fetcher.step = 0x00;
@@ -40,7 +40,7 @@ void gb_ppu_init_line_renderer(gb_ppu_t* ppu){
     memset(ppu->sprite_fifo.data,0x00,sizeof(ppu->sprite_fifo.data));
 }
 
-void gb_ppu_visible_scanline(gb_ppu_t* ppu){
+static inline void gb_ppu_visible_scanline(gb_ppu_t* ppu){
     switch(ppu->cycle){
         case 4:{
             ppu->_lyc = ppu->lyc;
@@ -83,7 +83,7 @@ void gb_ppu_visible_scanline(gb_ppu_t* ppu){
     }
 }
 
-void gb_ppu_vblank_scanline(gb_ppu_t* ppu){
+static inline void gb_ppu_vblank_scanline(gb_ppu_t* ppu){
     switch(ppu->cycle){
         case 4:{
             ppu->_lyc = ppu->lyc;
@@ -91,6 +91,7 @@ void gb_ppu_vblank_scanline(gb_ppu_t* ppu){
             if(ppu->_ly == 144){
                 ppu->frame_count++;
                 ppu->first_frame = false;
+                ppu->pixel_ptr = ppu->screen;
 
                 gb_joypad_update(&ppu->gb->joypad);
 
@@ -134,7 +135,7 @@ void gb_ppu_vblank_scanline(gb_ppu_t* ppu){
     }
 }
 
-void gb_ppu_update_irq_line(gb_ppu_t* ppu){
+static inline void gb_ppu_update_irq_line(gb_ppu_t* ppu){
     
     //No primeiro frame quando a PPU é ligada a primeira scanline começa no modo 0 inves do 2 e vai diretamente para o 3
     //e durante o modo 0 mesmo que STAT bit3 esteja definido STAT IF não é ativado
@@ -153,7 +154,7 @@ void gb_ppu_update_irq_line(gb_ppu_t* ppu){
     ppu->status_irq_line = new_irq_line;
 }
 
-void gb_ppu_oam_evaluation(gb_ppu_t* ppu){
+static inline void gb_ppu_oam_evaluation(gb_ppu_t* ppu){
     if(!(ppu->cycle & 0x01) || ppu->sprite_buffer_length >= 0x0A) return;
 
     uint8_t ly = ppu->ly + 0x10;
@@ -167,99 +168,8 @@ void gb_ppu_oam_evaluation(gb_ppu_t* ppu){
     ppu->oam_address += 0x04;
 }
 
-void gb_ppu_drawing(gb_ppu_t* ppu){
-    if(ppu->fictitious_fetch) return;
 
-    if(!ppu->wx_enabled){
-        ppu->wx_enabled = ppu->drawn_pixels == (ppu->wx - 0x07);
-
-        bool fetch_window = ppu->lcdc.window_enabled && ppu->wx_enabled && ppu->wy_enabled;
-
-        if(ppu->fetch_window != fetch_window){
-            ppu->window_ly++;
-            ppu->tile_fetcher.step = 0;
-            ppu->fetch_window = fetch_window;
-            ppu->fetch_column = 0;
-            ppu->tile_fifo.length = 0;
-        }
-    }
-
-    //O buscador de sprite espera que o fifo de tiles não esteja vazio
-    //O buscador de sprite espera até que o buscador de tile termine para começar a sua busca
-    //O primero ciclo do buscador de sprite se sobrepoem ao ultimo ciclo do buscador de tile
-
-    if(ppu->sprite_found_index == 0xFF){
-        for(uint8_t i = 0x00; i < ppu->sprite_buffer_length; ++i){
-            if((int)ppu->sprite_buffer[i].x - 0x08 == ppu->drawn_pixels){
-                ppu->sprite_found_index = i;
-                break;
-            }
-        }
-    }
-
-    if(ppu->sprite_found_index != 0xFF && ppu->tile_fetcher.step >= 0x05 && ppu->tile_fifo.length > 0x00){
-        gb_ppu_sprite_fetcher_step(ppu);
-    }
-    else{
-        gb_ppu_tile_fetcher_step(ppu);
-
-        gb_ppu_render_pixel(ppu);
-    }
-}
-
-
-void gb_ppu_off_clock(gb_ppu_t* ppu,int cycles){
-    ppu->off_cycle += cycles;
-    while(ppu->off_cycle >= gb_frame_cycles){
-        ppu->off_cycle -= gb_frame_cycles;
-        ppu->frame_count++;
-    }
-}
-
-void gb_ppu_on_clock(gb_ppu_t* ppu,int cycles){
-    while(cycles--){
-        ppu->cycle++;
-
-        if(ppu->_ly < gb_vblank_scanline){
-            gb_ppu_visible_scanline(ppu);
-        }
-        else{
-            gb_ppu_vblank_scanline(ppu);
-        }
-
-        if(ppu->status.mode == gb_ppu_oam_mode){
-            gb_ppu_oam_evaluation(ppu);
-        }
-        else if(ppu->status.mode == gb_ppu_drawing_mode){
-
-            gb_ppu_drawing(ppu);
-
-            if(ppu->drawn_pixels >= gb_screen_width){
-                ppu->status.mode = gb_ppu_hblank_mode;
-
-                ppu->vram_blocked = false;
-                ppu->oam_blocked = false;
-            }
-        }
-
-        ppu->status.lcy_equals_ly = ppu->ly == ppu->_lyc;
-
-        gb_ppu_update_irq_line(ppu);
-
-        if(ppu->gb->callback_handles != NULL){
-            gb_ppu_callback_handler_t* handler = ppu->gb->callback_handles;
-            do{
-                if(handler->scanline == ppu->ly && handler->cycle == ppu->cycle){
-                    handler->callback(handler->data);
-                }
-                handler = handler->next;
-            }while(handler != NULL);
-        }
-    }
-}
-
-
-void gb_ppu_tile_fetcher_step(gb_ppu_t* ppu){
+static inline void gb_ppu_tile_fetcher_step(gb_ppu_t* ppu){
 
     switch(ppu->tile_fetcher.step++){
         case 0x01:{
@@ -302,7 +212,7 @@ void gb_ppu_tile_fetcher_step(gb_ppu_t* ppu){
     
     if(ppu->tile_fifo.length == 0x00 && ppu->tile_fetcher.step > 0x05){
 
-        if(ppu->lcdc.tile_enabled){
+        if(ppu->lcdc.tile_enabled || ppu->gb->cgb_mode){
 
             for(uint8_t i = 0x00; i < 0x08; ++i){
 
@@ -326,7 +236,7 @@ void gb_ppu_tile_fetcher_step(gb_ppu_t* ppu){
     }
 }
 
-void gb_ppu_sprite_fetcher_step(gb_ppu_t* ppu){
+static inline void gb_ppu_sprite_fetcher_step(gb_ppu_t* ppu){
     switch(ppu->sprite_fetcher.step++){
         case 0x01:{
             gb_sprite_t* sprite = ppu->sprite_buffer + ppu->sprite_found_index;
@@ -355,7 +265,7 @@ void gb_ppu_sprite_fetcher_step(gb_ppu_t* ppu){
 
                 gb_pixel_fifo_entry_t* entry = ppu->sprite_fifo.data + ((ppu->sprite_fifo.front + i) & 0x07);
 
-                if(color_index && (!entry->color_index || (ppu->gb->cgb_mode && ppu->sprite_found_index < entry->index))){
+                if(color_index && (!entry->color_index || (!ppu->gb->obj_priority_mode && ppu->sprite_found_index < entry->index))){
                     if(ppu->gb->cgb_mode){
                         entry->palette_index = sprite->attributes & 0x07;
                     }
@@ -378,7 +288,7 @@ void gb_ppu_sprite_fetcher_step(gb_ppu_t* ppu){
 }
 
 
-void gb_ppu_render_pixel(gb_ppu_t* ppu){
+static inline void gb_ppu_render_pixel(gb_ppu_t* ppu){
 
     if(!ppu->tile_fifo.length || ppu->sprite_found_index != 0xFF) return;
 
@@ -386,48 +296,141 @@ void gb_ppu_render_pixel(gb_ppu_t* ppu){
 
     if(ppu->drawn_pixels >= 0 && !ppu->first_frame){
 
-        gb_pixel_fifo_entry_t tile = ppu->tile_fifo.data[ppu->tile_fifo.front];
-        gb_pixel_fifo_entry_t sprite = ppu->sprite_fifo.data[ppu->sprite_fifo.front];
+        gb_pixel_fifo_entry_t* tile = ppu->tile_fifo.data + ppu->tile_fifo.front;
+        gb_pixel_fifo_entry_t* sprite = ppu->sprite_fifo.data + ppu->sprite_fifo.front;
 
         gb_rgb_t color = {0};
 
-        if(ppu->lcdc.sprite_enabled && sprite.color_index && (!tile.color_index || !ppu->lcdc.tile_enabled || (!tile.priority && !sprite.priority))){
+        if(ppu->lcdc.sprite_enabled && sprite->color_index && (!tile->color_index || !ppu->lcdc.tile_enabled || (!tile->priority && !sprite->priority))){
             if(ppu->gb->type == gb_cgb){
                 if(ppu->gb->cgb_mode){
-                    color = gb_palette_get_cgb_obp_color(&ppu->gb->palette,sprite.palette_index,sprite.color_index);
+                    color = gb_palette_get_cgb_obp_color(ppu->gb->palette,sprite->palette_index,sprite->color_index);
                 }
                 else{
-                    color = gb_palette_get_cgb_dmg_obp_color(&ppu->gb->palette,sprite.palette_index,sprite.color_index);
+                    color = gb_palette_get_cgb_dmg_obp_color(ppu->gb->palette,sprite->palette_index,sprite->color_index);
                 }
             }
             else{
-                color = gb_palette_get_dmg_obp_color(&ppu->gb->palette,sprite.palette_index,sprite.color_index);
+                color = gb_palette_get_dmg_obp_color(ppu->gb->palette,sprite->palette_index,sprite->color_index);
             }
         }
         else{
             if(ppu->gb->type == gb_cgb){
                 if(ppu->gb->cgb_mode){
-                    color = gb_palette_get_cgb_bgp_color(&ppu->gb->palette,tile.palette_index,tile.color_index);
+                    color = gb_palette_get_cgb_bgp_color(ppu->gb->palette,tile->palette_index,tile->color_index);
                 }
                 else{
-                    color = gb_palette_get_cgb_dmg_bgp_color(&ppu->gb->palette,tile.color_index);
+                    color = gb_palette_get_cgb_dmg_bgp_color(ppu->gb->palette,tile->color_index);
                 }
             }
             else{
-                color = gb_palette_get_dmg_bgp_color(&ppu->gb->palette,tile.color_index);
+                color = gb_palette_get_dmg_bgp_color(ppu->gb->palette,tile->color_index);
             }
         }
 
-        uint8_t* pixel = ppu->screen + ((ppu->ly * gb_screen_pitch) + (ppu->drawn_pixels * gb_screen_bytes_per_pixel));
-        pixel[0] = color.r;
-        pixel[1] = color.g;
-        pixel[2] = color.b;
+        *ppu->pixel_ptr++ = color.r;
+        *ppu->pixel_ptr++ = color.g;
+        *ppu->pixel_ptr++ = color.b;
     }
 
     ppu->drawn_pixels++;
 
     gb_pixel_fifo_pop(&ppu->tile_fifo);
     gb_pixel_fifo_pop(&ppu->sprite_fifo);
+}
+
+
+static inline void gb_ppu_drawing(gb_ppu_t* ppu){
+    if(ppu->fictitious_fetch) return;
+
+    if(!ppu->wx_enabled){
+        ppu->wx_enabled = ppu->drawn_pixels == (ppu->wx - 0x07);
+
+        bool fetch_window = ppu->lcdc.window_enabled && ppu->wx_enabled && ppu->wy_enabled;
+
+        if(ppu->fetch_window != fetch_window){
+            ppu->window_ly++;
+            ppu->tile_fetcher.step = 0;
+            ppu->fetch_window = fetch_window;
+            ppu->fetch_column = 0;
+            ppu->tile_fifo.length = 0;
+        }
+    }
+
+    //O buscador de sprite espera que o fifo de tiles não esteja vazio
+    //O buscador de sprite espera até que o buscador de tile termine para começar a sua busca
+    //O primero ciclo do buscador de sprite se sobrepoem ao ultimo ciclo do buscador de tile
+
+    if(ppu->sprite_found_index == 0xFF){
+        for(uint8_t i = 0x00; i < ppu->sprite_buffer_length; ++i){
+            if((int)ppu->sprite_buffer[i].x - 0x08 == ppu->drawn_pixels){
+                ppu->sprite_found_index = i;
+                break;
+            }
+        }
+    }
+
+    if(ppu->sprite_found_index != 0xFF && ppu->tile_fetcher.step >= 0x05 && ppu->tile_fifo.length > 0x00){
+        gb_ppu_sprite_fetcher_step(ppu);
+    }
+    else{
+        gb_ppu_tile_fetcher_step(ppu);
+
+        gb_ppu_render_pixel(ppu);
+    }
+}
+
+
+void gb_ppu_clock(gb_ppu_t* ppu,int cycles){
+
+    if(!ppu->lcdc.lcd_enabled){
+        ppu->off_cycle += cycles;
+        while(ppu->off_cycle >= gb_frame_cycles){
+            ppu->off_cycle -= gb_frame_cycles;
+            ppu->frame_count++;
+        }
+        return;
+    }
+
+    while(cycles--){
+        ppu->cycle++;
+
+        if(ppu->_ly < gb_vblank_scanline){
+            gb_ppu_visible_scanline(ppu);
+        }
+        else{
+            gb_ppu_vblank_scanline(ppu);
+        }
+
+        if(ppu->status.mode == gb_ppu_oam_mode){
+            gb_ppu_oam_evaluation(ppu);
+        }
+        else if(ppu->status.mode == gb_ppu_drawing_mode){
+
+            gb_ppu_drawing(ppu);
+
+            if(ppu->drawn_pixels >= gb_screen_width){
+                ppu->status.mode = gb_ppu_hblank_mode;
+
+                ppu->vram_blocked = false;
+                ppu->oam_blocked = false;
+            }
+        }
+
+        ppu->status.lcy_equals_ly = ppu->ly == ppu->_lyc;
+
+        gb_ppu_update_irq_line(ppu);
+
+        if(ppu->gb->callback_handles != NULL){
+            gb_ppu_callback_handler_t* handler = ppu->gb->callback_handles;
+            do{
+                if(handler->scanline == ppu->ly && handler->cycle == ppu->cycle){
+                    handler->callback(handler->data);
+                }
+                handler = handler->next;
+            }while(handler != NULL);
+        }
+    }
 }
 
 
@@ -478,8 +481,6 @@ void gb_ppu_write_register(void* data,uint8_t value,uint16_t address){
 
                 ppu->vram_blocked = false;
                 ppu->oam_blocked = false;
-
-                ppu->clock = gb_ppu_off_clock;
             }
             else if(!ppu->lcdc.lcd_enabled && lcd_enabled){
 
@@ -490,7 +491,7 @@ void gb_ppu_write_register(void* data,uint8_t value,uint16_t address){
 
                 ppu->first_frame = true;
 
-                ppu->clock = gb_ppu_on_clock;
+                ppu->pixel_ptr = ppu->screen;
             }
 
             break;
@@ -726,6 +727,5 @@ void gb_ppu_reset(gb_ppu_t* ppu){
     ppu->first_frame = false;
 
     gb_ppu_clear_screen(ppu);
-
-    ppu->clock = gb_ppu_off_clock;
+    ppu->pixel_ptr = ppu->screen;
 }

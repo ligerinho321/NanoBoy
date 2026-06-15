@@ -22,43 +22,6 @@ void gb_palette_init(gb_palette_t* palette,gb_t* gb){
 }
 
 
-gb_rgb_t gb_palette_get_dmg_bgp_color(gb_palette_t* palette,uint8_t index){
-    index &= 0x03;
-    return dmg_palette[(palette->bgp >> (index << 0x01)) & 0x03];
-}
-
-gb_rgb_t gb_palette_get_dmg_obp_color(gb_palette_t* palette,uint8_t obp_index,uint8_t index){
-    obp_index &= 0x01;
-    index &= 0x03;
-    return dmg_palette[(palette->obp[obp_index] >> (index << 0x01)) & 0x03];
-}
-
-
-gb_rgb_t gb_palette_get_cgb_bgp_color(gb_palette_t* palette,uint8_t palette_index,uint8_t color_index){
-    palette_index &= 0x07;
-    color_index &= 0x03;
-    return palette->cgb_bg_cram_converted[(palette_index << 0x02) | color_index];
-}
-
-gb_rgb_t gb_palette_get_cgb_obp_color(gb_palette_t* palette,uint8_t palette_index,uint8_t color_index){
-    palette_index &= 0x07;
-    color_index &= 0x03;
-    return palette->cgb_obj_cram_converted[(palette_index << 0x02) | color_index];
-}
-
-
-gb_rgb_t gb_palette_get_cgb_dmg_bgp_color(gb_palette_t* palette,uint8_t index){
-    index &= 0x03;
-    return palette->cgb_bg_cram_converted[(palette->bgp >> (index << 0x01)) & 0x03];
-}
-
-gb_rgb_t gb_palette_get_cgb_dmg_obp_color(gb_palette_t* palette,uint8_t obp_index,uint8_t index){
-    obp_index &= 0x01;
-    index &= 0x03;
-    return palette->cgb_obj_cram_converted[(obp_index << 0x02) | ((palette->obp[obp_index] >> (index << 0x01)) & 0x03)];
-}
-
-
 gb_rgb_t gb_palette_rgb555_to_rgb888(uint16_t color){
     uint8_t r5 = color & 0x1F;
     uint8_t g5 = (color >> 0x05) & 0x1F;

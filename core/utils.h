@@ -49,7 +49,7 @@ enum{
     gb_audio_channels = 2,
     gb_audio_frame_samples = 739, // gb_frame_cycles / (gb_clock_rate / gb_sample_rate)
 
-    gb_audio_channel_volume_shift = 5,
+    gb_audio_channel_volume_shift = 6,
     gb_audio_channel_min_output = -8 << gb_audio_channel_volume_shift,
     gb_audio_channel_max_output = +7 << gb_audio_channel_volume_shift,
 

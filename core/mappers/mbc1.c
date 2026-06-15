@@ -22,7 +22,7 @@ void gb_mbc1_init(gb_cartridge_t* cartridge,uint8_t flags){
     cartridge->reset = gb_mbc1_reset;
 }
 
-void gb_mbc1_update_mapping(gb_cartridge_t* cartridge){
+static inline void gb_mbc1_update_mapping(gb_cartridge_t* cartridge){
 
     if(cartridge->mbc1.mode){
         gb_cartridge_set_rom0_bank(cartridge,cartridge->mbc1.bank[1] << (cartridge->mbc1.is_mbc1m ? 0x04 : 0x05));

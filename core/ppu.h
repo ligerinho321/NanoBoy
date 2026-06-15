@@ -112,21 +112,14 @@ typedef struct _gb_ppu_t {
     bool first_frame;
 
     uint8_t screen[gb_screen_length];
-
-    void (*clock)(struct _gb_ppu_t* ppu,int cycles);
+    uint8_t* pixel_ptr;
 
     gb_memory_handler_t register_handler;
 } gb_ppu_t;
 
 void gb_ppu_init(gb_ppu_t* ppu,gb_t* gb);
 
-void gb_ppu_off_clock(gb_ppu_t* ppu);
-void gb_ppu_on_clock(gb_ppu_t* ppu);
-
-void gb_ppu_tile_fetcher_step(gb_ppu_t* ppu);
-void gb_ppu_sprite_fetcher_step(gb_ppu_t* ppu);
-
-void gb_ppu_render_pixel(gb_ppu_t* ppu);
+void gb_ppu_clock(gb_ppu_t* ppu,int cycles);
 
 void gb_ppu_write_vram(void* data,uint8_t value,uint16_t address);
 uint8_t gb_ppu_read_vram(void* data,uint16_t address);

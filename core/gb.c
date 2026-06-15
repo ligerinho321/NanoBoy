@@ -10,7 +10,8 @@ gb_t* gb_new(){
 
     memset(gb,0x00,sizeof(gb_t));
 
-    gb->type = gb_dmg;
+    gb->type = gb_cgb;
+    gb->type_pending = gb->type;
     gb->speed = 1.0f;
     gb->cartridge_inserted = false;
     
@@ -121,21 +122,35 @@ void gb_set_speed(gb_t* gb,float new_speed){
 }
 
 
+void gb_half_machine_cycle(gb_t* gb){
+    gb->cycle += 2;
+    gb->apu.cycles += gb->double_speed ? 1 : 2;
+
+    gb_ppu_clock(&gb->ppu,gb->double_speed ? 1 : 2);
+    
+    if((gb->cycle & 0x03) == 0x03){
+
+        gb_timer_clock(&gb->timer);
+
+        gb_oam_dma_clock(&gb->dma);
+    }
+}
+
 void gb_machine_cycle(gb_t* gb){
-    gb->cycles += 4;
+    gb->cycle += 4;
     gb->apu.cycles += gb->double_speed ? 2 : 4;
-    gb->ppu.clock(&gb->ppu,gb->double_speed ? 2 : 4);
-    gb_dma_oam_clock(&gb->dma);
+    
+    gb_ppu_clock(&gb->ppu,gb->double_speed ? 2 : 4);
+
     gb_timer_clock(&gb->timer);
+
+    gb_oam_dma_clock(&gb->dma);
 }
 
 
 void gb_write_key0_register(void* data,uint8_t value,uint16_t address){
     gb_t* gb = (gb_t*)data;
     gb->cgb_mode = !(value & 0x0C);
-    if(!gb->cgb_mode){
-        gb_memory_unmap_cgb_registers(&gb->memory);
-    }
 }
 
 
@@ -161,12 +176,53 @@ uint8_t gb_read_opri_register(void* data,uint16_t address){
 }
 
 
-void gb_reset(gb_t* gb){
-    gb->cycles = (uint64_t)-1;
+void gb_map_cgb_registers(gb_t* gb){
+    gb_memory_handler_t** bus = gb->memory.bus;
+    //KEY0
+    bus[0xFF4C] = &gb->key0_register_handler;
+    //KEY1
+    bus[0xFF4D] = &gb->key1_register_handler;
+    //VBK
+    bus[0xFF4F] = &gb->ppu.vbk_register_handler;
+    //VRAM DMA
+    gb_dma_vram_map_registers(&gb->dma);
+    //Palette
+    gb_palette_map_cgb_registers(&gb->palette);
+    //OPRI
+    bus[0xFF6C] = &gb->opri_register_handler;
+    //WBK
+    bus[0xFF70] = &gb->memory.wbk_register_handler;
+    //PCM
+    gb_apu_map_pcm_registers(&gb->apu);
+}
 
-    gb->double_speed = false;
-    gb->speed_switch_needed = false;
+void gb_unmap_cgb_registers(gb_t* gb){
+    gb_memory_handler_t** bus = gb->memory.bus;
+    //KEY0
+    bus[0xFF4C] = NULL;
+    //KEY1
+    bus[0xFF4D] = NULL;
+    //VBK
+    bus[0xFF4F] = NULL;
+    //VRAM DMA
+    gb_dma_vram_unmap_registers(&gb->dma);
+    //Palette
+    gb_palette_unmap_cgb_registers(&gb->palette);
+    //OPRI
+    bus[0xFF6C] = NULL;
+    //WBK
+    bus[0xFF70] = NULL;
+    //PCM
+    gb_apu_unmap_pcm_registers(&gb->apu);
+}
+
+
+void gb_reset(gb_t* gb){
     
+    if(gb->type_pending != gb->type){
+        gb->type = gb->type_pending;
+    }
+
     gb_cpu_reset(&gb->cpu);
     gb_ppu_reset(&gb->ppu);
     gb_apu_reset(&gb->apu,true);
@@ -182,6 +238,22 @@ void gb_reset(gb_t* gb){
     if(gb->cartridge.reset){
         gb->cartridge.reset(&gb->cartridge);
     }
+
+    gb->double_speed = false;
+    gb->speed_switch_needed = false;
+    
+    if(gb->type == gb_cgb){
+        gb->cgb_mode = true;
+        gb->obj_priority_mode = false;
+        gb_map_cgb_registers(gb);
+    }
+    else{
+        gb->cgb_mode = false;
+        gb->obj_priority_mode = true;
+        gb_unmap_cgb_registers(gb);
+    }
+    
+    gb->cycle = (uint64_t)-1;
 }
 
 

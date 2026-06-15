@@ -33,16 +33,28 @@ typedef struct _gb_palette_t {
 
 extern const gb_rgb_t dmg_palette[4];
 
+#define gb_palette_get_dmg_bgp_color(palette,index)\
+    dmg_palette[((palette).bgp >> (((index) & 0x03) << 0x01)) & 0x03]
+
+#define gb_palette_get_dmg_obp_color(palette,obp_index,index)\
+    dmg_palette[((palette).obp[(obp_index) & 0x01] >> (((index) & 0x03) << 0x01)) & 0x03]
+
+
+#define gb_palette_get_cgb_bgp_color(palette,palette_index,color_index)\
+    (palette).cgb_bg_cram_converted[(((palette_index) & 0x07) << 0x02) | ((color_index) & 0x03)]
+
+#define gb_palette_get_cgb_obp_color(palette,palette_index,color_index)\
+    (palette).cgb_obj_cram_converted[(((palette_index) & 0x07) << 0x02) | ((color_index) & 0x03)]
+
+
+#define gb_palette_get_cgb_dmg_bgp_color(palette,index)\
+    (palette).cgb_bg_cram_converted[((palette).bgp >> (((index) & 0x03) << 0x01)) & 0x03]
+
+#define gb_palette_get_cgb_dmg_obp_color(palette,obp_index,index)\
+    (palette).cgb_obj_cram_converted[(((obp_index) & 0x01) << 0x02) | (((palette).obp[(obp_index) & 0x01] >> (((index) & 0x03) << 0x01)) & 0x03)]
+
+    
 void gb_palette_init(gb_palette_t* palette,gb_t* gb);
-
-gb_rgb_t gb_palette_get_dmg_bgp_color(gb_palette_t* palette,uint8_t index);
-gb_rgb_t gb_palette_get_dmg_obp_color(gb_palette_t* palette,uint8_t obp_index,uint8_t index);
-
-gb_rgb_t gb_palette_get_cgb_bgp_color(gb_palette_t* palette,uint8_t palette_index,uint8_t color_index);
-gb_rgb_t gb_palette_get_cgb_obp_color(gb_palette_t* palette,uint8_t palette_index,uint8_t color_index);
-
-gb_rgb_t gb_palette_get_cgb_dmg_bgp_color(gb_palette_t* palette,uint8_t index);
-gb_rgb_t gb_palette_get_cgb_dmg_obp_color(gb_palette_t* palette,uint8_t obp_index,uint8_t index);
 
 gb_rgb_t gb_palette_rgb555_to_rgb888(uint16_t color);
 

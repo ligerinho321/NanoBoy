@@ -87,7 +87,7 @@ public:
     ImVec2 window_min;
     ImVec2 window_max;
 
-    file_selector_t(gb_t* _gb):gb(_gb){
+    file_selector_t(gb_t* gb):gb(gb){
         
         set_current_path(std::filesystem::current_path());
 
@@ -192,7 +192,9 @@ public:
 
             bool is_directory = std::filesystem::is_directory(entry_path);
 
-            if(is_directory || ((current_filter == filter_all_files) || (entry_path.extension().string() == ".gb"))){
+            std::string extension = entry_path.extension().string();
+
+            if(is_directory || ((current_filter == filter_all_files) || (extension == ".gb" || extension == ".gbc"))){
 
                 current_directory_entries.emplace_back(
                     (is_directory ? "[DIR] " : "[FILE] ") + entry_path.filename().string(),
@@ -463,7 +465,7 @@ public:
 
     bool open = false;
 
-    tilemap_viewer_t(gb_t* _gb,SDL_Renderer* renderer):gb(_gb){
+    tilemap_viewer_t(gb_t* gb,SDL_Renderer* renderer):gb(gb){
         
         tilemap_texture[0] = SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGB24,SDL_TEXTUREACCESS_STREAMING,256,256);
         tilemap_texture[1] = SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGB24,SDL_TEXTUREACCESS_STREAMING,256,256);
@@ -760,7 +762,7 @@ public:
     channel_frame_t wave = {0};
     channel_frame_t noise = {0};
 
-    wave_form_t(gb_t* _gb):gb(_gb){
+    wave_form_t(gb_t* gb):gb(gb){
         gb_set_apu_callback(gb,frame_callback,this);
     }
 
@@ -805,7 +807,7 @@ public:
                 ImGui::TableNextRow();
 
                 ImGui::TableNextColumn();
-                ImGui::Checkbox("Square1",&gb->apu.square1_external_enabled);
+                ImGui::Checkbox("Square1",&gb->apu.square1.external_enabled);
                 ImGui::PlotLines(
                     "##GraphSquare1",
                     get_sample,
@@ -819,7 +821,7 @@ public:
                 );
 
                 ImGui::TableNextColumn();
-                ImGui::Checkbox("Square2",&gb->apu.square2_external_enabled);
+                ImGui::Checkbox("Square2",&gb->apu.square2.external_enabled);
                 ImGui::PlotLines(
                     "##GraphSquare2",
                     get_sample,
@@ -835,7 +837,7 @@ public:
                 ImGui::TableNextRow();
 
                 ImGui::TableNextColumn();
-                ImGui::Checkbox("Wave",&gb->apu.wave_external_enabled);
+                ImGui::Checkbox("Wave",&gb->apu.wave.external_enabled);
                 ImGui::PlotLines(
                     "##GraphWave",
                     get_sample,
@@ -849,7 +851,7 @@ public:
                 );
 
                 ImGui::TableNextColumn();
-                ImGui::Checkbox("Noise",&gb->apu.noise_external_enabled);
+                ImGui::Checkbox("Noise",&gb->apu.noise.external_enabled);
                 ImGui::PlotLines(
                     "##GraphNoise",
                     get_sample,
@@ -867,6 +869,23 @@ public:
 
         }
         ImGui::End();
+    }
+};
+
+class palette_viewer_t {
+public:
+    gb_t* gb = nullptr;
+
+    palette_viewer_t(gb_t* gb):gb(gb){
+
+    }
+
+    ~palette_viewer_t(){
+
+    }
+
+    void render(){
+        
     }
 };
 
@@ -910,6 +929,47 @@ void audio_callback(void* userdata,uint8_t* data,int len){
     }
 }
 
+
+void set_screen_scale(SDL_Window* window,SDL_Rect *screen_rect,int screen_scale){
+    uint32_t flags = SDL_GetWindowFlags(window);
+    
+    if(flags & SDL_WINDOW_MAXIMIZED){
+        SDL_RestoreWindow(window);
+    }
+    else if(flags & SDL_WINDOW_FULLSCREEN){
+        SDL_SetWindowFullscreen(window,0);
+    }
+
+    int main_menu_bar_height = ImGui::GetFrameHeight();
+    screen_rect->x = 0;
+    screen_rect->y = main_menu_bar_height;
+    screen_rect->w = gb_screen_width * screen_scale;
+    screen_rect->h = gb_screen_height * screen_scale;
+    SDL_SetWindowSize(window,screen_rect->w,screen_rect->h + main_menu_bar_height);
+}
+
+void update_screen_size(SDL_Window* window,SDL_Rect* screen_rect){
+    int window_width = 0;
+    int window_height = 0;
+
+    SDL_GetWindowSize(window,&window_width,&window_height);
+    
+    int main_menu_bar_height = ImGui::GetFrameHeight();
+
+    window_height -= main_menu_bar_height;
+
+    float scaleX = (float)window_width / gb_screen_width;
+    float scaleY = (float)window_height / gb_screen_height;
+
+    float scale = gb_min(scaleX,scaleY);
+
+    screen_rect->w = gb_screen_width * scale;
+    screen_rect->h = gb_screen_height * scale;
+
+    screen_rect->x = (window_width - screen_rect->w) / 2;
+    screen_rect->y = main_menu_bar_height + (window_height - screen_rect->h) / 2;
+}
+
 int main(int n_args,char** args){
 
     gb_t* gb = gb_new();
@@ -917,10 +977,7 @@ int main(int n_args,char** args){
 
     SDL_Init(SDL_INIT_EVERYTHING);
 
-    int window_width = 640;
-    int window_height = 480;
-
-    SDL_Window* window = SDL_CreateWindow("NanoBoy - (0.0 fps)",SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,640,480,SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+    SDL_Window* window = SDL_CreateWindow("NanoBoy - (0.0 fps)",0,0,0,0,SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
     SDL_Renderer* renderer = SDL_CreateRenderer(window,-1,SDL_RENDERER_ACCELERATED);
 
     ImGui::CreateContext();
@@ -937,15 +994,12 @@ int main(int n_args,char** args){
     ImGui::NewFrame();
     ImGui::Render();
 
-    int main_menu_bar_height = ImGui::GetFrameHeight();
-
     SDL_Texture* screen_texture = SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGB24,SDL_TEXTUREACCESS_STREAMING,gb_screen_width,gb_screen_height);
-    SDL_Rect screen_rect = {
-        0,
-        0 + main_menu_bar_height,
-        window_width,
-        window_height - main_menu_bar_height
-    };
+    SDL_Rect screen_rect = {0};
+    int screen_scale = 4;
+    set_screen_scale(window,&screen_rect,screen_scale);
+
+    SDL_SetWindowPosition(window,SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED);
 
     SDL_AudioSpec audio_spec = {0};
     audio_spec.freq = gb_audio_sample_rate;
@@ -996,9 +1050,7 @@ int main(int n_args,char** args){
                 }
                 case SDL_WINDOWEVENT:{
                     if(event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED){
-                        SDL_GetWindowSize(window,&window_width,&window_height);
-                        screen_rect.w = window_width;
-                        screen_rect.h = window_height - main_menu_bar_height;
+                        update_screen_size(window,&screen_rect);
                     }
                     break;
                 }
@@ -1023,6 +1075,25 @@ int main(int n_args,char** args){
                             }
                         }
                     }
+                    if(SDL_GetModState() & KMOD_ALT){
+                        if(event.key.keysym.scancode >= SDL_SCANCODE_1 && event.key.keysym.scancode <= SDL_SCANCODE_9){
+                            int scale = (event.key.keysym.scancode - SDL_SCANCODE_1) + 1;
+                            if(scale != screen_scale){
+                                screen_scale = scale;
+                                set_screen_scale(window,&screen_rect,screen_scale);
+                            }
+                        }
+                    }
+                    else{
+                        if(event.key.keysym.scancode == SDL_SCANCODE_F11){
+                            if(SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN){
+                                SDL_SetWindowFullscreen(window,0);
+                            }
+                            else{
+                                SDL_SetWindowFullscreen(window,SDL_WINDOW_FULLSCREEN);
+                            }
+                        }
+                    }
                     break;
                 }
             }
@@ -1034,37 +1105,99 @@ int main(int n_args,char** args){
         ImGui::NewFrame();
 
         if(ImGui::BeginMainMenuBar()){
+            
             if(ImGui::BeginMenu("File")){
+                
                 if(ImGui::MenuItem("Open File")){
                     file_selector->opened = true;
                 }
+                
                 if(ImGui::MenuItem("Exit")){
                     running = false;
                 }
+
                 ImGui::EndMenu();
             }
+
             if(ImGui::BeginMenu("Game")){
+                
                 if(ImGui::MenuItem("Pause","Esq",nullptr,gb->cartridge_inserted)){
                     paused = !paused;
                 }
+
                 if(ImGui::MenuItem("Reset","Ctrl+R",nullptr,gb->cartridge_inserted)){
                     gb_reset(gb);
                 }
+
                 if(ImGui::MenuItem("Increase speed","=",nullptr,gb->cartridge_inserted)){
                     gb_set_speed(gb,gb->speed + gb_speed_step);
                 }
+                
                 if(ImGui::MenuItem("Decrease speed","-",nullptr,gb->cartridge_inserted)){
                     gb_set_speed(gb,gb->speed - gb_speed_step);
                 }
+                
                 if(ImGui::MenuItem("Power off",nullptr,nullptr,gb->cartridge_inserted)){
                     gb_remove_cartridge(gb);
+
                     texture_clear(screen_texture,gb_screen_height);
                     
                     tilemap_viewer->open = false;
                     wave_form->open = false;
                 }
+                
                 ImGui::EndMenu();
             }
+            
+            if(ImGui::BeginMenu("Settings")){
+                if(ImGui::BeginMenu("Screen Size")){
+
+                    bool fullscreen = SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN;
+                    int scale = fullscreen ? -1 : screen_scale;
+
+                    if(ImGui::MenuItem("1x","Alt+1",screen_scale == 1)) scale = 1;
+                    if(ImGui::MenuItem("2x","Alt+2",screen_scale == 2)) scale = 2;
+                    if(ImGui::MenuItem("3x","Alt+3",screen_scale == 3)) scale = 3;
+                    if(ImGui::MenuItem("4x","Alt+4",screen_scale == 4)) scale = 4;
+                    if(ImGui::MenuItem("5x","Alt+5",screen_scale == 5)) scale = 5;
+                    if(ImGui::MenuItem("6x","Alt+6",screen_scale == 6)) scale = 6;
+                    if(ImGui::MenuItem("7x","Alt+7",screen_scale == 7)) scale = 7;
+                    if(ImGui::MenuItem("8x","Alt+8",screen_scale == 8)) scale = 8;
+                    if(ImGui::MenuItem("9x","Alt+9",screen_scale == 9)) scale = 9;
+
+                    if(scale > 0 && scale != screen_scale){
+                        screen_scale = scale;
+                        set_screen_scale(window,&screen_rect,screen_scale);
+                    }
+
+                    if(ImGui::MenuItem("FullScreen","F11",fullscreen)){
+                        if(fullscreen){
+                            SDL_SetWindowFullscreen(window,0);
+                        }
+                        else{
+                            SDL_SetWindowFullscreen(window,SDL_WINDOW_FULLSCREEN);
+                        }
+                    }
+
+                    ImGui::EndMenu();
+                }
+                if(ImGui::BeginMenu("Model")){
+                    
+                    bool type = gb->type_pending;
+
+                    if(ImGui::MenuItem("Game Boy (DMG)",nullptr,type == gb_dmg)){
+                        gb->type_pending = gb_dmg;
+                    }
+                    if(ImGui::MenuItem("Game Boy Color (CGB)",nullptr,type == gb_cgb)){
+                        gb->type_pending = gb_cgb;
+                    }
+
+                    ImGui::EndMenu();
+                }
+
+                ImGui::EndMenu();
+            }
+
             if(ImGui::BeginMenu("Debug")){
                 if(ImGui::MenuItem("Tilemap Viewer",nullptr,nullptr,gb->cartridge_inserted)){
                     tilemap_viewer->open = true;

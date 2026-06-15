@@ -207,7 +207,12 @@ void gb_boot_write_bank_register(void* data,uint8_t value,uint16_t address){
         gb_memory_map(&boot->gb->memory,&boot->gb->cartridge.rom0_handler,0x0000,0x00FF);
         
         if(boot->gb->type == gb_cgb){
-            gb_memory_map(&boot->gb->memory,&boot->gb->cartridge.rom1_handler,0x0200,0x08FF);
+
+            gb_memory_map(&boot->gb->memory,&boot->gb->cartridge.rom0_handler,0x0200,0x08FF);
+
+            if(!boot->gb->cgb_mode){
+                gb_unmap_cgb_registers(boot->gb);
+            }
         }
 
         boot->gb->memory.bus[0xFF50] = NULL;

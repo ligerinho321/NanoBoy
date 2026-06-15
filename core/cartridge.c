@@ -259,19 +259,6 @@ void gb_cartridge_init_ram(gb_cartridge_t* cartridge,bool battery){
 }
 
 
-void gb_cartridge_set_rom0_bank(gb_cartridge_t* cartridge,uint16_t bank){
-    cartridge->rom0_ptr = cartridge->rom + ((bank & cartridge->rom_bank_mask) << 0x0E);
-}
-
-void gb_cartridge_set_rom1_bank(gb_cartridge_t* cartridge,uint16_t bank){
-    cartridge->rom1_ptr = cartridge->rom + ((bank & cartridge->rom_bank_mask) << 0x0E);
-}
-
-void gb_cartridge_set_ram_bank(gb_cartridge_t* cartridge,uint8_t bank){
-    cartridge->ram_ptr = cartridge->ram + ((bank & cartridge->ram_bank_mask) << 0x0D);
-}
-
-
 uint8_t gb_cartridge_read_rom0(void* data,uint16_t address){
     gb_cartridge_t* cartridge = (gb_cartridge_t*)data;
     return cartridge->rom0_ptr[address & 0x3FFF];
