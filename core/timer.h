@@ -25,6 +25,8 @@ typedef struct _gb_timer_t {
 
 void gb_timer_init(gb_timer_t* timer,gb_t* gb);
 
+void gb_timer_set_div(gb_timer_t* timer,uint16_t new_div);
+
 void gb_timer_clock(gb_timer_t* timer);
 
 void gb_timer_write_register(void* data,uint8_t value,uint16_t address);

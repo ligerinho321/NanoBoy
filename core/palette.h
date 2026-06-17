@@ -6,6 +6,11 @@
 extern "C" {
 #endif
 
+#define gb_cgb_palettes 8
+#define gb_dmg_bg_palettes 1
+#define gb_dmg_obj_palettes 2
+#define gb_palette_colors 4
+
 typedef struct gb_rgb_t {
     uint8_t r;
     uint8_t g;
@@ -21,17 +26,18 @@ typedef struct _gb_palette_t {
     uint8_t bcps;
     uint8_t ocps;
 
-    uint8_t cgb_bg_cram[0x40];
-    uint8_t cgb_obj_cram[0x40];
+    uint8_t bg_cram[0x40];
+    uint8_t obj_cram[0x40];
 
-    gb_rgb_t cgb_bg_cram_converted[0x20];
-    gb_rgb_t cgb_obj_cram_converted[0x20];
+    gb_rgb_t bg_cram_converted[0x20];
+    gb_rgb_t obj_cram_converted[0x20];
 
     gb_memory_handler_t dmg_register_handler;
     gb_memory_handler_t cgb_register_handler;
 } gb_palette_t;
 
 extern const gb_rgb_t dmg_palette[4];
+
 
 #define gb_palette_get_dmg_bgp_color(palette,index)\
     dmg_palette[((palette).bgp >> (((index) & 0x03) << 0x01)) & 0x03]
@@ -41,17 +47,17 @@ extern const gb_rgb_t dmg_palette[4];
 
 
 #define gb_palette_get_cgb_bgp_color(palette,palette_index,color_index)\
-    (palette).cgb_bg_cram_converted[(((palette_index) & 0x07) << 0x02) | ((color_index) & 0x03)]
+    (palette).bg_cram_converted[(((palette_index) & 0x07) << 0x02) | ((color_index) & 0x03)]
 
 #define gb_palette_get_cgb_obp_color(palette,palette_index,color_index)\
-    (palette).cgb_obj_cram_converted[(((palette_index) & 0x07) << 0x02) | ((color_index) & 0x03)]
+    (palette).obj_cram_converted[(((palette_index) & 0x07) << 0x02) | ((color_index) & 0x03)]
 
 
 #define gb_palette_get_cgb_dmg_bgp_color(palette,index)\
-    (palette).cgb_bg_cram_converted[((palette).bgp >> (((index) & 0x03) << 0x01)) & 0x03]
+    (palette).bg_cram_converted[((palette).bgp >> (((index) & 0x03) << 0x01)) & 0x03]
 
 #define gb_palette_get_cgb_dmg_obp_color(palette,obp_index,index)\
-    (palette).cgb_obj_cram_converted[(((obp_index) & 0x01) << 0x02) | (((palette).obp[(obp_index) & 0x01] >> (((index) & 0x03) << 0x01)) & 0x03)]
+    (palette).obj_cram_converted[(((obp_index) & 0x01) << 0x02) | (((palette).obp[(obp_index) & 0x01] >> (((index) & 0x03) << 0x01)) & 0x03)]
 
     
 void gb_palette_init(gb_palette_t* palette,gb_t* gb);

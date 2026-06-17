@@ -25,7 +25,8 @@ typedef struct _gb_dma_t {
 
     uint16_t vram_src;
     uint16_t vram_dst;
-    uint8_t vram_control;
+    uint8_t vram_length;
+    bool vram_hblank_running;
 
     gb_memory_handler_t oam_register_handler;
     gb_memory_handler_t vram_register_handler;
@@ -36,18 +37,20 @@ void gb_dma_init(gb_dma_t* dma,gb_t* gb);
 
 void gb_oam_dma_clock(gb_dma_t* dma);
 
-bool gb_dma_oam_bus_conflict(gb_dma_t* dma,uint16_t address);
+bool gb_oam_dma_bus_conflict(gb_dma_t* dma,uint16_t address);
 
-void gb_dma_oam_write_register(void* data,uint8_t value,uint16_t address);
-uint8_t gb_dma_oam_read_register(void* data,uint16_t address);
+void gb_oam_dma_write_register(void* data,uint8_t value,uint16_t address);
+uint8_t gb_oam_dma_read_register(void* data,uint16_t address);
 
-void gb_dma_vram_write_register(void* data,uint8_t value,uint16_t address);
-uint8_t gb_dma_vram_read_register(void* data,uint16_t address);
+void gb_vram_hblank_dma(gb_dma_t* dma);
 
-void gb_dma_oam_map_registers(gb_dma_t* dma);
+void gb_vram_dma_write_register(void* data,uint8_t value,uint16_t address);
+uint8_t gb_vram_dma_read_register(void* data,uint16_t address);
 
-void gb_dma_vram_map_registers(gb_dma_t* dma);
-void gb_dma_vram_unmap_registers(gb_dma_t* dma);
+void gb_oam_dma_map_registers(gb_dma_t* dma);
+
+void gb_vram_dma_map_registers(gb_dma_t* dma);
+void gb_vram_dma_unmap_registers(gb_dma_t* dma);
 
 void gb_dma_reset(gb_dma_t* dma);
 

@@ -21,9 +21,11 @@ void texture_clear(SDL_Texture* texture,int height){
     SDL_UnlockTexture(texture);
 }
 
-constexpr uintmax_t gigabytes = 0x01 << 0x1E;
-constexpr uintmax_t megabytes = 0x01 << 0x14;
-constexpr uintmax_t kilobytes = 0x01 << 0x0A;
+float get_input_scalar_width(){
+    ImGuiStyle& style = ImGui::GetStyle();
+    return ImGui::CalcTextSize("0000").x + style.FramePadding.x * 2.0f + (ImGui::GetFrameHeight() + style.ItemInnerSpacing.x) * 2.0f;
+    
+}
 
 const char* filters_name[2] = {
     "All files",
@@ -32,6 +34,12 @@ const char* filters_name[2] = {
 
 class file_selector_t {
 public:
+    enum{
+        gigabytes = 0x01 << 0x1E,
+        megabytes = 0x01 << 0x14,
+        kilobytes = 0x01 << 0x0A
+    };
+
     enum filter_type_t {
         filter_all_files,
         filter_gb_rom_files
@@ -435,7 +443,7 @@ class tilemap_viewer_t {
 private:
     gb_t* gb = nullptr;
 
-    SDL_Texture* tilemap_texture[2];
+    SDL_Texture* tilemap_texture[2] = {nullptr};
 
     ImU32 grid_color = 0;
     ImU32 scroll_overlay_border_color = 0;
@@ -457,10 +465,10 @@ private:
     uint8_t scx = 0;
     uint8_t scy = 0;
     uint8_t bgp = 0;
-    gb_rgb_t cgb_bg_cram_converted[0x20] = {0};
+    gb_rgb_t bg_cram_converted[0x20] = {0};
     uint8_t vram[0x4000] = {0};
 
-    gb_ppu_callback_handler_t callback_handler = {callback,this,gb_vblank_scanline,0};
+    gb_ppu_callback_handler_t callback_handler = {callback,this,gb_vblank_scanline,0,nullptr};
 public:
 
     bool open = false;
@@ -474,9 +482,7 @@ public:
         scroll_overlay_border_color = ImGui::ColorConvertFloat4ToU32(ImVec4(1.0f,1.0f,1.0f,1.0f));
         scroll_overlay_background_color = ImGui::ColorConvertFloat4ToU32(ImVec4(1.0f,1.0f,1.0f,0.2f));
 
-        ImGuiStyle& style = ImGui::GetStyle();
-
-        input_scalar_width = ImGui::CalcTextSize("000").x + style.FramePadding.x * 2.0f + (ImGui::GetFrameHeight() + style.ItemInnerSpacing.x) * 2.0f;
+        input_scalar_width = get_input_scalar_width();
 
         gb_add_ppu_callback(gb,&callback_handler);
     }
@@ -499,7 +505,7 @@ public:
         tmv->scx = gb->ppu.scx;
         tmv->scy = gb->ppu.scy;
         tmv->bgp = gb->palette.bgp;
-        memcpy(tmv->cgb_bg_cram_converted,gb->palette.cgb_bg_cram_converted,sizeof(tmv->cgb_bg_cram_converted));
+        memcpy(tmv->bg_cram_converted,gb->palette.bg_cram_converted,sizeof(tmv->bg_cram_converted));
         memcpy(tmv->vram,gb->ppu.vram,sizeof(tmv->vram));
     }
 
@@ -509,11 +515,11 @@ public:
     }
     
     gb_rgb_t get_cgb_color(uint8_t palette_index,uint8_t color_index){
-        return cgb_bg_cram_converted[((palette_index & 0x07) << 0x02) | (color_index & 0x03)];
+        return bg_cram_converted[((palette_index & 0x07) << 0x02) | (color_index & 0x03)];
     }
     
     gb_rgb_t get_cgb_dmg_color(uint8_t palette_index){
-        return cgb_bg_cram_converted[(bgp >> ((palette_index & 0x03) << 0x01)) & 0x03];
+        return bg_cram_converted[(bgp >> ((palette_index & 0x03) << 0x01)) & 0x03];
     }
 
     
@@ -724,23 +730,25 @@ public:
                 ImGui::EndTable();
             }
 
-            if(ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Equal) && scale < max_scale){
-                scale += 1.0f;
-            }
-            if(ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Minus) && scale > min_scale){
-                scale -= 1.0f;
-            }
+            if(ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows)){
 
-            ImGuiIO& io = ImGui::GetIO();
-            if(io.KeyCtrl){
-                if(io.MouseWheel > 0.0f && scale < max_scale){
-                    scale += 1.0f;
+                if(ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Equal) && scale < max_scale){
+                    ++scale;
                 }
-                else if(io.MouseWheel < 0.0f && scale > min_scale){
-                    scale -= 1.0f;
+                else if(ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Minus) && scale > min_scale){
+                    --scale;
+                }
+
+                ImGuiIO& io = ImGui::GetIO();
+                if(io.KeyCtrl){
+                    if(io.MouseWheel > 0.0f && scale < max_scale){
+                        ++scale;
+                    }
+                    else if(io.MouseWheel < 0.0f && scale > min_scale){
+                        --scale;
+                    }
                 }
             }
-
         }
         ImGui::End();
     }
@@ -874,18 +882,404 @@ public:
 
 class palette_viewer_t {
 public:
+    enum{
+        texture_max_width = gb_palette_colors * gb_tile_size,
+        texture_max_height = gb_cgb_palettes * gb_tile_size,
+        
+        cgb_texture_height = texture_max_height,
+
+        dmg_bg_texture_height = gb_dmg_bg_palettes * gb_tile_size,
+
+        dmg_obj_texture_height = gb_dmg_obj_palettes * gb_tile_size
+    };
+
     gb_t* gb = nullptr;
 
-    palette_viewer_t(gb_t* gb):gb(gb){
+    bool cgb_mode = false;
+    uint8_t bgp = 0x00;
+    uint8_t obp[0x02] = {0};
+    gb_rgb_t bg_cram_converted[0x20] = {0};
+    gb_rgb_t obj_cram_converted[0x20] = {0};
 
+    SDL_Texture* bg_texture = nullptr;
+    SDL_Texture* obj_texture = nullptr;
+
+    float input_scalar_width = 0.0f;
+    int input_scalar_step = 1;
+    int input_scalar_step_fast = 100;
+
+    gb_ppu_callback_handler_t callback_handler = {callback,this,gb_vblank_scanline,0,nullptr};
+
+    bool open = false;
+
+    palette_viewer_t(gb_t* gb,SDL_Renderer* renderer):gb(gb){
+        bg_texture = SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGB24,SDL_TEXTUREACCESS_STREAMING,texture_max_width,texture_max_height);
+        obj_texture = SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGB24,SDL_TEXTUREACCESS_STREAMING,texture_max_width,texture_max_height);
+
+        ImGuiStyle& style = ImGui::GetStyle();
+
+        input_scalar_width = get_input_scalar_width();
+
+        gb_add_ppu_callback(gb,&callback_handler);
     }
 
     ~palette_viewer_t(){
+        gb_remove_ppu_callback(gb,&callback_handler);
+
+        SDL_DestroyTexture(bg_texture);
+        SDL_DestroyTexture(obj_texture);
+    }
+
+    static void callback(void* data){
+        palette_viewer_t* pv = (palette_viewer_t*)data;
+        gb_palette_t* palette = &pv->gb->palette;
+        
+        pv->cgb_mode = pv->gb->cgb_mode;
+        
+        pv->bgp = palette->bgp;
+        
+        pv->obp[0] = palette->obp[0];
+        pv->obp[1] = palette->obp[1];
+
+        memcpy(pv->bg_cram_converted,palette->bg_cram_converted,sizeof(pv->bg_cram_converted));
+        memcpy(pv->obj_cram_converted,palette->obj_cram_converted,sizeof(pv->obj_cram_converted));
+    }
+
+
+    gb_rgb_t get_dmg_bg_color(uint8_t index){
+        return dmg_palette[(bgp >> ((index & 0x03) << 0x01)) & 0x03];
+    }
+
+    gb_rgb_t get_cgb_bg_color(uint8_t palette_index,uint8_t color_index){
+        return bg_cram_converted[((palette_index & 0x07) << 0x02) | (color_index & 0x03)];
+    }
+
+    gb_rgb_t get_cgb_dmg_bg_color(uint8_t index){
+        return bg_cram_converted[(bgp >> ((index & 0x03) << 0x01)) & 0x03];
+    }
+
+
+    gb_rgb_t get_dmg_obj_color(uint8_t obp_index,uint8_t index){
+        return dmg_palette[(obp[obp_index & 0x01] >> ((index & 0x03) << 0x01)) & 0x03];
+    }
+
+    gb_rgb_t get_cgb_obj_color(uint8_t palette_index,uint8_t color_index){
+        return obj_cram_converted[((palette_index & 0x07) << 0x02) | (color_index & 0x03)];
+    }
+
+    gb_rgb_t get_cgb_dmg_obj_color(uint8_t obp_index,uint8_t index){
+        return obj_cram_converted[((obp_index & 0x01) << 0x02) | ((obp[obp_index & 0x01] >> ((index & 0x03) << 0x01)) & 0x03)];
+    }
+
+
+    void update_bg_texture(){
+        int rows = cgb_mode ? gb_cgb_palettes : gb_dmg_bg_palettes;
+
+        gb_rgb_t color = {0};
+
+        uint8_t* pixels = nullptr;
+        int pitch = 0;
+        SDL_LockTexture(bg_texture,nullptr,(void**)&pixels,&pitch);
+
+        for(int row = 0; row < rows; ++row){
+            for(int col = 0; col < gb_palette_colors; ++col){
+
+                if(gb->type == gb_cgb){
+                    if(cgb_mode){
+                        color = get_cgb_bg_color(row,col);
+                    }
+                    else{
+                        color = get_cgb_dmg_bg_color(col);
+                    }
+                }
+                else{
+                    color = get_dmg_bg_color(col);
+                }
+
+                for(int y = 0; y < gb_tile_size; ++y){
+                    for(int x = 0; x < gb_tile_size; ++x){
+                        uint8_t* pixel = pixels + ((row * gb_tile_size) | y) * pitch + ((col * gb_tile_size) | x) * 3;
+                        pixel[0] = color.r;
+                        pixel[1] = color.g;
+                        pixel[2] = color.b;
+                    }
+                }
+            }
+        }
+
+        SDL_UnlockTexture(bg_texture);
+    }
+
+    void update_obj_texture(){
+        int rows = cgb_mode ? gb_cgb_palettes : gb_dmg_obj_palettes;
+
+        gb_rgb_t color = {0};
+
+        uint8_t* pixels = nullptr;
+        int pitch = 0;
+        SDL_LockTexture(obj_texture,nullptr,(void**)&pixels,&pitch);
+
+        for(int row = 0; row < rows; ++row){
+            for(int col = 0; col < gb_palette_colors; ++col){
+
+                if(gb->type == gb_cgb){
+                    if(cgb_mode){
+                        color = get_cgb_obj_color(row,col);
+                    }
+                    else{
+                        color = get_cgb_dmg_obj_color(row,col);
+                    }
+                }
+                else{
+                    color = get_dmg_obj_color(row,col);
+                }
+
+                for(int y = 0; y < gb_tile_size; ++y){
+                    for(int x = 0; x < gb_tile_size; ++x){
+                        uint8_t* pixel = pixels + ((row * gb_tile_size) | y) * pitch + ((col * gb_tile_size) | x) * 3;
+                        pixel[0] = color.r;
+                        pixel[1] = color.g;
+                        pixel[2] = color.b;
+                    }
+                }
+
+            }
+        }
+
+        SDL_UnlockTexture(obj_texture);
+    }
+
+
+    void render(){
+        if(!open) return;
+
+        if(ImGui::Begin("Palette Viewer",&open)){
+
+            if(ImGui::BeginTable("PaletteTable",3)){
+
+                ImGui::TableSetupColumn("BackgroundColumn",ImGuiTableColumnFlags_WidthStretch);
+                ImGui::TableSetupColumn("ObjectColumn",ImGuiTableColumnFlags_WidthStretch);
+                ImGui::TableSetupColumn("ControlColumn",ImGuiTableColumnFlags_WidthFixed);
+
+                ImVec2 bg_size = ImVec2(texture_max_width,cgb_mode ? cgb_texture_height : dmg_bg_texture_height);
+                ImVec2 bg_uv0 = {0.0f,0.0f};
+                ImVec2 bg_uv1 = {1.0f,bg_size.y / texture_max_height};
+                bg_size.x *= 4.0f;
+                bg_size.y *= 4.0f;
+
+                update_bg_texture();
+
+                ImVec2 obj_size = ImVec2(texture_max_width,cgb_mode ? cgb_texture_height : dmg_obj_texture_height);
+                ImVec2 obj_uv0 = {0.0f,0.0f};
+                ImVec2 obj_uv1 = {1.0f,obj_size.y / texture_max_height};
+                obj_size.x *= 4.0f;
+                obj_size.y *= 4.0f;
+
+                update_obj_texture();
+
+                ImGui::TableNextRow();
+
+                ImGui::TableNextColumn();
+                ImGui::TextUnformatted("Background");
+                ImGui::Image((ImTextureRef)bg_texture,bg_size,bg_uv0,bg_uv1);
+                
+                ImGui::TableNextColumn();
+                ImGui::TextUnformatted("Object");
+                ImGui::Image((ImTextureRef)obj_texture,obj_size,obj_uv0,obj_uv1);
+
+                ImGui::TableNextColumn();
+
+                ImGui::SetNextItemWidth(input_scalar_width);
+                if(ImGui::InputScalar("Refresh on scanline",ImGuiDataType_U8,&callback_handler.scanline,&input_scalar_step,&input_scalar_step_fast)){
+                    if(callback_handler.scanline >= gb_scanlines){
+                        callback_handler.scanline = gb_scanlines - 1;
+                    }
+                }
+
+                ImGui::SetNextItemWidth(input_scalar_width);
+                if(ImGui::InputScalar("Refresh on cycle",ImGuiDataType_U16,&callback_handler.cycle,&input_scalar_step,&input_scalar_step_fast)){
+                    if(callback_handler.cycle >= gb_scanline_cycles){
+                        callback_handler.cycle = gb_scanline_cycles - 1;
+                    }
+                }
+
+                ImGui::EndTable();
+            }
+        }
+        ImGui::End();
+    }
+};
+
+class object_viewer_t {
+public:
+    enum{
+        bg_texture_width = 256,
+        bg_texture_height = 256,
+
+        on_screen_offset_x = 8,
+        on_screen_offset_y = 16
+    };
+
+    gb_t* gb = nullptr;
+
+    SDL_Texture* bg_texture = nullptr;
+
+    float min_scale = 1.0f;
+    float max_scale = 10.0f;
+    float scale = min_scale;
+
+    bool show_offscreen = true;
+
+    float input_scalar_width = 0.0f;
+    int input_scalar_step = 1;
+    int input_scalar_step_fast = 100;
+
+    gb_object_t object[40] = {0};
+
+    gb_ppu_callback_handler_t callback_handler = {callback,this,gb_vblank_scanline,0,nullptr};
+
+    bool open = false;
+
+    object_viewer_t(gb_t* gb,SDL_Renderer *renderer):gb(gb){
+        bg_texture = SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGB24,SDL_TEXTUREACCESS_STREAMING,bg_texture_width,bg_texture_height);
+
+        render_bg();
+
+        input_scalar_width = get_input_scalar_width();
+    }
+
+    ~object_viewer_t(){
+        SDL_DestroyTexture(bg_texture);
+    }
+
+    static void callback(void* data){
+        object_viewer_t* ov = (object_viewer_t*)ov;
 
     }
 
+    void render_bg(){
+        uint8_t* pixels = nullptr;
+        int pitch = 0;
+
+        SDL_LockTexture(bg_texture,nullptr,(void**)&pixels,&pitch);
+
+        memset(pixels,0x46,pitch * bg_texture_height);
+
+        gb_rgb_t color[2] = {
+            {0,0,0},
+            {255,255,255}
+        };
+        bool color_index = 0;
+
+        uint8_t* on_screen_pixels = pixels + (on_screen_offset_y * pitch) + (on_screen_offset_x * 3);
+
+        for(int row = 0, tile_y = 0; row < gb_screen_rows; ++row, tile_y += gb_tile_size){
+            
+            for(int col = 0, tile_x = 0; col < gb_screen_columns; ++col, tile_x += gb_tile_size){
+
+                for(int y = 0; y < gb_tile_size; ++y){
+
+                    uint8_t* line_pixel = on_screen_pixels + (tile_y | y) * pitch + tile_x * 3;
+                    
+                    for(int x = 0; x < gb_tile_size; ++x){
+
+                        line_pixel[0] = color[color_index].r;
+                        line_pixel[1] = color[color_index].g;
+                        line_pixel[2] = color[color_index].b;
+
+                        line_pixel += 3;
+                    }
+                }
+
+                color_index = !color_index;
+            }
+
+            color_index = !color_index;
+        }
+
+        SDL_UnlockTexture(bg_texture);
+    }
+
     void render(){
-        
+        if(!open) return;
+
+        if(ImGui::Begin("Object Viewer",&open)){
+
+            if(ImGui::BeginTable("ObjectTable",2,ImGuiTableFlags_Borders)){
+
+                ImGui::TableSetupColumn("Left",ImGuiTableColumnFlags_WidthStretch);
+                ImGui::TableSetupColumn("Right",ImGuiTableColumnFlags_WidthFixed);
+
+                ImGui::TableNextRow();
+
+                ImGui::TableNextColumn();
+                if(ImGui::BeginChild("ObjectChild",ImVec2(0.0f,0.0f),ImGuiChildFlags_Borders,ImGuiWindowFlags_HorizontalScrollbar)){
+                    
+                    ImVec2 bg_size = {bg_texture_width * scale,bg_texture_height * scale};
+
+                    ImVec2 bg_uv0,bg_uv1;
+                    if(show_offscreen){
+                        bg_uv0 = ImVec2(0.0f,0.0f);
+                        bg_uv1 = ImVec2(1.0f,1.0f);
+                    }
+                    else{
+                        bg_uv0 = ImVec2(
+                            (float)on_screen_offset_x / (float)bg_texture_width,
+                            (float)on_screen_offset_y / (float)bg_texture_height
+                        );
+                        
+                        bg_uv1 = ImVec2(
+                            bg_uv0.x + ((float)gb_screen_width / (float)bg_texture_width),
+                            bg_uv0.y + ((float)gb_screen_height / (float)bg_texture_height)
+                        );
+                    }
+
+                    ImGui::Image((ImTextureRef)bg_texture,bg_size,bg_uv0,bg_uv1);
+                }
+                ImGui::EndChild();
+
+                ImGui::TableNextColumn();
+                ImGui::Checkbox("Show offscreen",&show_offscreen);
+
+                ImGui::SetNextItemWidth(input_scalar_width);
+                if(ImGui::InputScalar("Refresh on scanline",ImGuiDataType_U8,&callback_handler.scanline,&input_scalar_step,&input_scalar_step_fast)){
+                    if(callback_handler.scanline >= gb_scanlines){
+                        callback_handler.scanline = gb_scanlines - 1;
+                    }
+                }
+
+                ImGui::SetNextItemWidth(input_scalar_width);
+                if(ImGui::InputScalar("Refresh on cycle",ImGuiDataType_U16,&callback_handler.cycle,&input_scalar_step,&input_scalar_step_fast)){
+                    if(callback_handler.cycle >= gb_scanline_cycles){
+                        callback_handler.cycle = gb_scanline_cycles - 1;
+                    }
+                }
+
+                ImGui::EndTable();
+            }
+
+            if(ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows)){
+
+                if(ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Equal) && scale < max_scale){
+                    ++scale;
+                }
+                else if(ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Minus) && scale > min_scale){
+                    --scale;
+                }
+
+                ImGuiIO& io = ImGui::GetIO();
+                if(io.KeyCtrl){
+                    if(io.MouseWheel > 0.0f && scale < max_scale){
+                        ++scale;
+                    }
+                    else if(io.MouseWheel < 0.0f && scale > min_scale){
+                        --scale;
+                    }
+                }
+            }
+            
+        }
+        ImGui::End();
     }
 };
 
@@ -970,6 +1364,7 @@ void update_screen_size(SDL_Window* window,SDL_Rect* screen_rect){
     screen_rect->y = main_menu_bar_height + (window_height - screen_rect->h) / 2;
 }
 
+
 int main(int n_args,char** args){
 
     gb_t* gb = gb_new();
@@ -1015,6 +1410,8 @@ int main(int n_args,char** args){
 
     file_selector_t* file_selector = new file_selector_t(gb);
     tilemap_viewer_t* tilemap_viewer = new tilemap_viewer_t(gb,renderer);
+    object_viewer_t* object_viewer = new object_viewer_t(gb,renderer);
+    palette_viewer_t* palette_viewer = new palette_viewer_t(gb,renderer);
     wave_form_t* wave_form = new wave_form_t(gb);
 
     bool running = true;
@@ -1143,6 +1540,8 @@ int main(int n_args,char** args){
                     texture_clear(screen_texture,gb_screen_height);
                     
                     tilemap_viewer->open = false;
+                    object_viewer->open = false;
+                    palette_viewer->open = false;
                     wave_form->open = false;
                 }
                 
@@ -1202,6 +1601,12 @@ int main(int n_args,char** args){
                 if(ImGui::MenuItem("Tilemap Viewer",nullptr,nullptr,gb->cartridge_inserted)){
                     tilemap_viewer->open = true;
                 }
+                if(ImGui::MenuItem("Object Viewer",nullptr,nullptr,gb->cartridge_inserted)){
+                    object_viewer->open = true;
+                }
+                if(ImGui::MenuItem("Palette Viewer",nullptr,nullptr,gb->cartridge_inserted)){
+                    palette_viewer->open = true;
+                }
                 if(ImGui::MenuItem("Wave Form",nullptr,nullptr,gb->cartridge_inserted)){
                     wave_form->open = true;
                 }
@@ -1212,6 +1617,8 @@ int main(int n_args,char** args){
 
         file_selector->render();
         tilemap_viewer->render();
+        object_viewer->render();
+        palette_viewer->render();
         wave_form->render();
 
         ImGui::Render();
@@ -1235,6 +1642,8 @@ int main(int n_args,char** args){
     }
 
     delete wave_form;
+    delete palette_viewer;
+    delete object_viewer;
     delete tilemap_viewer;
     delete file_selector;
 

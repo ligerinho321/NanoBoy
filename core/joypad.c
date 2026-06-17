@@ -65,6 +65,17 @@ uint8_t gb_joypad_read_register(void* data,uint16_t address){
     return value;
 }
 
+bool gb_joypad_is_any_button_pressed(gb_joypad_t* joypad){
+    bool p = false;
+    if(joypad->select_buttons){
+        p = joypad->key.start || joypad->key.select || joypad->key.b || joypad->key.a;
+    }
+    if(joypad->select_directions){
+        p = joypad->key.down || joypad->key.up || joypad->key.left || joypad->key.right;
+    }
+    return p;
+}
+
 void gb_joypad_map_registers(gb_joypad_t* joypad){
 
     joypad->register_handler = (gb_memory_handler_t){

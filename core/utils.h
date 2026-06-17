@@ -39,6 +39,10 @@ enum{
     gb_screen_pitch = gb_screen_width * gb_screen_bytes_per_pixel,
     gb_screen_length = gb_screen_pitch * gb_screen_height,
 
+    gb_tile_size = 8,
+    gb_screen_columns = gb_screen_width / gb_tile_size,
+    gb_screen_rows = gb_screen_height / gb_tile_size,
+
     gb_vblank_scanline = 144,
     gb_scanlines = 154,
     gb_scanline_cycles = 456,

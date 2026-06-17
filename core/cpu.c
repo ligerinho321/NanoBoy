@@ -490,6 +490,71 @@ void gb_cpu_halt(gb_cpu_t* cpu){
     cpu->halt_fetch = true;
 }
 
+void gb_cpu_stop(gb_cpu_t* cpu){
+    gb_t* gb = cpu->gb;
+    bool interrupt_pending = gb->interrupt.enable & gb->interrupt.flag;
+
+    if(gb_joypad_is_any_button_pressed(&gb->joypad)){
+        if(interrupt_pending){
+            //STOP is a 1byte opcode, mode doesnt's change, DIV doesnt's reset 
+        }
+        else{
+            //STOP is a 2byte opcode, HALT mode is entered, DIV is not reset
+            gb_cpu_read_byte(cpu,cpu->pc++);
+
+            cpu->halted = true;
+            cpu->halt_fetch = true;
+        }
+    }
+    else{
+        if(gb->speed_switch_needed){
+            if(interrupt_pending){
+                if(cpu->ime){
+                    //STOP is a 1byte opcode, mode doesnt's change, DIV is reset, CPU speed changes
+                    gb_timer_set_div(&gb->timer,0);
+
+                    gb->speed_switch_needed = false;
+                    gb->double_speed = !gb->double_speed;
+                }
+                else{
+                    //The CPU glitchs non-deterministically, oops!
+                }
+            }
+            else{
+                //STOP is a 2byte opcode, HALT mode is entered, DIV is reset, CPU speed changes
+                gb_cpu_read_byte(cpu,cpu->pc++);
+                
+                cpu->halted = true;
+                cpu->halt_fetch = true;
+                
+                gb_timer_set_div(&gb->timer,0);
+
+                gb->speed_switch_needed = false;
+                gb->double_speed = !gb->double_speed;
+
+                //Unless an interrupt ocurrs before the, HALT mode whill exit automatically after about 0x20000 T-cycles
+                cpu->halt_cycles = 0x20000 >> 0x02;
+            }
+        }
+        else{
+            if(interrupt_pending){
+                //STOP is a 1byte opcode, STOP mode is entered, DIV is reset
+                cpu->stopped = true;
+
+                gb_timer_set_div(&gb->timer,0);
+            }
+            else{
+                //STOP is a 2byte opcode, STOP mode is entered, DIV is reset
+
+                gb_cpu_read_byte(cpu,cpu->pc++);
+
+                cpu->stopped = true;
+
+                gb_timer_set_div(&gb->timer,0);
+            }
+        }
+    }
+}
 
 void gb_cpu_prefix(gb_cpu_t* cpu,uint8_t prefix){
     switch(prefix){
@@ -1060,7 +1125,7 @@ void gb_cpu_execute_opcode(gb_cpu_t* cpu){
         case 0x0F: gb_cpu_rrca(cpu); break;
 
         //STOP
-        case 0x10: printf("STOP Instruction\n"); break;
+        case 0x10: gb_cpu_stop(cpu); break;
         //LD DE,IMM16
         case 0x11: gb_cpu_ld_r16_imm16(cpu,&cpu->de); break;
         //LD [DE],A
@@ -1595,7 +1660,8 @@ void gb_cpu_execute(gb_cpu_t* cpu){
     else{
         gb_cpu_cycle(cpu);
 
-        if(cpu->gb->interrupt.enable & cpu->gb->interrupt.flag){
+        if((cpu->gb->interrupt.enable & cpu->gb->interrupt.flag) || (cpu->halt_cycles && --cpu->halt_cycles == 0x00)){
+            cpu->halt_cycles = 0x00;
             cpu->halted = false;
             cpu->opcode = gb_memory_read(&cpu->gb->memory,cpu->pc++);
         }
@@ -1608,6 +1674,8 @@ void gb_cpu_reset(gb_cpu_t* cpu){
 
     cpu->halted = false;
     cpu->halt_fetch = false;
+
+    cpu->stopped = false;
 
     cpu->ime_pending = false;
     cpu->ime = false;

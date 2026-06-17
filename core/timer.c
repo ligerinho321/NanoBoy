@@ -14,7 +14,7 @@ static inline void gb_timer_tima_reload(gb_timer_t* timer){
     timer->gb->interrupt.flag |= gb_interrupt_timer_flag;
 }
 
-static inline void gb_timer_set_div(gb_timer_t* timer,uint16_t new_div){
+void gb_timer_set_div(gb_timer_t* timer,uint16_t new_div){
 
     if(timer->enabled && (timer->div & timer->div_bit) && !(new_div & timer->div_bit)){
         if(++timer->tima == 0x00){

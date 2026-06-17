@@ -185,7 +185,7 @@ void gb_map_cgb_registers(gb_t* gb){
     //VBK
     bus[0xFF4F] = &gb->ppu.vbk_register_handler;
     //VRAM DMA
-    gb_dma_vram_map_registers(&gb->dma);
+    gb_vram_dma_map_registers(&gb->dma);
     //Palette
     gb_palette_map_cgb_registers(&gb->palette);
     //OPRI
@@ -198,14 +198,12 @@ void gb_map_cgb_registers(gb_t* gb){
 
 void gb_unmap_cgb_registers(gb_t* gb){
     gb_memory_handler_t** bus = gb->memory.bus;
-    //KEY0
-    bus[0xFF4C] = NULL;
     //KEY1
     bus[0xFF4D] = NULL;
     //VBK
     bus[0xFF4F] = NULL;
     //VRAM DMA
-    gb_dma_vram_unmap_registers(&gb->dma);
+    gb_vram_dma_unmap_registers(&gb->dma);
     //Palette
     gb_palette_unmap_cgb_registers(&gb->palette);
     //OPRI

@@ -15,8 +15,8 @@ typedef enum _gb_ppu_mode_t {
 
 typedef struct _gb_ppu_lcdc_t {
     bool tile_enabled;
-    bool sprite_enabled;
-    bool sprite_size;
+    bool object_enabled;
+    bool object_size;
     bool bg_tilemap_area;
     bool tiledata_area;
     bool window_enabled;
@@ -41,19 +41,19 @@ typedef struct _gb_bg_fetcher_t {
     uint8_t hi;
 } gb_bg_fetcher_t;
 
-typedef struct _gb_sprite_fetcher_t {
+typedef struct _gb_object_fetcher_t {
     uint8_t step;
     uint16_t tile_address;
     uint8_t lo;
     uint8_t hi;
-} gb_sprite_fetcher_t;
+} gb_object_fetcher_t;
 
-typedef struct _gb_sprite_t {
+typedef struct _gb_object_t {
     uint8_t y;
     uint8_t x;
     uint8_t tile_index;
     uint8_t attributes;
-} gb_sprite_t;
+} gb_object_t;
 
 typedef struct _gb_ppu_t {
     gb_t* gb;
@@ -78,19 +78,19 @@ typedef struct _gb_ppu_t {
     uint8_t window_ly;
 
     gb_bg_fetcher_t tile_fetcher;
-    gb_sprite_fetcher_t sprite_fetcher;
+    gb_object_fetcher_t object_fetcher;
     
-    uint8_t sprite_found_index;
+    uint8_t object_found_index;
     bool fetch_window;
     uint8_t fetch_column;
     int drawn_pixels;
     bool fictitious_fetch;
 
-    gb_sprite_t sprite_buffer[0x0A];
-    uint8_t sprite_buffer_length;
+    gb_object_t object_buffer[0x0A];
+    uint8_t object_buffer_length;
 
     gb_pixel_fifo_t tile_fifo;
-    gb_pixel_fifo_t sprite_fifo;
+    gb_pixel_fifo_t object_fifo;
 
     uint8_t vram[0x4000];
     uint8_t* vram_bank_ptr;

@@ -20,6 +20,9 @@ typedef struct _gb_cpu_t {
     
     bool halted;
     bool halt_fetch;
+    uint32_t halt_cycles;
+
+    bool stopped;
 
     bool ime_pending;
     bool ime;

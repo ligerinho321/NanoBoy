@@ -27,8 +27,10 @@ void gb_memory_init(gb_memory_t* memory,gb_t* gb);
 void gb_memory_write(gb_memory_t* memory,uint8_t value,uint16_t address);
 uint8_t gb_memory_read(gb_memory_t* memory,uint16_t address);
 
-void gb_memory_dma_write(gb_memory_t* memory,uint8_t value,uint16_t address);
-uint8_t gb_memory_dma_read(gb_memory_t* memory,uint16_t address);
+uint8_t gb_memory_oam_dma_read(gb_memory_t* memory,uint16_t address);
+
+void gb_memory_vram_dma_write(gb_memory_t* memory,uint8_t value,uint16_t address);
+uint8_t gb_memory_vram_dma_read(gb_memory_t* memory,uint16_t address);
 
 void gb_memory_map(gb_memory_t* memory,gb_memory_handler_t* handler,uint32_t start,uint32_t end);
 

@@ -44,6 +44,8 @@ void gb_joypad_write_register(void* data,uint8_t value,uint16_t address);
 
 uint8_t gb_joypad_read_register(void* data,uint16_t address);
 
+bool gb_joypad_is_any_button_pressed(gb_joypad_t* joypad);
+
 void gb_joypad_map_registers(gb_joypad_t* joypad);
 
 void gb_joypad_reset(gb_joypad_t* joypad);

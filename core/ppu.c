@@ -26,9 +26,9 @@ static inline void gb_ppu_init_line_renderer(gb_ppu_t* ppu){
     ppu->wx_enabled = false;
 
     ppu->tile_fetcher.step = 0x00;
-    ppu->sprite_fetcher.step = 0x00;
+    ppu->object_fetcher.step = 0x00;
 
-    ppu->sprite_found_index = 0xFF;
+    ppu->object_found_index = 0xFF;
     ppu->fetch_window = false;
     ppu->fetch_column = 0x00;
     ppu->drawn_pixels = -0x08 - (ppu->scx & 0x07);
@@ -36,8 +36,8 @@ static inline void gb_ppu_init_line_renderer(gb_ppu_t* ppu){
 
     ppu->tile_fifo.length = 0x08;
 
-    ppu->sprite_fifo.length = 0x00;
-    memset(ppu->sprite_fifo.data,0x00,sizeof(ppu->sprite_fifo.data));
+    ppu->object_fifo.length = 0x00;
+    memset(ppu->object_fifo.data,0x00,sizeof(ppu->object_fifo.data));
 }
 
 static inline void gb_ppu_visible_scanline(gb_ppu_t* ppu){
@@ -48,7 +48,7 @@ static inline void gb_ppu_visible_scanline(gb_ppu_t* ppu){
             if(ppu->_ly != 0 || !ppu->first_frame){
                 ppu->status.mode = gb_ppu_oam_mode;
 
-                ppu->sprite_buffer_length = 0;
+                ppu->object_buffer_length = 0;
                 ppu->oam_address = 0;
 
                 ppu->oam_blocked = true;
@@ -155,14 +155,14 @@ static inline void gb_ppu_update_irq_line(gb_ppu_t* ppu){
 }
 
 static inline void gb_ppu_oam_evaluation(gb_ppu_t* ppu){
-    if(!(ppu->cycle & 0x01) || ppu->sprite_buffer_length >= 0x0A) return;
+    if(!(ppu->cycle & 0x01) || ppu->object_buffer_length >= 0x0A) return;
 
     uint8_t ly = ppu->ly + 0x10;
-    uint8_t sprite_height = ppu->lcdc.sprite_size ? 0x10 : 0x08;
-    gb_sprite_t* sprite = (gb_sprite_t*)(ppu->oam + ppu->oam_address);
+    uint8_t object_height = ppu->lcdc.object_size ? 0x10 : 0x08;
+    gb_object_t* object = (gb_object_t*)(ppu->oam + ppu->oam_address);
 
-    if(ly >= sprite->y && ly < (sprite->y + sprite_height)){
-        memcpy(ppu->sprite_buffer + ppu->sprite_buffer_length++,sprite,0x04);
+    if(ly >= object->y && ly < (object->y + object_height)){
+        memcpy(ppu->object_buffer + ppu->object_buffer_length++,object,0x04);
     }
 
     ppu->oam_address += 0x04;
@@ -236,36 +236,36 @@ static inline void gb_ppu_tile_fetcher_step(gb_ppu_t* ppu){
     }
 }
 
-static inline void gb_ppu_sprite_fetcher_step(gb_ppu_t* ppu){
-    switch(ppu->sprite_fetcher.step++){
+static inline void gb_ppu_object_fetcher_step(gb_ppu_t* ppu){
+    switch(ppu->object_fetcher.step++){
         case 0x01:{
-            gb_sprite_t* sprite = ppu->sprite_buffer + ppu->sprite_found_index;
+            gb_object_t* sprite = ppu->object_buffer + ppu->object_found_index;
             
             uint8_t tile_index = sprite->tile_index;
-            if(ppu->lcdc.sprite_size) tile_index &= 0xFE;
+            if(ppu->lcdc.object_size) tile_index &= 0xFE;
 
             uint8_t y = (ppu->ly + 0x10) - sprite->y;
 
-            ppu->sprite_fetcher.tile_address = ((sprite->attributes & 0x08) ? 0x2000 : 0x0000) | (tile_index << 0x04);
-            ppu->sprite_fetcher.tile_address += ((sprite->attributes & 0x40) ? ((ppu->lcdc.sprite_size ? 0x0F : 0x07) ^ y) : y) << 0x01;
+            ppu->object_fetcher.tile_address = ((sprite->attributes & 0x08) ? 0x2000 : 0x0000) | (tile_index << 0x04);
+            ppu->object_fetcher.tile_address += ((sprite->attributes & 0x40) ? ((ppu->lcdc.object_size ? 0x0F : 0x07) ^ y) : y) << 0x01;
             break;
         }
         case 0x03:{
-            ppu->sprite_fetcher.lo = ppu->vram[ppu->sprite_fetcher.tile_address + 0x00];
+            ppu->object_fetcher.lo = ppu->vram[ppu->object_fetcher.tile_address + 0x00];
             break;
         }
         case 0x05:{
-            ppu->sprite_fetcher.hi = ppu->vram[ppu->sprite_fetcher.tile_address + 0x01];
+            ppu->object_fetcher.hi = ppu->vram[ppu->object_fetcher.tile_address + 0x01];
 
-            gb_sprite_t* sprite = ppu->sprite_buffer + ppu->sprite_found_index;
+            gb_object_t* sprite = ppu->object_buffer + ppu->object_found_index;
 
             for(uint8_t i = 0x00; i < 0x08; ++i){
                 uint8_t bit = 0x01 << ((sprite->attributes & 0x20) ? i : 0x07 ^ i);
-                uint8_t color_index = ((ppu->sprite_fetcher.hi & bit) ? 0x02 : 0x00) | ((ppu->sprite_fetcher.lo & bit) ? 0x01 : 0x00);
+                uint8_t color_index = ((ppu->object_fetcher.hi & bit) ? 0x02 : 0x00) | ((ppu->object_fetcher.lo & bit) ? 0x01 : 0x00);
 
-                gb_pixel_fifo_entry_t* entry = ppu->sprite_fifo.data + ((ppu->sprite_fifo.front + i) & 0x07);
+                gb_pixel_fifo_entry_t* entry = ppu->object_fifo.data + ((ppu->object_fifo.front + i) & 0x07);
 
-                if(color_index && (!entry->color_index || (!ppu->gb->obj_priority_mode && ppu->sprite_found_index < entry->index))){
+                if(color_index && (!entry->color_index || (!ppu->gb->obj_priority_mode && ppu->object_found_index < entry->index))){
                     if(ppu->gb->cgb_mode){
                         entry->palette_index = sprite->attributes & 0x07;
                     }
@@ -274,13 +274,13 @@ static inline void gb_ppu_sprite_fetcher_step(gb_ppu_t* ppu){
                     }
                     entry->color_index = color_index;
                     entry->priority = sprite->attributes & 0x80;
-                    entry->index = ppu->sprite_found_index;
+                    entry->index = ppu->object_found_index;
                 }
             }
 
-            ppu->sprite_fetcher.step = 0x00;
-            ppu->sprite_fifo.length = 0x08;
-            ppu->sprite_found_index = 0xFF;
+            ppu->object_fetcher.step = 0x00;
+            ppu->object_fifo.length = 0x08;
+            ppu->object_found_index = 0xFF;
             sprite->x = 0xFF;
             break;
         }
@@ -290,28 +290,28 @@ static inline void gb_ppu_sprite_fetcher_step(gb_ppu_t* ppu){
 
 static inline void gb_ppu_render_pixel(gb_ppu_t* ppu){
 
-    if(!ppu->tile_fifo.length || ppu->sprite_found_index != 0xFF) return;
+    if(!ppu->tile_fifo.length || ppu->object_found_index != 0xFF) return;
 
     //No primeiro frame apos a PPU ser ligada os pixels não são enviados para a tela segundo o teste firstwhite.gb
 
     if(ppu->drawn_pixels >= 0 && !ppu->first_frame){
 
         gb_pixel_fifo_entry_t* tile = ppu->tile_fifo.data + ppu->tile_fifo.front;
-        gb_pixel_fifo_entry_t* sprite = ppu->sprite_fifo.data + ppu->sprite_fifo.front;
+        gb_pixel_fifo_entry_t* object = ppu->object_fifo.data + ppu->object_fifo.front;
 
         gb_rgb_t color = {0};
 
-        if(ppu->lcdc.sprite_enabled && sprite->color_index && (!tile->color_index || !ppu->lcdc.tile_enabled || (!tile->priority && !sprite->priority))){
+        if(ppu->lcdc.object_enabled && object->color_index && (!tile->color_index || !ppu->lcdc.tile_enabled || (!tile->priority && !object->priority))){
             if(ppu->gb->type == gb_cgb){
                 if(ppu->gb->cgb_mode){
-                    color = gb_palette_get_cgb_obp_color(ppu->gb->palette,sprite->palette_index,sprite->color_index);
+                    color = gb_palette_get_cgb_obp_color(ppu->gb->palette,object->palette_index,object->color_index);
                 }
                 else{
-                    color = gb_palette_get_cgb_dmg_obp_color(ppu->gb->palette,sprite->palette_index,sprite->color_index);
+                    color = gb_palette_get_cgb_dmg_obp_color(ppu->gb->palette,object->palette_index,object->color_index);
                 }
             }
             else{
-                color = gb_palette_get_dmg_obp_color(ppu->gb->palette,sprite->palette_index,sprite->color_index);
+                color = gb_palette_get_dmg_obp_color(ppu->gb->palette,object->palette_index,object->color_index);
             }
         }
         else{
@@ -336,7 +336,7 @@ static inline void gb_ppu_render_pixel(gb_ppu_t* ppu){
     ppu->drawn_pixels++;
 
     gb_pixel_fifo_pop(&ppu->tile_fifo);
-    gb_pixel_fifo_pop(&ppu->sprite_fifo);
+    gb_pixel_fifo_pop(&ppu->object_fifo);
 }
 
 
@@ -361,17 +361,17 @@ static inline void gb_ppu_drawing(gb_ppu_t* ppu){
     //O buscador de sprite espera até que o buscador de tile termine para começar a sua busca
     //O primero ciclo do buscador de sprite se sobrepoem ao ultimo ciclo do buscador de tile
 
-    if(ppu->sprite_found_index == 0xFF){
-        for(uint8_t i = 0x00; i < ppu->sprite_buffer_length; ++i){
-            if((int)ppu->sprite_buffer[i].x - 0x08 == ppu->drawn_pixels){
-                ppu->sprite_found_index = i;
+    if(ppu->object_found_index == 0xFF){
+        for(uint8_t i = 0x00; i < ppu->object_buffer_length; ++i){
+            if((int)ppu->object_buffer[i].x - 0x08 == ppu->drawn_pixels){
+                ppu->object_found_index = i;
                 break;
             }
         }
     }
 
-    if(ppu->sprite_found_index != 0xFF && ppu->tile_fetcher.step >= 0x05 && ppu->tile_fifo.length > 0x00){
-        gb_ppu_sprite_fetcher_step(ppu);
+    if(ppu->object_found_index != 0xFF && ppu->tile_fetcher.step >= 0x05 && ppu->tile_fifo.length > 0x00){
+        gb_ppu_object_fetcher_step(ppu);
     }
     else{
         gb_ppu_tile_fetcher_step(ppu);
@@ -414,6 +414,8 @@ void gb_ppu_clock(gb_ppu_t* ppu,int cycles){
 
                 ppu->vram_blocked = false;
                 ppu->oam_blocked = false;
+
+                gb_vram_hblank_dma(&ppu->gb->dma);
             }
         }
 
@@ -457,8 +459,8 @@ void gb_ppu_write_register(void* data,uint8_t value,uint16_t address){
         //LCDC
         case 0xFF40:{
             ppu->lcdc.tile_enabled = value & 0x01;
-            ppu->lcdc.sprite_enabled = value & 0x02;
-            ppu->lcdc.sprite_size = value & 0x04;
+            ppu->lcdc.object_enabled = value & 0x02;
+            ppu->lcdc.object_size = value & 0x04;
             ppu->lcdc.bg_tilemap_area = value & 0x08;
             ppu->lcdc.tiledata_area = value & 0x10;
             ppu->lcdc.window_enabled = value & 0x20;
@@ -545,8 +547,8 @@ uint8_t gb_ppu_read_register(void* data,uint16_t address){
         case 0xFF40:{
             value = (
                 (ppu->lcdc.tile_enabled ? 0x01 : 0x00) |
-                (ppu->lcdc.sprite_enabled ? 0x02 : 0x00) |
-                (ppu->lcdc.sprite_size ? 0x04 : 0x00) |
+                (ppu->lcdc.object_enabled ? 0x02 : 0x00) |
+                (ppu->lcdc.object_size ? 0x04 : 0x00) |
                 (ppu->lcdc.bg_tilemap_area ? 0x08 : 0x00) |
                 (ppu->lcdc.tiledata_area ? 0x10 : 0x00) |
                 (ppu->lcdc.window_enabled ? 0x20 : 0x00) |
@@ -696,19 +698,19 @@ void gb_ppu_reset(gb_ppu_t* ppu){
     ppu->window_ly = 0x00;
 
     memset(&ppu->tile_fetcher,0x00,sizeof(ppu->tile_fetcher));
-    memset(&ppu->sprite_fetcher,0x00,sizeof(ppu->sprite_fetcher));
+    memset(&ppu->object_fetcher,0x00,sizeof(ppu->object_fetcher));
 
-    ppu->sprite_found_index = 0x00;
+    ppu->object_found_index = 0x00;
     ppu->fetch_window = false;
     ppu->fetch_column = 0x00;
     ppu->drawn_pixels = 0x00;
     ppu->fictitious_fetch = false;
 
-    memset(ppu->sprite_buffer,0x00,sizeof(ppu->sprite_buffer));
-    ppu->sprite_buffer_length = 0x00;
+    memset(ppu->object_buffer,0x00,sizeof(ppu->object_buffer));
+    ppu->object_buffer_length = 0x00;
 
     memset(&ppu->tile_fifo,0x00,sizeof(ppu->tile_fifo));
-    memset(&ppu->sprite_fifo,0x00,sizeof(ppu->sprite_fifo));
+    memset(&ppu->object_fifo,0x00,sizeof(ppu->object_fifo));
 
     memset(ppu->vram,0x00,sizeof(ppu->vram));
     ppu->vram_bank_ptr = ppu->vram;

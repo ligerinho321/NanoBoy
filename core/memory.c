@@ -19,7 +19,7 @@ void gb_memory_init(gb_memory_t* memory,gb_t* gb){
 void gb_memory_write(gb_memory_t* memory,uint8_t value,uint16_t address){
     gb_memory_handler_t* handler = memory->bus[address];
 
-    if(!memory->gb->dma.oam_running || !gb_dma_oam_bus_conflict(&memory->gb->dma,address)){
+    if(!memory->gb->dma.oam_running || !gb_oam_dma_bus_conflict(&memory->gb->dma,address)){
         if(handler && handler->write){
             handler->write(handler->data,value,address);
         }
@@ -29,7 +29,7 @@ void gb_memory_write(gb_memory_t* memory,uint8_t value,uint16_t address){
 uint8_t gb_memory_read(gb_memory_t* memory,uint16_t address){
     gb_memory_handler_t* handler = memory->bus[address];
 
-    if(!memory->gb->dma.oam_running || !gb_dma_oam_bus_conflict(&memory->gb->dma,address)){
+    if(!memory->gb->dma.oam_running || !gb_oam_dma_bus_conflict(&memory->gb->dma,address)){
         if(handler && handler->read){
             return handler->read(handler->data,address);
         }
@@ -41,15 +41,32 @@ uint8_t gb_memory_read(gb_memory_t* memory,uint16_t address){
     return 0xFF;
 }
 
-void gb_memory_dma_write(gb_memory_t* memory,uint8_t value,uint16_t address){
+
+uint8_t gb_memory_oam_dma_read(gb_memory_t* memory,uint16_t address){
+    gb_memory_handler_t* handler = memory->bus[address];
+
+    if(handler && handler->read){
+        return handler->read(handler->data,address);
+    }
+
+    return 0xFF;
+}
+
+
+void gb_memory_vram_dma_write(gb_memory_t* memory,uint8_t value,uint16_t address){
     gb_memory_handler_t* handler = memory->bus[address];
 
     if(handler && handler->write){
         handler->write(handler->data,value,address);
     }
-    
 }
-uint8_t gb_memory_dma_read(gb_memory_t* memory,uint16_t address){
+
+uint8_t gb_memory_vram_dma_read(gb_memory_t* memory,uint16_t address){
+
+    if((address >= 0x8000 && address <= 0x9FFF) || address >= 0xE000){
+        return 0xFF;
+    }
+
     gb_memory_handler_t* handler = memory->bus[address];
 
     if(handler && handler->read){
