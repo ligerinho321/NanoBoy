@@ -10,11 +10,10 @@
                 "-fansi-escape-codes",
                 "-std=c++17",
                 
-                "-g",
-                //"-O2",
-                
-                "${workspaceFolder}/main.cpp",
+                //"-g",
+                "-O2",
 
+                "${workspaceFolder}/main.cpp",
                 "${workspaceFolder}/core/blip_buf/blip_buf.c",
                 "${workspaceFolder}/core/mappers/mbc1.c",
                 "${workspaceFolder}/core/mappers/mbc2.c",
@@ -34,14 +33,10 @@
                 "${workspaceFolder}/core/serial.c",
                 "${workspaceFolder}/core/timer.c",
                 "${workspaceFolder}/core/utils.c",
-                
                 "-I${workspaceFolder}/imgui",
-
                 "-L${workspaceFolder}/imgui/lib",
-
                 "-limgui",
                 "-lSDL2",
-
                 "-o",
                 "${workspaceFolder}/main"
             ],
@@ -69,7 +64,7 @@
                 "${workspaceFolder}/imgui/imgui_impl_sdlrenderer2.cpp",
                 "${workspaceFolder}/imgui/imgui_tables.cpp",
                 "${workspaceFolder}/imgui/imgui_widgets.cpp",
-                "${workspaceFolder}/imgui/imgui.cpp",
+                "${workspaceFolder}/imgui/imgui.cpp"
             ],
             "options": {
                 "cwd": "${workspaceFolder}/imgui/lib"
@@ -79,6 +74,6 @@
             ],
             "group": "build",
             "detail": "compilador: /usr/bin/clang++"
-        }
+        },
     ]
 }

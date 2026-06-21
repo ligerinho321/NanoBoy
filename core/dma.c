@@ -102,7 +102,7 @@ void gb_vram_hblank_dma(gb_dma_t* dma){
 
     uint16_t len = ((dma->vram_length & 0x7F) + 0x01) << 0x04;
 
-    printf("vram hblank dma src: %04x dst: %04x len: %d\n",dma->vram_src,dma->vram_dst,len);
+    //printf("vram hblank dma src: %04x dst: %04x len: %d\n",dma->vram_src,dma->vram_dst,len);
 
     for(uint8_t i = 0x00; i < 0x10; ++i){
 
@@ -111,7 +111,6 @@ void gb_vram_hblank_dma(gb_dma_t* dma){
         }
         else{
             gb_half_machine_cycle(gb);
-
         }
 
         uint8_t byte = gb_memory_vram_dma_read(memory,dma->vram_src++);
@@ -125,7 +124,7 @@ void gb_vram_hblank_dma(gb_dma_t* dma){
         }
     }
 
-    printf("vram hblank dma remaining bytes %d\n",len);
+    //printf("vram hblank dma remaining bytes %d\n",len);
 
     dma->vram_length = (dma->vram_length - 0x01) & 0x7F;
 
@@ -229,7 +228,7 @@ uint8_t gb_vram_dma_read_register(void* data,uint16_t address){
 
     if(address == 0xFF55){
         value = (dma->vram_hblank_running ? 0x00 : 0x80) | (dma->vram_length & 0x7F);
-        printf("read hdma5 %02x\n",value);
+        //printf("read hdma5 %02x\n",value);
     }
 
     return value;

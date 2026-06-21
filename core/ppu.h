@@ -92,14 +92,14 @@ typedef struct _gb_ppu_t {
     gb_pixel_fifo_t tile_fifo;
     gb_pixel_fifo_t object_fifo;
 
-    uint8_t vram[0x4000];
+    uint8_t vram[gb_vram_length];
     uint8_t* vram_bank_ptr;
     uint8_t vram_bank;
     bool vram_blocked;
     gb_memory_handler_t vram_handler;
     gb_memory_handler_t vbk_register_handler;
 
-    uint8_t oam[0xA0];
+    uint8_t oam[gb_oam_length];
     uint8_t oam_address;
     bool oam_blocked;
     gb_memory_handler_t oam_handler;

@@ -64,8 +64,13 @@ void gb_remove_cartridge(gb_t* gb);
 void gb_add_ppu_callback(gb_t* gb,gb_ppu_callback_handler_t* callback);
 void gb_remove_ppu_callback(gb_t* gb,gb_ppu_callback_handler_t* callback);
 
-void gb_set_apu_callback(gb_t* gb,gb_apu_callback_t callback,void* data);
-void gb_remove_apu_callback(gb_t* gb);
+inline void gb_set_apu_callback(gb_t* gb,gb_apu_callback_t callback,void* data){
+    gb_apu_set_callback(&gb->apu,callback,data);
+}
+
+inline void gb_remove_apu_callback(gb_t* gb){
+    gb_apu_remove_callback(&gb->apu);
+}
 
 void gb_set_joypad_callback(gb_t* gb,gb_joypad_callback_t callback,void* data);
 

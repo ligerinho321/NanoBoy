@@ -63,6 +63,22 @@ void gb_apu_init(gb_apu_t* apu,gb_t* gb){
 }
 
 
+void gb_apu_set_callback(gb_apu_t* apu,gb_apu_callback_t callback,void* data){
+    apu->callback = callback;
+    apu->callback_data = data;
+}
+
+void gb_apu_remove_callback(gb_apu_t* apu){
+    apu->callback = NULL;
+    apu->callback_data = NULL;
+
+    gb_apu_channel_frame_reset(&apu->square1_frame);
+    gb_apu_channel_frame_reset(&apu->square2_frame);
+    gb_apu_channel_frame_reset(&apu->wave_frame);
+    gb_apu_channel_frame_reset(&apu->noise_frame);
+}
+
+
 void gb_apu_update_rates(gb_apu_t* apu){
     int clock_rate = gb_clock_rate * apu->gb->speed;
 
@@ -135,6 +151,7 @@ void gb_apu_update_output(gb_apu_t* apu){
 
 
 void gb_apu_channel_frame_end(gb_apu_channel_frame_t* channel_frame){
+
     blip_end_frame(channel_frame->blip,gb_frame_cycles);
     
     channel_frame->samples_count = blip_samples_avail(channel_frame->blip);
@@ -166,6 +183,7 @@ void gb_apu_channel_frame_reset(gb_apu_channel_frame_t* channel_frame){
 
 
 void gb_apu_mixer_frame_end(gb_apu_mixer_frame_t* mixer_frame){
+
     blip_end_frame(mixer_frame->blip_left,gb_frame_cycles);
     blip_end_frame(mixer_frame->blip_right,gb_frame_cycles);
 
@@ -1179,6 +1197,7 @@ void gb_apu_reset(gb_apu_t* apu,bool hardware){
         gb_apu_channel_frame_reset(&apu->square2_frame);
         gb_apu_channel_frame_reset(&apu->wave_frame);
         gb_apu_channel_frame_reset(&apu->noise_frame);
+
         gb_apu_mixer_frame_reset(&apu->mixer_frame);
 
         apu->frame_cycle = -1;

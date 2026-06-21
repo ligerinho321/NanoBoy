@@ -1,7 +1,7 @@
 #include "palette.h"
 #include "gb.h"
 
-const gb_rgb_t dmg_palette[4] = {
+const gb_rgb_t dmg_colors[gb_dmg_colors] = {
     {0xE0,0xF8,0xD0},
     {0x88,0xC0,0x70},
     {0x34,0x68,0x56},

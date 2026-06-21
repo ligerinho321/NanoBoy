@@ -98,17 +98,6 @@ void gb_remove_ppu_callback(gb_t* gb,gb_ppu_callback_handler_t* callback){
 }
 
 
-void gb_set_apu_callback(gb_t* gb,gb_apu_callback_t callback,void* data){
-    gb->apu.callback = callback;
-    gb->apu.callback_data = data;
-}
-
-void gb_remove_apu_callback(gb_t* gb){
-    gb->apu.callback = NULL;
-    gb->apu.callback_data = NULL;
-}
-
-
 void gb_set_joypad_callback(gb_t* gb,gb_joypad_callback_t callback,void* data){
     gb->joypad.callback = callback;
     gb->joypad.callback_data = data;

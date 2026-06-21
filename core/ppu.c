@@ -119,17 +119,18 @@ static inline void gb_ppu_vblank_scanline(gb_ppu_t* ppu){
         case 456:{
             ppu->cycle = 0;
             ppu->_ly++;
-            ppu->ly = ppu->_ly;
-
-            ppu->_lyc = 0xFFFF;
 
             if(ppu->_ly >= 154){
                 ppu->_ly = 0;
-                ppu->ly = ppu->_ly;
 
                 ppu->wy_enabled = ppu->ly == ppu->wy;
                 ppu->window_ly = -1;
             }
+            else{
+                ppu->_lyc = 0xFFFF;
+            }
+
+            ppu->ly = ppu->_ly;
         }
         break;
     }
@@ -158,7 +159,7 @@ static inline void gb_ppu_oam_evaluation(gb_ppu_t* ppu){
     if(!(ppu->cycle & 0x01) || ppu->object_buffer_length >= 0x0A) return;
 
     uint8_t ly = ppu->ly + 0x10;
-    uint8_t object_height = ppu->lcdc.object_size ? 0x10 : 0x08;
+    uint8_t object_height = ppu->lcdc.object_size ? gb_object_max_height : gb_object_min_height;
     gb_object_t* object = (gb_object_t*)(ppu->oam + ppu->oam_address);
 
     if(ly >= object->y && ly < (object->y + object_height)){
@@ -241,13 +242,11 @@ static inline void gb_ppu_object_fetcher_step(gb_ppu_t* ppu){
         case 0x01:{
             gb_object_t* sprite = ppu->object_buffer + ppu->object_found_index;
             
-            uint8_t tile_index = sprite->tile_index;
-            if(ppu->lcdc.object_size) tile_index &= 0xFE;
-
             uint8_t y = (ppu->ly + 0x10) - sprite->y;
 
-            ppu->object_fetcher.tile_address = ((sprite->attributes & 0x08) ? 0x2000 : 0x0000) | (tile_index << 0x04);
-            ppu->object_fetcher.tile_address += ((sprite->attributes & 0x40) ? ((ppu->lcdc.object_size ? 0x0F : 0x07) ^ y) : y) << 0x01;
+            ppu->object_fetcher.tile_address = (ppu->gb->cgb_mode && (sprite->attributes & 0x08)) ? 0x2000 : 0x0000;
+            ppu->object_fetcher.tile_address |= (sprite->tile_index & (ppu->lcdc.object_size ? 0xFE : 0xFF)) << 0x04;
+            ppu->object_fetcher.tile_address |= ((sprite->attributes & 0x40) ? ((ppu->lcdc.object_size ? 0x0F : 0x07) ^ y) : y) << 0x01;
             break;
         }
         case 0x03:{

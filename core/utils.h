@@ -30,15 +30,26 @@ extern "C" {
 
 #define gb_high_pass_factor 0.996013f
 
-enum{
+enum {
     gb_clock_rate = 4194304,
 
+    gb_vram_length = 0x4000,
+    gb_wram_length = 0x8000,
+    gb_oam_length = 0xA0,
+    gb_hram_length = 0x7F,
+
+    gb_oam_objects = gb_oam_length / 4,
+    
     gb_screen_width = 160,
     gb_screen_height = 144,
     gb_screen_bytes_per_pixel = 3,
     gb_screen_pitch = gb_screen_width * gb_screen_bytes_per_pixel,
     gb_screen_length = gb_screen_pitch * gb_screen_height,
 
+    gb_object_width = 8,
+    gb_object_min_height = 8,
+    gb_object_max_height = 16,
+    
     gb_tile_size = 8,
     gb_screen_columns = gb_screen_width / gb_tile_size,
     gb_screen_rows = gb_screen_height / gb_tile_size,
@@ -54,8 +65,8 @@ enum{
     gb_audio_frame_samples = 739, // gb_frame_cycles / (gb_clock_rate / gb_sample_rate)
 
     gb_audio_channel_volume_shift = 6,
-    gb_audio_channel_min_output = -8 << gb_audio_channel_volume_shift,
-    gb_audio_channel_max_output = +7 << gb_audio_channel_volume_shift,
+    gb_audio_channel_min_output = -(8 << gb_audio_channel_volume_shift),
+    gb_audio_channel_max_output = +(7 << gb_audio_channel_volume_shift),
 
     gb_audio_mixer_buffer_samples = gb_audio_frame_samples * gb_audio_channels,
 

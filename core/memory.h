@@ -9,14 +9,14 @@ extern "C" {
 typedef struct _gb_memory_t {
     gb_t *gb;
 
-    uint8_t wram[0x8000];
+    uint8_t wram[gb_wram_length];
     uint8_t* wram_bank_ptr;
     uint8_t wram_bank;
     gb_memory_handler_t wram0_handler;
     gb_memory_handler_t wram1_handler;
     gb_memory_handler_t wbk_register_handler;
         
-    uint8_t hram[0x7F];
+    uint8_t hram[gb_hram_length];
     gb_memory_handler_t hram_handler;
 
     gb_memory_handler_t* bus[0x10000];

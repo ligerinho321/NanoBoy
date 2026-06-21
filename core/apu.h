@@ -89,6 +89,7 @@ typedef struct _gb_apu_noise_t {
     uint8_t output;
 } gb_apu_noise_t;
 
+
 typedef struct _gb_apu_channel_frame_t {
     blip_t* blip;
     int last_output;
@@ -96,6 +97,11 @@ typedef struct _gb_apu_channel_frame_t {
     int samples_count;
     float capacitor;
 } gb_apu_channel_frame_t;
+
+void gb_apu_channel_frame_end(gb_apu_channel_frame_t* channel_frame);
+
+void gb_apu_channel_frame_reset(gb_apu_channel_frame_t* channel_frame);
+
 
 typedef struct _gb_apu_mixer_frame_t {
     blip_t* blip_left;
@@ -107,6 +113,11 @@ typedef struct _gb_apu_mixer_frame_t {
     float left_capacitor;
     float right_capacitor;
 } gb_apu_mixer_frame_t;
+
+void gb_apu_mixer_frame_end(gb_apu_mixer_frame_t* mixer_frame);
+
+void gb_apu_mixer_frame_reset(gb_apu_mixer_frame_t* mixer_frame);
+
 
 typedef struct _gb_apu_t {
     gb_t* gb;
@@ -156,6 +167,9 @@ typedef struct _gb_apu_t {
 } gb_apu_t;
 
 void gb_apu_init(gb_apu_t* apu,gb_t* gb);
+
+void gb_apu_set_callback(gb_apu_t* apu,gb_apu_callback_t callback,void* data);
+void gb_apu_remove_callback(gb_apu_t* apu);
 
 void gb_apu_update_rates(gb_apu_t* apu);
 

@@ -509,16 +509,12 @@ void gb_cpu_stop(gb_cpu_t* cpu){
     else{
         if(gb->speed_switch_needed){
             if(interrupt_pending){
-                if(cpu->ime){
-                    //STOP is a 1byte opcode, mode doesnt's change, DIV is reset, CPU speed changes
-                    gb_timer_set_div(&gb->timer,0);
+                //STOP is a 1byte opcode, mode doesnt's change, DIV is reset, CPU speed changes
+                gb_apu_run(&gb->apu);
+                gb_timer_set_div(&gb->timer,0);
 
-                    gb->speed_switch_needed = false;
-                    gb->double_speed = !gb->double_speed;
-                }
-                else{
-                    //The CPU glitchs non-deterministically, oops!
-                }
+                gb->speed_switch_needed = false;
+                gb->double_speed = !gb->double_speed;
             }
             else{
                 //STOP is a 2byte opcode, HALT mode is entered, DIV is reset, CPU speed changes
@@ -527,6 +523,7 @@ void gb_cpu_stop(gb_cpu_t* cpu){
                 cpu->halted = true;
                 cpu->halt_fetch = true;
                 
+                gb_apu_run(&gb->apu);
                 gb_timer_set_div(&gb->timer,0);
 
                 gb->speed_switch_needed = false;
@@ -555,6 +552,7 @@ void gb_cpu_stop(gb_cpu_t* cpu){
         }
     }
 }
+
 
 void gb_cpu_prefix(gb_cpu_t* cpu,uint8_t prefix){
     switch(prefix){
