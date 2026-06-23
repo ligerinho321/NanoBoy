@@ -33,101 +33,101 @@ uint16_t gb_cpu_read_word(gb_cpu_t* cpu,uint16_t address){
 }
 
 
-void gb_cpu_ld_r16_imm16(gb_cpu_t* cpu,uint16_t* word){
+static inline void gb_cpu_ld_r16_imm16(gb_cpu_t* cpu,uint16_t* word){
     *word = gb_cpu_read_word(cpu,cpu->pc);
     cpu->pc += 2;
 }
 
-void gb_cpu_ld_pimm16_byte(gb_cpu_t* cpu,uint8_t byte){
+static inline void gb_cpu_ld_pimm16_byte(gb_cpu_t* cpu,uint8_t byte){
     uint16_t address = gb_cpu_read_word(cpu,cpu->pc);
     cpu->pc += 2;
     gb_cpu_write_byte(cpu,byte,address);
 }
 
-void gb_cpu_ld_pimm16_word(gb_cpu_t* cpu,uint16_t word){
+static inline void gb_cpu_ld_pimm16_word(gb_cpu_t* cpu,uint16_t word){
     uint16_t address = gb_cpu_read_word(cpu,cpu->pc);
     cpu->pc += 2;
     gb_cpu_write_word(cpu,word,address);
 }
 
-void gb_cpu_ld_a_pimm16(gb_cpu_t* cpu){
+static inline void gb_cpu_ld_a_pimm16(gb_cpu_t* cpu){
     uint16_t address = gb_cpu_read_word(cpu,cpu->pc);
     cpu->pc += 2;
     cpu->a = gb_cpu_read_byte(cpu,address);
 }
 
-void gb_cpu_ld_sp_hl(gb_cpu_t* cpu){
+static inline void gb_cpu_ld_sp_hl(gb_cpu_t* cpu){
     cpu->sp = cpu->hl;
     gb_cpu_cycle(cpu);
 }
 
 
-void gb_cpu_inc_byte(gb_cpu_t* cpu,uint8_t* byte){
+static inline void gb_cpu_inc_byte(gb_cpu_t* cpu,uint8_t* byte){
     gb_cpu_set_flag(gb_cpu_subtraction_flag,false);
     gb_cpu_set_flag(gb_cpu_half_carry_flag,(*byte & 0x0F) == 0x0F);
     *byte += 1;
     gb_cpu_set_flag(gb_cpu_zero_flag,*byte == 0x00);
 }
 
-void gb_cpu_inc_phl(gb_cpu_t* cpu){
+static inline void gb_cpu_inc_phl(gb_cpu_t* cpu){
     uint8_t byte = gb_cpu_read_byte(cpu,cpu->hl);
     gb_cpu_inc_byte(cpu,&byte);
     gb_cpu_write_byte(cpu,byte,cpu->hl);
 }
 
-void gb_cpu_dec_byte(gb_cpu_t* cpu,uint8_t* byte){
+static inline void gb_cpu_dec_byte(gb_cpu_t* cpu,uint8_t* byte){
     gb_cpu_set_flag(gb_cpu_subtraction_flag,true);
     gb_cpu_set_flag(gb_cpu_half_carry_flag,(*byte & 0x0F) == 0x00);
     *byte -= 1;
     gb_cpu_set_flag(gb_cpu_zero_flag,*byte == 0x00);
 }
 
-void gb_cpu_dec_phl(gb_cpu_t* cpu){
+static inline void gb_cpu_dec_phl(gb_cpu_t* cpu){
     uint8_t byte = gb_cpu_read_byte(cpu,cpu->hl);
     gb_cpu_dec_byte(cpu,&byte);
     gb_cpu_write_byte(cpu,byte,cpu->hl);
 }
 
-void gb_cpu_inc_word(gb_cpu_t* cpu,uint16_t* word){
+static inline void gb_cpu_inc_word(gb_cpu_t* cpu,uint16_t* word){
     *word += 1;
     gb_cpu_cycle(cpu);
 }
 
-void gb_cpu_dec_word(gb_cpu_t* cpu,uint16_t* word){
+static inline void gb_cpu_dec_word(gb_cpu_t* cpu,uint16_t* word){
     *word -= 1;
     gb_cpu_cycle(cpu);
 }
 
 
-void gb_cpu_rlca(gb_cpu_t* cpu){
+static inline void gb_cpu_rlca(gb_cpu_t* cpu){
     uint8_t b7 = cpu->a & 0x80;
     cpu->a = (cpu->a << 0x01) | (b7 ? 0x01 : 0x00);
     gb_cpu_set_flag(gb_cpu_zero_flag | gb_cpu_subtraction_flag | gb_cpu_half_carry_flag,false);
     gb_cpu_set_flag(gb_cpu_carry_flag,b7);
 }
 
-void gb_cpu_rrca(gb_cpu_t* cpu){
+static inline void gb_cpu_rrca(gb_cpu_t* cpu){
     uint8_t b0 = cpu->a & 0x01;
     cpu->a = (cpu->a >> 0x01) | (b0 ? 0x80 : 0x00);
     gb_cpu_set_flag(gb_cpu_zero_flag | gb_cpu_subtraction_flag | gb_cpu_half_carry_flag,false);
     gb_cpu_set_flag(gb_cpu_carry_flag,b0);
 }
 
-void gb_cpu_rla(gb_cpu_t* cpu){
+static inline void gb_cpu_rla(gb_cpu_t* cpu){
     uint8_t b7 = cpu->a & 0x80;
     cpu->a = (cpu->a << 0x01) | ((cpu->f & gb_cpu_carry_flag) ? 0x01 : 0x00);
     gb_cpu_set_flag(gb_cpu_zero_flag | gb_cpu_subtraction_flag | gb_cpu_half_carry_flag,false);
     gb_cpu_set_flag(gb_cpu_carry_flag,b7);
 }
 
-void gb_cpu_rra(gb_cpu_t* cpu){
+static inline void gb_cpu_rra(gb_cpu_t* cpu){
     uint8_t b0 = cpu->a & 0x01;
     cpu->a = (cpu->a >> 0x01) | ((cpu->f & gb_cpu_carry_flag) ? 0x80 : 0x00);
     gb_cpu_set_flag(gb_cpu_zero_flag | gb_cpu_subtraction_flag | gb_cpu_half_carry_flag,false);
     gb_cpu_set_flag(gb_cpu_carry_flag,b0);
 }
 
-void gb_cpu_daa(gb_cpu_t* cpu){
+static inline void gb_cpu_daa(gb_cpu_t* cpu){
     if(cpu->f & gb_cpu_subtraction_flag){
         if(cpu->f & gb_cpu_carry_flag){
             cpu->a -= 0x60;
@@ -150,23 +150,23 @@ void gb_cpu_daa(gb_cpu_t* cpu){
     gb_cpu_set_flag(gb_cpu_half_carry_flag,false);
 }
 
-void gb_cpu_cpl(gb_cpu_t* cpu){
+static inline void gb_cpu_cpl(gb_cpu_t* cpu){
     cpu->a = ~cpu->a;
     gb_cpu_set_flag(gb_cpu_subtraction_flag | gb_cpu_half_carry_flag,true);
 }
 
-void gb_cpu_scf(gb_cpu_t* cpu){
+static inline void gb_cpu_scf(gb_cpu_t* cpu){
     gb_cpu_set_flag(gb_cpu_subtraction_flag | gb_cpu_half_carry_flag,false);
     gb_cpu_set_flag(gb_cpu_carry_flag,true);
 }
 
-void gb_cpu_ccf(gb_cpu_t* cpu){
+static inline void gb_cpu_ccf(gb_cpu_t* cpu){
     gb_cpu_set_flag(gb_cpu_subtraction_flag | gb_cpu_half_carry_flag,false);
     gb_cpu_set_flag(gb_cpu_carry_flag,(cpu->f & gb_cpu_carry_flag) ? 0x00 : 0x01);
 }
 
 
-void gb_cpu_rlc(gb_cpu_t* cpu,uint8_t* byte){
+static inline void gb_cpu_rlc(gb_cpu_t* cpu,uint8_t* byte){
     uint8_t b7 = *byte & 0x80;
     *byte = (*byte << 0x01) |(b7 ? 0x01 : 0x00);
     gb_cpu_set_flag(gb_cpu_zero_flag,*byte == 0x00);
@@ -174,13 +174,13 @@ void gb_cpu_rlc(gb_cpu_t* cpu,uint8_t* byte){
     gb_cpu_set_flag(gb_cpu_carry_flag,b7);
 }
 
-void gb_cpu_rlc_phl(gb_cpu_t* cpu){
+static inline void gb_cpu_rlc_phl(gb_cpu_t* cpu){
     uint8_t byte = gb_cpu_read_byte(cpu,cpu->hl);
     gb_cpu_rlc(cpu,&byte);
     gb_cpu_write_byte(cpu,byte,cpu->hl);
 }
 
-void gb_cpu_rl(gb_cpu_t* cpu,uint8_t* byte){
+static inline void gb_cpu_rl(gb_cpu_t* cpu,uint8_t* byte){
     uint8_t b7 = *byte & 0x80;
     *byte = (*byte << 0x01) | ((cpu->f & gb_cpu_carry_flag) ? 0x01 : 0x00);
     gb_cpu_set_flag(gb_cpu_zero_flag,*byte == 0x00);
@@ -188,13 +188,13 @@ void gb_cpu_rl(gb_cpu_t* cpu,uint8_t* byte){
     gb_cpu_set_flag(gb_cpu_carry_flag,b7);
 }
 
-void gb_cpu_rl_phl(gb_cpu_t* cpu){
+static inline void gb_cpu_rl_phl(gb_cpu_t* cpu){
     uint8_t byte = gb_cpu_read_byte(cpu,cpu->hl);
     gb_cpu_rl(cpu,&byte);
     gb_cpu_write_byte(cpu,byte,cpu->hl);
 }
 
-void gb_cpu_rr(gb_cpu_t* cpu,uint8_t* byte){
+static inline void gb_cpu_rr(gb_cpu_t* cpu,uint8_t* byte){
     uint8_t b0 = *byte & 0x01;
     *byte = (*byte >> 0x01) | ((cpu->f & gb_cpu_carry_flag) ? 0x80 : 0x00);
     gb_cpu_set_flag(gb_cpu_zero_flag,*byte == 0x00);
@@ -202,13 +202,13 @@ void gb_cpu_rr(gb_cpu_t* cpu,uint8_t* byte){
     gb_cpu_set_flag(gb_cpu_carry_flag,b0);
 }
 
-void gb_cpu_rr_phl(gb_cpu_t* cpu){
+static inline void gb_cpu_rr_phl(gb_cpu_t* cpu){
     uint8_t byte = gb_cpu_read_byte(cpu,cpu->hl);
     gb_cpu_rr(cpu,&byte);
     gb_cpu_write_byte(cpu,byte,cpu->hl);
 }
 
-void gb_cpu_rrc(gb_cpu_t* cpu,uint8_t* byte){
+static inline void gb_cpu_rrc(gb_cpu_t* cpu,uint8_t* byte){
     uint8_t b0 = *byte & 0x01;
     *byte = (*byte >> 0x01) | (b0 ? 0x80 : 0x00);
     gb_cpu_set_flag(gb_cpu_zero_flag,*byte == 0x00);
@@ -216,76 +216,76 @@ void gb_cpu_rrc(gb_cpu_t* cpu,uint8_t* byte){
     gb_cpu_set_flag(gb_cpu_carry_flag,b0);
 }
 
-void gb_cpu_rrc_phl(gb_cpu_t* cpu){
+static inline void gb_cpu_rrc_phl(gb_cpu_t* cpu){
     uint8_t byte = gb_cpu_read_byte(cpu,cpu->hl);
     gb_cpu_rrc(cpu,&byte);
     gb_cpu_write_byte(cpu,byte,cpu->hl);
 }
 
-void gb_cpu_sla(gb_cpu_t* cpu,uint8_t* byte){
+static inline void gb_cpu_sla(gb_cpu_t* cpu,uint8_t* byte){
     gb_cpu_set_flag(gb_cpu_carry_flag,*byte & 0x80);
     *byte <<= 0x01;
     gb_cpu_set_flag(gb_cpu_zero_flag,*byte == 0x00);
     gb_cpu_set_flag(gb_cpu_subtraction_flag | gb_cpu_half_carry_flag,false);
 }
 
-void gb_cpu_sla_phl(gb_cpu_t* cpu){
+static inline void gb_cpu_sla_phl(gb_cpu_t* cpu){
     uint8_t byte = gb_cpu_read_byte(cpu,cpu->hl);
     gb_cpu_sla(cpu,&byte);
     gb_cpu_write_byte(cpu,byte,cpu->hl);
 }
 
-void gb_cpu_sra(gb_cpu_t* cpu,uint8_t* byte){
+static inline void gb_cpu_sra(gb_cpu_t* cpu,uint8_t* byte){
     gb_cpu_set_flag(gb_cpu_carry_flag,*byte & 0x01);
     *byte = (*byte & 0x80) | (*byte >> 0x01);
     gb_cpu_set_flag(gb_cpu_zero_flag,*byte == 0x00);
     gb_cpu_set_flag(gb_cpu_subtraction_flag | gb_cpu_half_carry_flag,false);
 }
 
-void gb_cpu_sra_phl(gb_cpu_t* cpu){
+static inline void gb_cpu_sra_phl(gb_cpu_t* cpu){
     uint8_t byte = gb_cpu_read_byte(cpu,cpu->hl);
     gb_cpu_sra(cpu,&byte);
     gb_cpu_write_byte(cpu,byte,cpu->hl);
 }
 
-void gb_cpu_swap(gb_cpu_t* cpu,uint8_t* byte){
+static inline void gb_cpu_swap(gb_cpu_t* cpu,uint8_t* byte){
     *byte = (*byte << 0x04) | (*byte >> 0x04); 
     gb_cpu_set_flag(gb_cpu_zero_flag,*byte == 0x00);
     gb_cpu_set_flag(gb_cpu_subtraction_flag | gb_cpu_half_carry_flag | gb_cpu_carry_flag,false);
 }
 
-void gb_cpu_swap_phl(gb_cpu_t* cpu){
+static inline void gb_cpu_swap_phl(gb_cpu_t* cpu){
     uint8_t byte = gb_cpu_read_byte(cpu,cpu->hl);
     gb_cpu_swap(cpu,&byte);
     gb_cpu_write_byte(cpu,byte,cpu->hl);
 }
 
-void gb_cpu_srl(gb_cpu_t* cpu,uint8_t* byte){
+static inline void gb_cpu_srl(gb_cpu_t* cpu,uint8_t* byte){
     gb_cpu_set_flag(gb_cpu_carry_flag,*byte & 0x01);
     *byte >>= 0x01;
     gb_cpu_set_flag(gb_cpu_zero_flag,*byte == 0x00);
     gb_cpu_set_flag(gb_cpu_subtraction_flag | gb_cpu_half_carry_flag,false);
 }
 
-void gb_cpu_srl_phl(gb_cpu_t* cpu){
+static inline void gb_cpu_srl_phl(gb_cpu_t* cpu){
     uint8_t byte = gb_cpu_read_byte(cpu,cpu->hl);
     gb_cpu_srl(cpu,&byte);
     gb_cpu_write_byte(cpu,byte,cpu->hl);
 }
 
-void gb_cpu_bit(gb_cpu_t* cpu,bool bit){
+static inline void gb_cpu_bit(gb_cpu_t* cpu,bool bit){
     gb_cpu_set_flag(gb_cpu_zero_flag,!bit);
     gb_cpu_set_flag(gb_cpu_subtraction_flag,false);
     gb_cpu_set_flag(gb_cpu_half_carry_flag,true);
 }
 
-void gb_cpu_res_phl(gb_cpu_t* cpu,uint8_t bit){
+static inline void gb_cpu_res_phl(gb_cpu_t* cpu,uint8_t bit){
     uint8_t byte = gb_cpu_read_byte(cpu,cpu->hl);
     byte &= ~bit;
     gb_cpu_write_byte(cpu,byte,cpu->hl);
 }
 
-void gb_cpu_set_phl(gb_cpu_t* cpu,uint8_t bit){
+static inline void gb_cpu_set_phl(gb_cpu_t* cpu,uint8_t bit){
     uint8_t byte = gb_cpu_read_byte(cpu,cpu->hl);
     byte |= bit;
     gb_cpu_write_byte(cpu,byte,cpu->hl);
@@ -293,7 +293,7 @@ void gb_cpu_set_phl(gb_cpu_t* cpu,uint8_t bit){
 
 
 
-void gb_cpu_jr_imm8(gb_cpu_t* cpu,bool condition){
+static inline void gb_cpu_jr_imm8(gb_cpu_t* cpu,bool condition){
     int8_t offset = gb_cpu_read_byte(cpu,cpu->pc++);
     if(condition){
         cpu->pc += offset;
@@ -301,7 +301,7 @@ void gb_cpu_jr_imm8(gb_cpu_t* cpu,bool condition){
     }
 }
 
-void gb_cpu_jp_imm16(gb_cpu_t* cpu,bool condition){
+static inline void gb_cpu_jp_imm16(gb_cpu_t* cpu,bool condition){
     uint16_t address = gb_cpu_read_word(cpu,cpu->pc);
     cpu->pc += 2;
     if(condition){
@@ -310,7 +310,7 @@ void gb_cpu_jp_imm16(gb_cpu_t* cpu,bool condition){
     }
 }
 
-void gb_cpu_call_imm16(gb_cpu_t* cpu,bool condition){
+static inline void gb_cpu_call_imm16(gb_cpu_t* cpu,bool condition){
     uint16_t address = gb_cpu_read_word(cpu,cpu->pc);
     cpu->pc += 2;
     if(condition){
@@ -322,7 +322,7 @@ void gb_cpu_call_imm16(gb_cpu_t* cpu,bool condition){
 }
 
 
-void gb_cpu_add_byte(gb_cpu_t* cpu,uint8_t byte){
+static inline void gb_cpu_add_byte(gb_cpu_t* cpu,uint8_t byte){
     int result = cpu->a + byte;
     
     gb_cpu_set_flag(gb_cpu_carry_flag,result > 0xFF);
@@ -334,7 +334,7 @@ void gb_cpu_add_byte(gb_cpu_t* cpu,uint8_t byte){
     gb_cpu_set_flag(gb_cpu_zero_flag,cpu->a == 0x00);
 }
 
-void gb_cpu_adc_byte(gb_cpu_t* cpu,uint8_t byte){
+static inline void gb_cpu_adc_byte(gb_cpu_t* cpu,uint8_t byte){
     uint8_t carry = ((cpu->f & gb_cpu_carry_flag) ? 0x01 : 0x00);
 
     int result = cpu->a + byte + carry;
@@ -348,7 +348,7 @@ void gb_cpu_adc_byte(gb_cpu_t* cpu,uint8_t byte){
     gb_cpu_set_flag(gb_cpu_zero_flag,cpu->a == 0x00);
 }
 
-void gb_cpu_sub_byte(gb_cpu_t* cpu,uint8_t byte){
+static inline void gb_cpu_sub_byte(gb_cpu_t* cpu,uint8_t byte){
     int result = cpu->a - byte;
 
     gb_cpu_set_flag(gb_cpu_carry_flag,result < 0x00);
@@ -360,7 +360,7 @@ void gb_cpu_sub_byte(gb_cpu_t* cpu,uint8_t byte){
     gb_cpu_set_flag(gb_cpu_subtraction_flag,true);
 }
 
-void gb_cpu_sbc_byte(gb_cpu_t* cpu,uint8_t byte){
+static inline void gb_cpu_sbc_byte(gb_cpu_t* cpu,uint8_t byte){
     uint8_t carry = ((cpu->f & gb_cpu_carry_flag) ? 0x01 : 0x00);
 
     int result = cpu->a - byte - carry;
@@ -374,26 +374,26 @@ void gb_cpu_sbc_byte(gb_cpu_t* cpu,uint8_t byte){
     gb_cpu_set_flag(gb_cpu_subtraction_flag,true);
 }
 
-void gb_cpu_and_byte(gb_cpu_t* cpu,uint8_t byte){
+static inline void gb_cpu_and_byte(gb_cpu_t* cpu,uint8_t byte){
     cpu->a &= byte;
     gb_cpu_set_flag(gb_cpu_zero_flag,cpu->a == 0x00);
     gb_cpu_set_flag(gb_cpu_subtraction_flag | gb_cpu_carry_flag,false);
     gb_cpu_set_flag(gb_cpu_half_carry_flag,true);
 }
 
-void gb_cpu_xor_byte(gb_cpu_t* cpu,uint8_t byte){
+static inline void gb_cpu_xor_byte(gb_cpu_t* cpu,uint8_t byte){
     cpu->a ^= byte;
     gb_cpu_set_flag(gb_cpu_zero_flag,cpu->a == 0x00);
     gb_cpu_set_flag(gb_cpu_subtraction_flag | gb_cpu_half_carry_flag | gb_cpu_carry_flag,false);
 }
 
-void gb_cpu_or_byte(gb_cpu_t* cpu,uint8_t byte){
+static inline void gb_cpu_or_byte(gb_cpu_t* cpu,uint8_t byte){
     cpu->a |= byte;
     gb_cpu_set_flag(gb_cpu_zero_flag,cpu->a == 0x00);
     gb_cpu_set_flag(gb_cpu_subtraction_flag | gb_cpu_half_carry_flag | gb_cpu_carry_flag,false);
 }
 
-void gb_cpu_cp_byte(gb_cpu_t* cpu,uint8_t byte){
+static inline void gb_cpu_cp_byte(gb_cpu_t* cpu,uint8_t byte){
     gb_cpu_set_flag(gb_cpu_zero_flag,cpu->a == byte);
     gb_cpu_set_flag(gb_cpu_subtraction_flag,true);
     gb_cpu_set_flag(gb_cpu_carry_flag,cpu->a < byte);
@@ -401,7 +401,7 @@ void gb_cpu_cp_byte(gb_cpu_t* cpu,uint8_t byte){
 }
 
 
-uint16_t gb_cpu_sp_plus_imm8(gb_cpu_t* cpu){
+static inline uint16_t gb_cpu_sp_plus_imm8(gb_cpu_t* cpu){
     uint8_t byte = gb_cpu_read_byte(cpu,cpu->pc++);
     gb_cpu_set_flag(gb_cpu_carry_flag,(cpu->sp & 0xFF) + byte > 0xFF);
     gb_cpu_set_flag(gb_cpu_half_carry_flag,(cpu->sp & 0x0F) + (byte & 0x0F) > 0x0F);
@@ -409,19 +409,19 @@ uint16_t gb_cpu_sp_plus_imm8(gb_cpu_t* cpu){
     return cpu->sp + (int8_t)byte;
 }
 
-void gb_cpu_add_sp_imm8(gb_cpu_t* cpu){
+static inline void gb_cpu_add_sp_imm8(gb_cpu_t* cpu){
     cpu->sp = gb_cpu_sp_plus_imm8(cpu);
     gb_cpu_cycle(cpu);
     gb_cpu_cycle(cpu);
 }
 
-void gb_cpu_ld_hl_sp_plus_imm8(gb_cpu_t* cpu){
+static inline void gb_cpu_ld_hl_sp_plus_imm8(gb_cpu_t* cpu){
     cpu->hl = gb_cpu_sp_plus_imm8(cpu);
     gb_cpu_cycle(cpu);
 }
 
 
-void gb_cpu_add_hl_word(gb_cpu_t* cpu,uint16_t word){
+static inline void gb_cpu_add_hl_word(gb_cpu_t* cpu,uint16_t word){
     int result = cpu->hl + word;
     gb_cpu_set_flag(gb_cpu_carry_flag,result > 0xFFFF);
     gb_cpu_set_flag(gb_cpu_half_carry_flag,(cpu->hl & 0x0FFF) + (word & 0x0FFF) > 0x0FFF);
@@ -430,36 +430,36 @@ void gb_cpu_add_hl_word(gb_cpu_t* cpu,uint16_t word){
 }
 
 
-void gb_cpu_push_word(gb_cpu_t* cpu,uint16_t word){
+static inline void gb_cpu_push_word(gb_cpu_t* cpu,uint16_t word){
     gb_cpu_cycle(cpu);
     gb_cpu_write_byte(cpu,word >> 0x08,--cpu->sp);
     gb_cpu_write_byte(cpu,word & 0xFF,--cpu->sp);
 }
 
-void gb_cpu_pop_word(gb_cpu_t* cpu,uint16_t* word){
+static inline void gb_cpu_pop_word(gb_cpu_t* cpu,uint16_t* word){
     *word = gb_cpu_read_byte(cpu,cpu->sp++);
     *word |= gb_cpu_read_byte(cpu,cpu->sp++) << 0x08;
 }
 
-void gb_cpu_push_af(gb_cpu_t* cpu){
+static inline void gb_cpu_push_af(gb_cpu_t* cpu){
     gb_cpu_cycle(cpu);
     gb_cpu_write_byte(cpu,cpu->a,--cpu->sp);
     gb_cpu_write_byte(cpu,cpu->f & 0xF0,--cpu->sp);
 }
 
-void gb_cpu_pop_af(gb_cpu_t* cpu){
+static inline void gb_cpu_pop_af(gb_cpu_t* cpu){
     cpu->f = gb_cpu_read_byte(cpu,cpu->sp++) & 0xF0;
     cpu->a = gb_cpu_read_byte(cpu,cpu->sp++);
 }
 
 
-void gb_cpu_ret(gb_cpu_t* cpu){
+static inline void gb_cpu_ret(gb_cpu_t* cpu){
     cpu->pc = gb_cpu_read_byte(cpu,cpu->sp++);
     cpu->pc |= gb_cpu_read_byte(cpu,cpu->sp++) << 0x08;
     gb_cpu_cycle(cpu);
 }
 
-void gb_cpu_ret_cc(gb_cpu_t* cpu,bool condition){
+static inline void gb_cpu_ret_cc(gb_cpu_t* cpu,bool condition){
     gb_cpu_cycle(cpu);
     if(condition){
         cpu->pc = gb_cpu_read_byte(cpu,cpu->sp++);
@@ -468,14 +468,14 @@ void gb_cpu_ret_cc(gb_cpu_t* cpu,bool condition){
     }
 }
 
-void gb_cpu_reti(gb_cpu_t* cpu){
+static inline void gb_cpu_reti(gb_cpu_t* cpu){
     cpu->pc = gb_cpu_read_byte(cpu,cpu->sp++);
     cpu->pc |= gb_cpu_read_byte(cpu,cpu->sp++) << 0x08;
     cpu->ime = true;
     gb_cpu_cycle(cpu);
 }
 
-void gb_cpu_rst(gb_cpu_t* cpu,uint8_t target){
+static inline void gb_cpu_rst(gb_cpu_t* cpu,uint8_t target){
     gb_cpu_cycle(cpu);
     gb_cpu_write_byte(cpu,cpu->pc >> 0x08,--cpu->sp);
     gb_cpu_write_byte(cpu,cpu->pc & 0xFF,--cpu->sp);
@@ -483,14 +483,14 @@ void gb_cpu_rst(gb_cpu_t* cpu,uint8_t target){
 }
 
 
-void gb_cpu_halt(gb_cpu_t* cpu){
+static inline void gb_cpu_halt(gb_cpu_t* cpu){
     if(cpu->ime || !(cpu->gb->interrupt.enable & cpu->gb->interrupt.flag)){
         cpu->halted = true;
     }
     cpu->halt_fetch = true;
 }
 
-void gb_cpu_stop(gb_cpu_t* cpu){
+static inline void gb_cpu_stop(gb_cpu_t* cpu){
     gb_t* gb = cpu->gb;
     bool interrupt_pending = gb->interrupt.enable & gb->interrupt.flag;
 
@@ -554,7 +554,7 @@ void gb_cpu_stop(gb_cpu_t* cpu){
 }
 
 
-void gb_cpu_prefix(gb_cpu_t* cpu,uint8_t prefix){
+static inline void gb_cpu_prefix(gb_cpu_t* cpu,uint8_t prefix){
     switch(prefix){
         //RLC B
         case 0x00: gb_cpu_rlc(cpu,&cpu->b); break;
@@ -1087,7 +1087,7 @@ void gb_cpu_prefix(gb_cpu_t* cpu,uint8_t prefix){
 }
 
 
-void gb_cpu_execute_opcode(gb_cpu_t* cpu){
+static inline void gb_cpu_execute_opcode(gb_cpu_t* cpu){
     switch(cpu->opcode){
         //NOP
         case 0x00: break;

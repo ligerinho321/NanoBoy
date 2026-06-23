@@ -80,7 +80,7 @@ void gb_palette_write_cgb_register(void* data,uint8_t value,uint16_t address){
             
             palette->bg_cram[address] = value;
 
-            uint16_t color = (palette->bg_cram[address | 0x01] << 0x08) | palette->bg_cram[address & 0x3E];
+            uint16_t color = (palette->bg_cram[(address & 0x3E) | 0x01] << 0x08) | palette->bg_cram[address & 0x3E];
 
             palette->bg_cram_converted[address >> 0x01] = gb_palette_rgb555_to_rgb888(color);
 
@@ -100,7 +100,7 @@ void gb_palette_write_cgb_register(void* data,uint8_t value,uint16_t address){
             
             palette->obj_cram[address] = value;
 
-            uint16_t color = (palette->obj_cram[address | 0x01] << 0x08) | palette->obj_cram[address & 0x3E];
+            uint16_t color = (palette->obj_cram[(address & 0x3E) | 0x01] << 0x08) | palette->obj_cram[address & 0x3E];
 
             palette->obj_cram_converted[address >> 0x01] = gb_palette_rgb555_to_rgb888(color);
 

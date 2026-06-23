@@ -194,11 +194,11 @@ static inline void gb_ppu_tile_fetcher_step(gb_ppu_t* ppu){
             
             uint8_t tile_index = ppu->vram[map_address];
 
-            ppu->tile_fetcher.attributes = ppu->gb->cgb_mode ? ppu->vram[0x2000 | map_address] : 0x00;
+            ppu->tile_fetcher.attribute = ppu->gb->cgb_mode ? ppu->vram[0x2000 | map_address] : 0x00;
             
-            ppu->tile_fetcher.tile_address = (ppu->tile_fetcher.attributes & 0x08) ? 0x2000 : 0x0000;
+            ppu->tile_fetcher.tile_address = (ppu->tile_fetcher.attribute & gb_tilemap_tile_bank_mask) ? 0x2000 : 0x0000;
             ppu->tile_fetcher.tile_address |= ppu->lcdc.tiledata_area ? tile_index << 0x04 : 0x1000 + ((int8_t)tile_index << 0x04);
-            ppu->tile_fetcher.tile_address |= ((ppu->tile_fetcher.attributes & 0x40) ? 0x07 ^ y_fine : y_fine) << 0x01;
+            ppu->tile_fetcher.tile_address |= ((ppu->tile_fetcher.attribute & gb_tilemap_vertical_flip_mask) ? 0x07 ^ y_fine : y_fine) << 0x01;
             break;
         }
         case 0x03:{
@@ -219,11 +219,11 @@ static inline void gb_ppu_tile_fetcher_step(gb_ppu_t* ppu){
 
                 gb_pixel_fifo_entry_t* entry = ppu->tile_fifo.data + ((ppu->tile_fifo.front + ppu->tile_fifo.length) & 0x07);
 
-                uint8_t bit = 0x01 << ((ppu->tile_fetcher.attributes & 0x20) ? i : 0x07 ^ i);
+                uint8_t bit = 0x01 << ((ppu->tile_fetcher.attribute & gb_tilemap_horizontal_flip_mask) ? i : 0x07 ^ i);
 
-                entry->palette_index = ppu->tile_fetcher.attributes & 0x07;
+                entry->palette_index = ppu->tile_fetcher.attribute & gb_tilemap_palette_mask;
                 entry->color_index = ((ppu->tile_fetcher.hi & bit) ? 0x02 : 0x00) | ((ppu->tile_fetcher.lo & bit) ? 0x01 : 0x00);
-                entry->priority = ppu->tile_fetcher.attributes & 0x80;
+                entry->priority = ppu->tile_fetcher.attribute & gb_tilemap_priority_mask;
                 
                 ppu->tile_fifo.length++;
             }
@@ -244,9 +244,9 @@ static inline void gb_ppu_object_fetcher_step(gb_ppu_t* ppu){
             
             uint8_t y = (ppu->ly + 0x10) - sprite->y;
 
-            ppu->object_fetcher.tile_address = (ppu->gb->cgb_mode && (sprite->attributes & 0x08)) ? 0x2000 : 0x0000;
+            ppu->object_fetcher.tile_address = (ppu->gb->cgb_mode && (sprite->attribute & gb_object_tile_bank_mask)) ? 0x2000 : 0x0000;
             ppu->object_fetcher.tile_address |= (sprite->tile_index & (ppu->lcdc.object_size ? 0xFE : 0xFF)) << 0x04;
-            ppu->object_fetcher.tile_address |= ((sprite->attributes & 0x40) ? ((ppu->lcdc.object_size ? 0x0F : 0x07) ^ y) : y) << 0x01;
+            ppu->object_fetcher.tile_address |= ((sprite->attribute & gb_object_vertical_flip_mask) ? ((ppu->lcdc.object_size ? 0x0F : 0x07) ^ y) : y) << 0x01;
             break;
         }
         case 0x03:{
@@ -259,20 +259,20 @@ static inline void gb_ppu_object_fetcher_step(gb_ppu_t* ppu){
             gb_object_t* sprite = ppu->object_buffer + ppu->object_found_index;
 
             for(uint8_t i = 0x00; i < 0x08; ++i){
-                uint8_t bit = 0x01 << ((sprite->attributes & 0x20) ? i : 0x07 ^ i);
+                uint8_t bit = 0x01 << ((sprite->attribute & gb_object_horizontal_flip_mask) ? i : 0x07 ^ i);
                 uint8_t color_index = ((ppu->object_fetcher.hi & bit) ? 0x02 : 0x00) | ((ppu->object_fetcher.lo & bit) ? 0x01 : 0x00);
 
                 gb_pixel_fifo_entry_t* entry = ppu->object_fifo.data + ((ppu->object_fifo.front + i) & 0x07);
 
                 if(color_index && (!entry->color_index || (!ppu->gb->obj_priority_mode && ppu->object_found_index < entry->index))){
                     if(ppu->gb->cgb_mode){
-                        entry->palette_index = sprite->attributes & 0x07;
+                        entry->palette_index = sprite->attribute & gb_object_cgb_palette_mask;
                     }
                     else{
-                        entry->palette_index = (sprite->attributes & 0x10) ? 0x01 : 0x00;
+                        entry->palette_index = (sprite->attribute & gb_object_dmg_palette_mask) ? 0x01 : 0x00;
                     }
                     entry->color_index = color_index;
-                    entry->priority = sprite->attributes & 0x80;
+                    entry->priority = sprite->attribute & gb_object_priority_mask;
                     entry->index = ppu->object_found_index;
                 }
             }
@@ -300,30 +300,32 @@ static inline void gb_ppu_render_pixel(gb_ppu_t* ppu){
 
         gb_rgb_t color = {0};
 
+        gb_palette_t* palette = &ppu->gb->palette;
+
         if(ppu->lcdc.object_enabled && object->color_index && (!tile->color_index || !ppu->lcdc.tile_enabled || (!tile->priority && !object->priority))){
             if(ppu->gb->type == gb_cgb){
                 if(ppu->gb->cgb_mode){
-                    color = gb_palette_get_cgb_obp_color(ppu->gb->palette,object->palette_index,object->color_index);
+                    color = gb_palette_get_cgb_obp_color(palette,object->palette_index,object->color_index);
                 }
                 else{
-                    color = gb_palette_get_cgb_dmg_obp_color(ppu->gb->palette,object->palette_index,object->color_index);
+                    color = gb_palette_get_cgb_dmg_obp_color(palette,object->palette_index,object->color_index);
                 }
             }
             else{
-                color = gb_palette_get_dmg_obp_color(ppu->gb->palette,object->palette_index,object->color_index);
+                color = gb_palette_get_dmg_obp_color(palette,object->palette_index,object->color_index);
             }
         }
         else{
             if(ppu->gb->type == gb_cgb){
                 if(ppu->gb->cgb_mode){
-                    color = gb_palette_get_cgb_bgp_color(ppu->gb->palette,tile->palette_index,tile->color_index);
+                    color = gb_palette_get_cgb_bgp_color(palette,tile->palette_index,tile->color_index);
                 }
                 else{
-                    color = gb_palette_get_cgb_dmg_bgp_color(ppu->gb->palette,tile->color_index);
+                    color = gb_palette_get_cgb_dmg_bgp_color(palette,tile->color_index);
                 }
             }
             else{
-                color = gb_palette_get_dmg_bgp_color(ppu->gb->palette,tile->color_index);
+                color = gb_palette_get_dmg_bgp_color(palette,tile->color_index);
             }
         }
 

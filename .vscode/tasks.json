@@ -14,6 +14,7 @@
                 "-O2",
 
                 "${workspaceFolder}/main.cpp",
+                
                 "${workspaceFolder}/core/blip_buf/blip_buf.c",
                 "${workspaceFolder}/core/mappers/mbc1.c",
                 "${workspaceFolder}/core/mappers/mbc2.c",
@@ -33,12 +34,19 @@
                 "${workspaceFolder}/core/serial.c",
                 "${workspaceFolder}/core/timer.c",
                 "${workspaceFolder}/core/utils.c",
-                "-I${workspaceFolder}/imgui",
+
+                "${workspaceFolder}/gui/object_viewer.cpp",
+                "${workspaceFolder}/gui/palette_viewer.cpp",
+                "${workspaceFolder}/gui/tilemap_viewer.cpp",
+                "${workspaceFolder}/gui/utils.cpp",
+
                 "-L${workspaceFolder}/imgui/lib",
+
                 "-limgui",
                 "-lSDL2",
+
                 "-o",
-                "${workspaceFolder}/main"
+                "${workspaceFolder}/NanoBoy"
             ],
             "options": {
                 "cwd": "${fileDirname}"

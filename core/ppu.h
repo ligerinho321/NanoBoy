@@ -13,6 +13,23 @@ typedef enum _gb_ppu_mode_t {
     gb_ppu_drawing_mode = 0x03,
 } gb_ppu_mode_t;
 
+typedef enum _gb_tilemap_attribute_mask_t {
+    gb_tilemap_palette_mask = 0x07,
+    gb_tilemap_tile_bank_mask = 0x08,
+    gb_tilemap_horizontal_flip_mask = 0x20,
+    gb_tilemap_vertical_flip_mask = 0x40,
+    gb_tilemap_priority_mask = 0x80
+} gb_tilemap_attribute_mask_t;
+
+typedef enum _gb_object_attribute_mask_t {
+    gb_object_cgb_palette_mask = 0x07,
+    gb_object_tile_bank_mask = 0x08,
+    gb_object_dmg_palette_mask = 0x10,
+    gb_object_horizontal_flip_mask = 0x20,
+    gb_object_vertical_flip_mask = 0x40,
+    gb_object_priority_mask = 0x80
+} gb_object_attribute_mask_t;
+
 typedef struct _gb_ppu_lcdc_t {
     bool tile_enabled;
     bool object_enabled;
@@ -36,7 +53,7 @@ typedef struct _gb_ppu_status_t {
 typedef struct _gb_bg_fetcher_t {
     uint8_t step;
     uint16_t tile_address;
-    uint8_t attributes;
+    uint8_t attribute;
     uint8_t lo;
     uint8_t hi;
 } gb_bg_fetcher_t;
@@ -52,7 +69,7 @@ typedef struct _gb_object_t {
     uint8_t y;
     uint8_t x;
     uint8_t tile_index;
-    uint8_t attributes;
+    uint8_t attribute;
 } gb_object_t;
 
 typedef struct _gb_ppu_t {

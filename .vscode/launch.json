@@ -4,7 +4,7 @@
             "name": "Depurar",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/main",
+            "program": "${workspaceFolder}/NanoBoy",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

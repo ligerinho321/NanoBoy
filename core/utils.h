@@ -40,19 +40,23 @@ enum {
 
     gb_oam_objects = gb_oam_length / 4,
     
-    gb_screen_width = 160,
-    gb_screen_height = 144,
-    gb_screen_bytes_per_pixel = 3,
-    gb_screen_pitch = gb_screen_width * gb_screen_bytes_per_pixel,
-    gb_screen_length = gb_screen_pitch * gb_screen_height,
-
     gb_object_width = 8,
     gb_object_min_height = 8,
     gb_object_max_height = 16,
     
     gb_tile_size = 8,
-    gb_screen_columns = gb_screen_width / gb_tile_size,
-    gb_screen_rows = gb_screen_height / gb_tile_size,
+
+    gb_tilemap_columns = 32,
+    gb_tilemap_rows = 32,
+
+    gb_screen_columns = 20,
+    gb_screen_rows = 18,
+
+    gb_screen_width = gb_screen_columns * gb_tile_size,
+    gb_screen_height = gb_screen_rows * gb_tile_size,
+    gb_screen_bytes_per_pixel = 3,
+    gb_screen_pitch = gb_screen_width * gb_screen_bytes_per_pixel,
+    gb_screen_length = gb_screen_pitch * gb_screen_height,
 
     gb_vblank_scanline = 144,
     gb_scanlines = 154,
