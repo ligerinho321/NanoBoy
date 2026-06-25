@@ -12,12 +12,12 @@ void gb_cpu_init(gb_cpu_t* cpu,gb_t* gb){
 
 void gb_cpu_write_byte(gb_cpu_t* cpu,uint8_t value,uint16_t address){
     gb_cpu_cycle(cpu);
-    gb_memory_write(&cpu->gb->memory,value,address);
+    gb_memory_cpu_write(&cpu->gb->memory,value,address);
 }
 
 uint8_t gb_cpu_read_byte(gb_cpu_t* cpu,uint16_t address){
     gb_cpu_cycle(cpu);
-    return gb_memory_read(&cpu->gb->memory,address);
+    return gb_memory_cpu_read(&cpu->gb->memory,address);
 }
 
 
@@ -1661,7 +1661,7 @@ void gb_cpu_execute(gb_cpu_t* cpu){
         if((cpu->gb->interrupt.enable & cpu->gb->interrupt.flag) || (cpu->halt_cycles && --cpu->halt_cycles == 0x00)){
             cpu->halt_cycles = 0x00;
             cpu->halted = false;
-            cpu->opcode = gb_memory_read(&cpu->gb->memory,cpu->pc++);
+            cpu->opcode = gb_memory_cpu_read(&cpu->gb->memory,cpu->pc++);
         }
     }
 }

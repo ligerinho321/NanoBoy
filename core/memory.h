@@ -20,12 +20,16 @@ typedef struct _gb_memory_t {
     gb_memory_handler_t hram_handler;
 
     gb_memory_handler_t* bus[0x10000];
+    gb_cheat_code_t* codes[0x10000];
 } gb_memory_t;
 
 void gb_memory_init(gb_memory_t* memory,gb_t* gb);
 
-void gb_memory_write(gb_memory_t* memory,uint8_t value,uint16_t address);
-uint8_t gb_memory_read(gb_memory_t* memory,uint16_t address);
+void gb_memory_add_cheat_code(gb_memory_t* memory,gb_cheat_code_t* code);
+void gb_memory_remove_cheat_code(gb_memory_t* memory,gb_cheat_code_t* code);
+
+void gb_memory_cpu_write(gb_memory_t* memory,uint8_t value,uint16_t address);
+uint8_t gb_memory_cpu_read(gb_memory_t* memory,uint16_t address);
 
 uint8_t gb_memory_oam_dma_read(gb_memory_t* memory,uint16_t address);
 
@@ -48,6 +52,11 @@ void gb_memory_write_wbk_register(void* data,uint8_t value,uint16_t address);
 uint8_t gb_memory_read_wbk_register(void* data,uint16_t address);
 
 void gb_memory_reset(gb_memory_t* memory);
+
+
+inline void gb_memory_clear_codes(gb_memory_t* memory){
+    memset(memory->codes,0x00,sizeof(memory->codes));
+}
 
 #ifdef __cplusplus
 }

@@ -10,39 +10,20 @@
                 "-fansi-escape-codes",
                 "-std=c++17",
                 
-                //"-g",
-                "-O2",
+                "-g",
+                //"-O2",
 
                 "${workspaceFolder}/main.cpp",
                 
-                "${workspaceFolder}/core/blip_buf/blip_buf.c",
-                "${workspaceFolder}/core/mappers/mbc1.c",
-                "${workspaceFolder}/core/mappers/mbc2.c",
-                "${workspaceFolder}/core/mappers/mbc3.c",
-                "${workspaceFolder}/core/mappers/mbc5.c",
-                "${workspaceFolder}/core/apu.c",
-                "${workspaceFolder}/core/boot.c",
-                "${workspaceFolder}/core/cartridge.c",
-                "${workspaceFolder}/core/cpu.c",
-                "${workspaceFolder}/core/dma.c",
-                "${workspaceFolder}/core/gb.c",
-                "${workspaceFolder}/core/interrupt.c",
-                "${workspaceFolder}/core/joypad.c",
-                "${workspaceFolder}/core/memory.c",
-                "${workspaceFolder}/core/palette.c",
-                "${workspaceFolder}/core/ppu.c",
-                "${workspaceFolder}/core/serial.c",
-                "${workspaceFolder}/core/timer.c",
-                "${workspaceFolder}/core/utils.c",
+                "${workspaceFolder}/core/object/*.o",
+                "${workspaceFolder}/imgui/object/*.o",
 
+                "${workspaceFolder}/gui/cheats.cpp",
                 "${workspaceFolder}/gui/object_viewer.cpp",
                 "${workspaceFolder}/gui/palette_viewer.cpp",
                 "${workspaceFolder}/gui/tilemap_viewer.cpp",
                 "${workspaceFolder}/gui/utils.cpp",
 
-                "-L${workspaceFolder}/imgui/lib",
-
-                "-limgui",
                 "-lSDL2",
 
                 "-o",
@@ -75,13 +56,51 @@
                 "${workspaceFolder}/imgui/imgui.cpp"
             ],
             "options": {
-                "cwd": "${workspaceFolder}/imgui/lib"
+                "cwd": "${workspaceFolder}/imgui/object"
             },
             "problemMatcher": [
                 "$gcc"
             ],
             "group": "build",
             "detail": "compilador: /usr/bin/clang++"
+        },
+        {
+            "type": "cppbuild",
+            "label": "Core build",
+            "command": "/usr/bin/clang",
+            "args": [
+                "-fcolor-diagnostics",
+                "-fansi-escape-codes",
+                "-O2",
+                "-c",
+                "${workspaceFolder}/core/blip_buf/blip_buf.c",
+                "${workspaceFolder}/core/mappers/mbc1.c",
+                "${workspaceFolder}/core/mappers/mbc2.c",
+                "${workspaceFolder}/core/mappers/mbc3.c",
+                "${workspaceFolder}/core/mappers/mbc5.c",
+                "${workspaceFolder}/core/apu.c",
+                "${workspaceFolder}/core/boot.c",
+                "${workspaceFolder}/core/cartridge.c",
+                "${workspaceFolder}/core/cpu.c",
+                "${workspaceFolder}/core/dma.c",
+                "${workspaceFolder}/core/gb.c",
+                "${workspaceFolder}/core/interrupt.c",
+                "${workspaceFolder}/core/joypad.c",
+                "${workspaceFolder}/core/memory.c",
+                "${workspaceFolder}/core/palette.c",
+                "${workspaceFolder}/core/ppu.c",
+                "${workspaceFolder}/core/serial.c",
+                "${workspaceFolder}/core/timer.c",
+                "${workspaceFolder}/core/utils.c",
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/core/object"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": "build",
+            "detail": "compilador: /usr/bin/clang"
         },
     ]
 }

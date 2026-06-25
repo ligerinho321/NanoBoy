@@ -14,6 +14,7 @@
 #include <vector>
 #include <algorithm>
 #include <string>
+#include <regex>
 
 struct palette_t{
     enum{

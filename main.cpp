@@ -1,5 +1,6 @@
 #include "core/gb.h"
 #include "gui/utils.hpp"
+#include "gui/cheats.hpp"
 #include "gui/object_viewer.hpp"
 #include "gui/palette_viewer.hpp"
 #include "gui/tilemap_viewer.hpp"
@@ -342,7 +343,7 @@ public:
             }
 
             ImGui::AlignTextToFramePadding();
-            ImGui::Text("Name:");
+            ImGui::TextUnformatted("Name:");
             ImGui::SameLine(0.0f,style.ItemInnerSpacing.x);
             ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
             if(ImGui::InputText("##NameInputText",name_buffer,sizeof(name_buffer),ImGuiInputTextFlags_EnterReturnsTrue)){
@@ -416,7 +417,6 @@ public:
     
 private:
 };
-
 
 class wave_form_t {
 private:
@@ -563,7 +563,6 @@ public:
     }
 };
 
-
 class screen_t {
 public:
     enum {
@@ -691,7 +690,6 @@ public:
     }
 };
 
-
 class nanoboy_t {
     gb_t* gb = nullptr;
 
@@ -707,6 +705,9 @@ class nanoboy_t {
 
 void joypad_callback(void* data,gb_joypad_key_t* key){
     const uint8_t* keyboard = SDL_GetKeyboardState(NULL);
+
+    if(ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow)) return;
+
     key->down = keyboard[SDL_SCANCODE_S];
     key->up = keyboard[SDL_SCANCODE_W];
     key->left = keyboard[SDL_SCANCODE_A];
@@ -775,7 +776,9 @@ int main(int n_args,char** args){
     screen->set_embedded_scale(window,4);
 
     file_selector_t* file_selector = new file_selector_t(gb);
-    
+
+    cheats_t* cheats = new cheats_t(gb);
+
     tilemap_viewer_t* tilemap_viewer = new tilemap_viewer_t(gb,renderer);
     object_viewer_t* object_viewer = new object_viewer_t(gb,renderer);
     palette_viewer_t* palette_viewer = new palette_viewer_t(gb,renderer);
@@ -899,11 +902,16 @@ int main(int n_args,char** args){
                     gb_set_speed(gb,gb->speed - gb_speed_step);
                 }
                 
+                if(ImGui::MenuItem("Cheats",nullptr,nullptr,gb->cartridge_inserted)){
+                    cheats->set_open(true);
+                }
                 if(ImGui::MenuItem("Power off",nullptr,nullptr,gb->cartridge_inserted)){
                     gb_remove_cartridge(gb);
 
                     screen->clear();
                     
+                    cheats->set_open(false);
+
                     tilemap_viewer->set_open(false);
                     object_viewer->set_open(false);
                     palette_viewer->set_open(false);
@@ -993,6 +1001,8 @@ int main(int n_args,char** args){
 
         file_selector->render();
 
+        cheats->render();
+
         tilemap_viewer->render();
         object_viewer->render();
         palette_viewer->render();
@@ -1029,6 +1039,8 @@ int main(int n_args,char** args){
     delete palette_viewer;
     delete object_viewer;
     delete tilemap_viewer;
+
+    delete cheats;
 
     delete file_selector;
 

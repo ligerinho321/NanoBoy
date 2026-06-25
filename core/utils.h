@@ -94,6 +94,14 @@ typedef struct _gb_memory_handler_t {
     void* data;
 } gb_memory_handler_t;
 
+typedef struct _gb_cheat_code_t {
+    uint8_t new_value;
+    int16_t old_value;
+    uint16_t address;
+    bool* enabled;
+    struct _gb_cheat_code_t* next;
+} gb_cheat_code_t;
+
 
 typedef struct _gb_pixel_fifo_entry_t {
     uint8_t palette_index;

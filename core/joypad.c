@@ -68,10 +68,10 @@ uint8_t gb_joypad_read_register(void* data,uint16_t address){
 bool gb_joypad_is_any_button_pressed(gb_joypad_t* joypad){
     bool p = false;
     if(joypad->select_buttons){
-        p = joypad->key.start || joypad->key.select || joypad->key.b || joypad->key.a;
+        p |= joypad->key.start || joypad->key.select || joypad->key.b || joypad->key.a;
     }
     if(joypad->select_directions){
-        p = joypad->key.down || joypad->key.up || joypad->key.left || joypad->key.right;
+        p |= joypad->key.down || joypad->key.up || joypad->key.left || joypad->key.right;
     }
     return p;
 }

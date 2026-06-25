@@ -16,7 +16,62 @@ void gb_memory_init(gb_memory_t* memory,gb_t* gb){
 }
 
 
-void gb_memory_write(gb_memory_t* memory,uint8_t value,uint16_t address){
+static inline void gb_memory_apply_cheat(gb_memory_t* memory,uint8_t* value,uint16_t address){
+    gb_cheat_code_t* code = memory->codes[address];
+    while(code != NULL){
+        if(*code->enabled && code->address == address && (code->old_value < 0 || code->old_value == *value)){
+            *value = code->new_value;
+        }
+        code = code->next;
+    }
+}
+
+void gb_memory_add_cheat_code(gb_memory_t* memory,gb_cheat_code_t* code){
+    
+    gb_cheat_code_t* current = memory->codes[code->address];
+
+    if(current == code) return;
+    
+    if(current != NULL){
+
+        while(current->next != NULL){
+
+            current = current->next;
+
+            if(current == code) return;
+        }
+
+        current->next = code;
+    }
+    else{
+        memory->codes[code->address] = code;
+    }
+
+    code->next = NULL;
+}
+
+void gb_memory_remove_cheat_code(gb_memory_t* memory,gb_cheat_code_t* code){
+    
+    gb_cheat_code_t* prev = NULL;
+    gb_cheat_code_t* current = memory->codes[code->address];
+
+    while(current != NULL){
+        if(current == code){
+            if(prev != NULL){
+                prev->next = code->next;
+            }
+            else{
+                memory->codes[code->address] = code->next;
+            }
+            break;
+        }
+        prev = current;
+        current = current->next;
+    }
+}
+
+
+void gb_memory_cpu_write(gb_memory_t* memory,uint8_t value,uint16_t address){
     gb_memory_handler_t* handler = memory->bus[address];
 
     if(!memory->gb->dma.oam_running || !gb_oam_dma_bus_conflict(&memory->gb->dma,address)){
@@ -26,30 +81,36 @@ void gb_memory_write(gb_memory_t* memory,uint8_t value,uint16_t address){
     }
 }
 
-uint8_t gb_memory_read(gb_memory_t* memory,uint16_t address){
+uint8_t gb_memory_cpu_read(gb_memory_t* memory,uint16_t address){
     gb_memory_handler_t* handler = memory->bus[address];
+    
+    uint8_t value = 0xFF;
 
     if(!memory->gb->dma.oam_running || !gb_oam_dma_bus_conflict(&memory->gb->dma,address)){
         if(handler && handler->read){
-            return handler->read(handler->data,address);
+            value = handler->read(handler->data,address);
+            gb_memory_apply_cheat(memory,&value,address);
         }
     }
     else{
-        return memory->gb->dma.oam_byte;
+        value = memory->gb->dma.oam_byte;
     }
 
-    return 0xFF;
+    return value;
 }
 
 
 uint8_t gb_memory_oam_dma_read(gb_memory_t* memory,uint16_t address){
     gb_memory_handler_t* handler = memory->bus[address];
 
+    uint8_t value = 0xFF;
+
     if(handler && handler->read){
-        return handler->read(handler->data,address);
+        value = handler->read(handler->data,address);
+        gb_memory_apply_cheat(memory,&value,address);
     }
 
-    return 0xFF;
+    return value;
 }
 
 
@@ -69,11 +130,14 @@ uint8_t gb_memory_vram_dma_read(gb_memory_t* memory,uint16_t address){
 
     gb_memory_handler_t* handler = memory->bus[address];
 
+    uint8_t value = 0xFF;
+
     if(handler && handler->read){
-        return handler->read(handler->data,address);
+        value = handler->read(handler->data,address);
+        gb_memory_apply_cheat(memory,&value,address);
     }
 
-    return 0xFF;
+    return value;
 }
 
 

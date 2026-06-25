@@ -60,40 +60,51 @@ bool gb_insert_cartridge(gb_t* gb,const char* path){
 void gb_remove_cartridge(gb_t* gb){
     gb_cartridge_clear(&gb->cartridge);
     gb->cartridge_inserted = false;
+    gb_memory_clear_codes(&gb->memory);
 }
 
 
 void gb_add_ppu_callback(gb_t* gb,gb_ppu_callback_handler_t* callback){
-    if(gb->callback_handles != NULL){
-        gb_ppu_callback_handler_t* ptr = gb->callback_handles;
-        while(ptr->next != NULL){
-            if(ptr == callback) return;
-            ptr = ptr->next;
+
+    gb_ppu_callback_handler_t* current = gb->callback_handles;
+
+    if(current == callback) return;
+
+    if(current != NULL){
+        
+        while(current->next != NULL){
+            
+            current = current->next;
+
+            if(current == callback) return;
         }
-        ptr->next = callback;
-        callback->next = NULL;
+
+        current->next = callback;
     }
     else{
         gb->callback_handles = callback;
     }
+
+    callback->next = NULL;
 }
 
 void gb_remove_ppu_callback(gb_t* gb,gb_ppu_callback_handler_t* callback){
-    if(gb->callback_handles == NULL) return;
+    
+    gb_ppu_callback_handler_t* prev = NULL;
+    gb_ppu_callback_handler_t* current = gb->callback_handles;
 
-    if(gb->callback_handles == callback){
-        gb->callback_handles = callback->next;
-    }
-    else{
-        gb_ppu_callback_handler_t* prev = NULL;
-        gb_ppu_callback_handler_t* current = gb->callback_handles;
-        while(current->next != NULL){
-            prev = current;
-            current = current->next;
-            if(current == callback){
+    while(current != NULL){
+        if(current == callback){
+            if(prev != NULL){
                 prev->next = current->next;
             }
+            else{
+                gb->callback_handles = current->next;
+            }
+            break;
         }
+        prev = current;
+        current = current->next;
     }
 }
 
