@@ -18,6 +18,50 @@ void gb_ppu_init(gb_ppu_t* ppu,gb_t* gb){
 }
 
 
+void gb_ppu_add_handler(gb_ppu_t* ppu,gb_ppu_handler_t* handler){
+
+    gb_ppu_handler_t* current = ppu->handles;
+
+    if(current == handler) return;
+
+    if(current != NULL){
+        
+        while(current->next != NULL){
+            
+            current = current->next;
+
+            if(current == handler) return;
+        }
+
+        current->next = handler;
+    }
+    else{
+        ppu->handles = handler;
+    }
+
+    handler->next = NULL;
+}
+
+void gb_ppu_remove_handler(gb_ppu_t* ppu,gb_ppu_handler_t* handler){
+    gb_ppu_handler_t* prev = NULL;
+    gb_ppu_handler_t* current = ppu->handles;
+
+    while(current != NULL){
+        if(current == handler){
+            if(prev != NULL){
+                prev->next = current->next;
+            }
+            else{
+                ppu->handles = current->next;
+            }
+            break;
+        }
+        prev = current;
+        current = current->next;
+    }
+}
+
+
 static inline void gb_ppu_clear_screen(gb_ppu_t* ppu){
     memset(ppu->screen,0xFF,sizeof(ppu->screen));
 }
@@ -424,8 +468,8 @@ void gb_ppu_clock(gb_ppu_t* ppu,int cycles){
 
         gb_ppu_update_irq_line(ppu);
 
-        if(ppu->gb->callback_handles != NULL){
-            gb_ppu_callback_handler_t* handler = ppu->gb->callback_handles;
+        if(ppu->handles != NULL){
+            gb_ppu_handler_t* handler = ppu->handles;
             do{
                 if(handler->scanline == ppu->ly && handler->cycle == ppu->cycle){
                     handler->callback(handler->data);

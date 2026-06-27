@@ -1,5 +1,8 @@
-roms/
-core/object/
-imgui/object/
-cgb_boot.bin
-dmg_boot.bin
+/roms/
+/core/object/
+/imgui/object/
+/cJSON/object/
+/.vscode/
+/cgb_boot.bin
+/dmg_boot.bin
+/imgui.ini

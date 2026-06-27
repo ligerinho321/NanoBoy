@@ -108,3 +108,65 @@ void gb_sleep(int ms){
     nanosleep(&ts,NULL);
     #endif
 }
+
+
+bool gb_save_file(const char* path,void* data,size_t len){
+    FILE* file = fopen(path,"wb");
+    if(!file){
+        gb_printf_errno(fopen);
+        return false;
+    }
+
+    fwrite(data,1,len,file);
+
+    fclose(file);
+    return true;
+}
+
+bool gb_load_file(const char* path,void** data,size_t* len){
+
+    *data = NULL;
+    *len = 0;
+
+    size_t read_bytes;
+
+    FILE* file = fopen(path,"rb");
+
+    if(!file){
+        gb_printf_errno(fopen);
+        goto fail;
+    }
+
+    fseek(file,0,SEEK_END);
+    *len = ftell(file);
+    fseek(file,0,SEEK_SET);
+
+    if(!*len) goto fail;
+
+    *data = malloc(*len);
+    if(!*data){
+        gb_printf_errno(malloc);
+        goto fail;
+    }
+
+    read_bytes = fread(*data,1,*len,file);
+    if(read_bytes != *len){
+        gb_printf_error("fread failed");
+        goto fail;
+    }
+    
+    fclose(file);
+    return true;
+
+    fail:
+    if(file != NULL) fclose(file);
+    
+    if(*data != NULL){
+        free(*data);
+        *data = NULL;
+    }
+    
+    *len = 0;
+
+    return false;
+}

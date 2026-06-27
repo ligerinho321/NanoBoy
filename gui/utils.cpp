@@ -40,12 +40,24 @@ void palette_t::update_texture(gb_type_t type,bool cgb_mode){
     SDL_UnlockTexture(texture);
 }
 
-
-float get_input_scalar_width(){
-    ImGuiStyle& style = ImGui::GetStyle();
-    return ImGui::CalcTextSize("0000").x + style.FramePadding.x * 2.0f + (ImGui::GetFrameHeight() + style.ItemInnerSpacing.x) * 2.0f;
+void bg_palette_t::clear(){
+    clear_texture(texture,texture_max_height);
+    bgp = 0;
+    memset(colors,0,sizeof(colors));
 }
 
-bool mouse_in_rect(ImVec2 m,ImVec2 rmin,ImVec2 rmax){
-    return (m.x >= rmin.x && m.x <= rmax.x) && (m.y >= rmin.y && m.y <= rmax.y);
+void obj_palette_t::clear(){
+    clear_texture(texture,texture_max_height);
+    obp[0] = 0;
+    obp[1] = 0;
+    memset(colors,0,sizeof(colors));
+}
+
+
+void clear_texture(SDL_Texture* texture,int height){
+    void* pixels = nullptr;
+    int pitch = 0;
+    SDL_LockTexture(texture,nullptr,&pixels,&pitch);
+    memset(pixels,0,pitch * height);
+    SDL_UnlockTexture(texture);
 }

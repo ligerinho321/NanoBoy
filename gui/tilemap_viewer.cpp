@@ -19,7 +19,7 @@ tilemap_viewer_t::tilemap_viewer_t(gb_t* gb,SDL_Renderer* renderer):gb(gb),bg_pa
 }
 
 tilemap_viewer_t::~tilemap_viewer_t(){
-    gb_remove_ppu_callback(gb,&callback_handler);
+    gb_remove_ppu_handler(gb,&callback_handler);
 
     SDL_DestroyTexture(tilemap_texture[0]);
     SDL_DestroyTexture(tilemap_texture[1]);
@@ -520,4 +520,16 @@ void tilemap_viewer_t::render(){
     ImGui::End();
 
     set_open(_open);
+}
+
+
+void tilemap_viewer_t::clear(){
+    clear_texture(tilemap_texture[0],tilemap_texture_height);
+    clear_texture(tilemap_texture[1],tilemap_texture_height);
+    cgb_mode = false;
+    tiledata_area = false;
+    scx = 0;
+    scy = 0;
+    bg_palette.clear();
+    memset(vram,0,sizeof(vram));
 }

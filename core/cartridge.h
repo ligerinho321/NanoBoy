@@ -57,11 +57,14 @@ void gb_cartridge_init(gb_cartridge_t* cartridge,gb_t* gb);
 
 bool gb_cartridge_load(gb_cartridge_t* cartridge,const char* path);
 
+void gb_cartridge_save_ram(gb_cartridge_t* cartridge,const char* path);
+void gb_cartridge_load_ram(gb_cartridge_t* cartridge,const char* path);
+
 bool gb_cartridge_verify_header_checksum(gb_cartridge_t* cartridge);
 
 bool gb_cartridge_verify_global_checksum(gb_cartridge_t* cartridge);
 
-void gb_cartridge_init_mapper(gb_cartridge_t* cartridge);
+bool gb_cartridge_init_mapper(gb_cartridge_t* cartridge);
 
 void gb_no_mbc_init(gb_cartridge_t* cartridge,uint8_t flags);
 

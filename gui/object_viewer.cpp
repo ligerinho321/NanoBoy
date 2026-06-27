@@ -32,7 +32,7 @@ object_viewer_t::object_viewer_t(gb_t* gb,SDL_Renderer *renderer):gb(gb),obj_pal
 }
 
 object_viewer_t::~object_viewer_t(){
-    gb_remove_ppu_callback(gb,&callback_handler);
+    gb_remove_ppu_handler(gb,&callback_handler);
     
     SDL_DestroyTexture(bg_texture);
 }
@@ -44,11 +44,11 @@ void object_viewer_t::callback(void* data){
     obj_palette_t& obj_palette = object_viewer->obj_palette;
 
     object_viewer->cgb_mode = gb->cgb_mode;
+    
     object_viewer->obj_priority_mode = gb->obj_priority_mode;
 
     object_viewer->object_size = gb->ppu.lcdc.object_size;
     
-    object_viewer->object_texture_uv1.x = 1.0f;
     object_viewer->object_texture_uv1.y = object_viewer->object_size ? 1.0f : 0.5f;
 
     obj_palette.obp[0] = gb->palette.obp[0];
@@ -545,4 +545,24 @@ void object_viewer_t::render(){
     ImGui::End();
 
     set_open(_open);
+}
+
+
+void object_viewer_t::clear(){
+    cgb_mode = false;
+    
+    obj_priority_mode = false;
+    
+    object_size = false;
+
+    object_texture_uv1.y = object_size ? 1.0f : 0.5f;
+    
+    obj_palette.clear();
+
+    memset(oam,0,sizeof(oam));
+    memset(vram,0,sizeof(vram));
+
+    for(auto& object : objects){
+        object.clear();
+    }
 }

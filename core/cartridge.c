@@ -40,32 +40,62 @@ bool gb_cartridge_load(gb_cartridge_t* cartridge,const char* path){
     fseek(file,0,SEEK_SET);
 
     if((size < GB_CARTRIDGE_ROM_MIN_SIZE) || (size > GB_CARTRIDGE_ROM_MAX_SIZE)){
-        goto invalid_rom;
+        gb_printf_error("invalid rom");
+        goto fail;
     }
 
-    fread(cartridge->rom,sizeof(uint8_t),size,file);
+    fread(cartridge->rom,1,size,file);
 
     gb_cartridge_load_rom_size(cartridge);
 
     if(cartridge->rom_size != size){
-        goto invalid_rom;
+        gb_printf_error("invalid rom");
+        goto fail;
     }
 
-    gb_cartridge_init_mapper(cartridge);
+    if(!gb_cartridge_init_mapper(cartridge)){
+        gb_printf_error("invalid rom mapper");
+        goto fail;
+    }
 
     fclose(file);
     return true;
 
-    invalid_rom:
-
-    gb_printf_error("Invalid ROM");
-    
+    fail:
     gb_cartridge_clear(cartridge);
 
     fclose(file);
     
     return false;
 }
+
+
+void gb_cartridge_save_ram(gb_cartridge_t* cartridge,const char* path){
+    if(!cartridge->ram_size || !cartridge->ram_has_battery) return;
+    gb_save_file(path,cartridge->ram,cartridge->ram_size);
+}
+
+void gb_cartridge_load_ram(gb_cartridge_t* cartridge,const char* path){
+    if(!cartridge->ram_size || !cartridge->ram_has_battery) return;
+
+    FILE* file = fopen(path,"rb");
+    if(!file){
+        gb_printf_errno(fopen);
+        goto end;    
+    }
+
+    fseek(file,0,SEEK_END);
+    size_t len = ftell(file);
+    fseek(file,0,SEEK_SET);
+
+    if(len != cartridge->ram_size) goto end;
+
+    fread(cartridge->ram,1,cartridge->ram_size,file);
+
+    end:
+    if(file != NULL) fclose(file);
+}
+
 
 bool gb_cartridge_verify_header_checksum(gb_cartridge_t* cartridge){
     uint8_t checksum = 0x00;
@@ -85,7 +115,10 @@ bool gb_cartridge_verify_global_checksum(gb_cartridge_t* cartridge){
 }
 
 
-void gb_cartridge_init_mapper(gb_cartridge_t* cartridge){
+bool gb_cartridge_init_mapper(gb_cartridge_t* cartridge){
+
+    bool result = true;
+
     switch(cartridge->rom[0x147]){
         //ROM ONLY
         case 0x00: gb_no_mbc_init(cartridge,0x00); break;
@@ -104,11 +137,11 @@ void gb_cartridge_init_mapper(gb_cartridge_t* cartridge){
         //ROM+RAM+BATTERY
         case 0x09: gb_no_mbc_init(cartridge,gb_cartridge_ram | gb_cartridge_battery); break;
         //MMM01
-        case 0x0B: break;
+        case 0x0B: result = false; break;
         //MMM01+BATTERY
-        case 0x0C: break;
+        case 0x0C: result = false; break;
         //MMM01+RAM+BATTERY
-        case 0x0D: break;
+        case 0x0D: result = false; break;
         //MBC3+TIMER+BATTERY
         case 0x0F: gb_mbc3_init(cartridge,gb_cartridge_rtc | gb_cartridge_battery); break;
         //MBC3+TIMER+RAM+BATTERY
@@ -132,18 +165,22 @@ void gb_cartridge_init_mapper(gb_cartridge_t* cartridge){
         //MBC5+RUMBLE+RAM+BATTERY
         case 0x1E: gb_mbc5_init(cartridge,gb_cartridge_rumble | gb_cartridge_ram | gb_cartridge_battery); break;
         //MBC6
-        case 0x20: break;
+        case 0x20: result = false; break;
         //MBC7+SENSOR+RUMBLE+RAM+BATTERY
-        case 0x22: break;
+        case 0x22: result = false; break;
         //POCKET CAMERA
-        case 0xFC: break;
+        case 0xFC: result = false; break;
         //BANDAI TAMA5
-        case 0xFD: break;
+        case 0xFD: result = false; break;
         //HuC3
-        case 0xFE: break;
+        case 0xFE: result = false; break;
         //HuC1+RAM+BATTERY
-        case 0xFF: break;
+        case 0xFF: result = false; break;
+        
+        default: result = false; break;
     }
+
+    return result;
 }
 
 
@@ -248,12 +285,16 @@ void gb_cartridge_init_ram(gb_cartridge_t* cartridge,bool battery){
     }
 
     if(cartridge->ram_size){
+        
+        memset(cartridge->ram,0,cartridge->ram_size);
+
         if(cartridge->ram_size == 0x800){
             cartridge->ram_address_mask = 0x07FF;
         }
         else{
             cartridge->ram_address_mask = 0x1FFF;
         }
+        
         cartridge->ram_has_battery = battery;
     }
 }

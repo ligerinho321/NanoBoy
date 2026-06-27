@@ -19,7 +19,140 @@ cheats_t::cheats_t(gb_t* gb):
 {}
 
 cheats_t::~cheats_t(){
-    clear_cheats();
+    clear();
+}
+
+
+void cheats_t::copy_valuestring_to_buffer(const char* valuestring,char* buffer){
+    int len = strlen(valuestring);
+
+    if(len >= buffer_length){
+        len = buffer_length - 1;
+    }
+
+    memcpy(buffer,valuestring,len);
+
+    buffer[len] = '\0';
+}
+
+void cheats_t::load_cheat(cJSON* object){
+
+    cJSON* item = object->child;
+
+    description_buffer_length = 0;
+    codes_buffer_length = 0;
+    format_type = 0;
+    enabled = false;
+
+    while(item != nullptr){
+
+        if(cJSON_IsString(item)){
+            if(item->string != nullptr && item->valuestring != nullptr){
+                if(!strcmp("Description",item->string)){
+                    copy_valuestring_to_buffer(item->valuestring,description_buffer);
+                    description_buffer_length = strlen(description_buffer);
+                }
+                else if(!strcmp("Codes",item->string)){
+                    copy_valuestring_to_buffer(item->valuestring,codes_buffer);
+                    codes_buffer_length = strlen(codes_buffer);
+                }
+            }
+        }
+        else if(cJSON_IsBool(item)){
+            if(item->string != nullptr){
+                if(!strcmp("Enabled",item->string)){
+                    enabled = cJSON_IsTrue(item);
+                }
+            }
+        }
+        else if(cJSON_IsNumber(item)){
+            if(item->string != nullptr){
+                if(!strcmp("Format",item->string)){
+                    format_type = (int)item->valuedouble;
+                }
+            }
+        }
+
+        item = item->next;
+    }
+
+    add_cheat();
+}
+
+void cheats_t::load(const char* path){
+    char* data = nullptr;
+    size_t len = 0;
+
+    cJSON* json = nullptr;
+    cJSON* array = nullptr;
+    cJSON* object = nullptr;
+
+    if(!gb_load_file(path,(void**)&data,&len)){
+        goto end;
+    }
+
+    json = cJSON_ParseWithLength(data,len);
+    if(!json){
+        gb_printf_error("cJSON_ParserWithLength failed\n");
+        goto end;
+    }
+
+    array = cJSON_GetObjectItemCaseSensitive(json,"Cheats");
+    if(!array){
+        gb_printf_error("cJSON_GetObjectItemCaseSensitive failed");
+        goto end;
+    }
+
+    object = array->child;
+    while(object != nullptr){
+        load_cheat(object);
+        object = object->next;
+    }
+
+    end:
+    if(data != nullptr) free(data);
+    if(json != nullptr) cJSON_Delete(json);
+}
+
+void cheats_t::save(const char* path){
+    if(cheats == nullptr) return;
+
+    cJSON* json = cJSON_CreateObject();
+    
+    cJSON* array = cJSON_CreateArray();
+
+    cJSON_AddItemToObjectCS(json,"Cheats",array);
+
+    cheat_t* cheat = cheats;
+    
+    while(cheat != nullptr){
+
+        cJSON* cheat_object = cJSON_CreateObject();
+
+        cJSON* _description = cJSON_CreateStringReference(cheat->description_buffer);
+        cJSON* _codes = cJSON_CreateStringReference(cheat->codes_buffer);
+        cJSON* _format = cJSON_CreateNumber(cheat->format_type);
+        cJSON* _enabled = cJSON_CreateBool(cheat->enabled);
+
+        cJSON_AddItemToObjectCS(cheat_object,"Description",_description);
+        cJSON_AddItemToObjectCS(cheat_object,"Codes",_codes);
+        cJSON_AddItemToObjectCS(cheat_object,"Format",_format);
+        cJSON_AddItemToObjectCS(cheat_object,"Enabled",_enabled);
+
+        cJSON_AddItemToArray(array,cheat_object);
+
+        cheat = cheat->next;
+    }
+
+    char* string = cJSON_Print(json);
+    
+    if(!gb_save_file(path,string,strlen(string))){
+        gb_printf_error("gb_save_file failed");        
+    }
+
+    free(string);
+
+    cJSON_Delete(json);
 }
 
 
@@ -35,7 +168,7 @@ void cheats_t::load_cheat_codes(cheat_t* cheat){
     switch(cheat->format_type){
         case format_game_genie_type:{
 
-            std::string str_codes = cheat->code_buffer;
+            std::string str_codes = cheat->codes_buffer;
             auto it = std::sregex_iterator(str_codes.begin(),str_codes.end(),game_genie_pattern_code);
             auto end = std::sregex_iterator();
 
@@ -65,7 +198,7 @@ void cheats_t::load_cheat_codes(cheat_t* cheat){
         }
         case format_game_shark_type:{
             
-            std::string str_codes = cheat->code_buffer;
+            std::string str_codes = cheat->codes_buffer;
             auto it = std::sregex_iterator(str_codes.begin(),str_codes.end(),game_shark_pattern_code);
             auto end = std::sregex_iterator();
 
@@ -101,30 +234,40 @@ void cheats_t::load_cheat_codes(cheat_t* cheat){
 
 
 bool cheats_t::cheat_is_valid(){
-    int description_buffer_length = strlen(description_buffer);
-
     if(!description_buffer_length){
         current_error = error_description_empty;
         return false;
     }
 
-    std::string str_codes = code_buffer;
-
-    if(
-        (format_type == format_game_genie_type && !std::regex_match(str_codes,game_genie_pattern_text)) ||
-        (format_type == format_game_shark_type && !std::regex_match(code_buffer,game_shark_pattern_text))
-    ){
-        current_error = error_invalid_code_format;
+    if(!codes_buffer_length){
+        current_error = error_codes_empty;
         return false;
+    }
+
+    switch(format_type){
+        case format_game_genie_type:
+            if(!std::regex_match(codes_buffer,game_genie_pattern_text)){
+                current_error = error_invalid_code_format;
+                return false;
+            }
+            break;
+        case format_game_shark_type:
+            if(!std::regex_match(codes_buffer,game_shark_pattern_text)){
+                current_error = error_invalid_code_format;
+                return false;
+            }
+            break;
+        default:
+            return false;
     }
 
     return true;
 }
 
 
-void cheats_t::copy_code_buffer(char* dst){
-    char* src = code_buffer;
-    char* end = code_buffer + strlen(code_buffer);
+void cheats_t::copy_codes_buffer(char* dst){
+    char* src = codes_buffer;
+    char* end = codes_buffer + strlen(codes_buffer);
     while(src != end){
         if(*src != ' '){
             *dst = *src;
@@ -144,7 +287,7 @@ void cheats_t::add_cheat(){
     
     strcpy(cheat->description_buffer,description_buffer);
     
-    copy_code_buffer(cheat->code_buffer);
+    copy_codes_buffer(cheat->codes_buffer);
     
     cheat->format_type = format_type;
     
@@ -174,7 +317,7 @@ void cheats_t::edit_cheat(){
 
     strcpy(cheat_selected->description_buffer,description_buffer);
     
-    copy_code_buffer(cheat_selected->code_buffer);
+    copy_codes_buffer(cheat_selected->codes_buffer);
     
     cheat_selected->format_type = format_type;
     
@@ -214,7 +357,7 @@ void cheats_t::delete_cheat_selected(){
     cheat_selected = nullptr;
 }
 
-void cheats_t::clear_cheats(){
+void cheats_t::clear(){
     
     cheat_t* cheat = cheats;
 
@@ -239,15 +382,26 @@ void cheats_t::open_popup(int type){
     popup_type = type;
 
     if(popup_type == popup_add_cheat_type){
+        
         description_buffer[0] = '\0';
-        code_buffer[0] = '\0';
-        code_buffer_length = 0;
+        description_buffer_length = 0;
+
+        codes_buffer[0] = '\0';
+        codes_buffer_length = 0;
+
+        format_type = format_game_genie_type;
+        
         enabled = false;
     }
     else{
         strcpy(description_buffer,cheat_selected->description_buffer);
-        strcpy(code_buffer,cheat_selected->code_buffer);
-        code_buffer_length = strlen(code_buffer);
+        description_buffer_length = strlen(description_buffer);
+
+        strcpy(codes_buffer,cheat_selected->codes_buffer);
+        codes_buffer_length = strlen(codes_buffer);
+        
+        format_type = cheat_selected->format_type;
+        
         enabled = cheat_selected->enabled;
     }
 
@@ -283,6 +437,10 @@ void cheats_t::render_popup(){
 
     ImGui::InputText("##DescriptionInputText",description_buffer,sizeof(description_buffer));
     
+    if(ImGui::IsItemDeactivatedAfterEdit()){
+        description_buffer_length = strlen(description_buffer);
+    }
+
     if(current_error == error_description_empty){
         ImGui::SetCursorPosX(x);
         ImGui::TextColored(text_error_color,"Description empty");
@@ -296,18 +454,19 @@ void cheats_t::render_popup(){
 
     ImVec2 content_region_avail = ImGui::GetContentRegionAvail();
 
+    float frames = ((current_error == error_codes_empty || current_error == error_invalid_code_format) ? 2.0f : 1.0f);
     ImVec2 text_multiline_size(
         content_region_avail.x,
-        content_region_avail.y - ImGui::GetFrameHeightWithSpacing() * ((current_error == error_invalid_code_format) ? 2.0f : 1.0f)
+        content_region_avail.y - ImGui::GetFrameHeightWithSpacing() * frames
     );
 
-    ImGui::InputTextMultiline("##CodeInputTextMultiline",code_buffer,sizeof(code_buffer),text_multiline_size);
+    ImGui::InputTextMultiline("##CodeInputTextMultiline",codes_buffer,sizeof(codes_buffer),text_multiline_size);
 
     if(ImGui::IsItemDeactivatedAfterEdit()){
-        code_buffer_length = strlen(code_buffer);
+        codes_buffer_length = strlen(codes_buffer);
     }
 
-    if(!ImGui::IsItemActive() && !code_buffer_length){
+    if(!ImGui::IsItemActive() && !codes_buffer_length){
 
         ImVec2 cursor = ImGui::GetCursorPos();
 
@@ -325,7 +484,10 @@ void cheats_t::render_popup(){
         ImGui::SetCursorPos(cursor);
     }
 
-    if(current_error == error_invalid_code_format){
+    if(current_error == error_codes_empty){
+        ImGui::TextColored(text_error_color,"Codes empty");
+    }
+    else if(current_error == error_invalid_code_format){
         ImGui::TextColored(text_error_color,"Invalid code format");
     }
 
@@ -407,7 +569,7 @@ void cheats_t::render(){
 
                 ImGui::TableNextColumn();
 
-                const char* start_ptr = cheat->code_buffer;
+                const char* start_ptr = cheat->codes_buffer;
                 while(true){
                     const char* end_ptr = strchr(start_ptr,'\n');
 

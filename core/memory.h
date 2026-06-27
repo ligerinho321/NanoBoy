@@ -53,11 +53,6 @@ uint8_t gb_memory_read_wbk_register(void* data,uint16_t address);
 
 void gb_memory_reset(gb_memory_t* memory);
 
-
-inline void gb_memory_clear_codes(gb_memory_t* memory){
-    memset(memory->codes,0x00,sizeof(memory->codes));
-}
-
 #ifdef __cplusplus
 }
 #endif

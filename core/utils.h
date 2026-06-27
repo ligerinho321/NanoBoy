@@ -80,13 +80,13 @@ enum {
 
 typedef struct _gb_t gb_t;
 
-typedef struct _gb_ppu_callback_handler_t {
+typedef struct _gb_ppu_handler_t {
     void (*callback)(void* data);
     void* data;
     uint8_t scanline;
     uint16_t cycle;
-    struct _gb_ppu_callback_handler_t* next;
-} gb_ppu_callback_handler_t;
+    struct _gb_ppu_handler_t* next;
+} gb_ppu_handler_t;
 
 typedef struct _gb_memory_handler_t {
     void (*write)(void*,uint8_t,uint16_t);
@@ -142,6 +142,9 @@ void gb_ring_buffer_free(gb_ring_buffer_t* ring_buffer);
 
 
 void gb_sleep(int ms);
+
+bool gb_save_file(const char* path,void* data,size_t len);
+bool gb_load_file(const char* path,void** data,size_t* len);
 
 #ifdef __cplusplus
 }

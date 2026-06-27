@@ -10,8 +10,9 @@ palette_viewer_t::palette_viewer_t(gb_t* gb,SDL_Renderer* renderer):gb(gb),bg_pa
 }
 
 palette_viewer_t::~palette_viewer_t(){
-    gb_remove_ppu_callback(gb,&callback_handler);
+    gb_remove_ppu_handler(gb,&callback_handler);
 }
+
 
 void palette_viewer_t::callback(void* data){
     palette_viewer_t* pv = (palette_viewer_t*)data;
@@ -233,3 +234,15 @@ void palette_viewer_t::render(){
 
     set_open(_open);
 }
+
+
+void palette_viewer_t::clear(){
+    cgb_mode = false;
+    
+    bg_palette.clear();
+    obj_palette.clear();
+
+    memset(bg_cram,0,sizeof(bg_cram));
+    memset(obj_cram,0,sizeof(obj_cram));
+}
+

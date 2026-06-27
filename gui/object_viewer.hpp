@@ -30,6 +30,7 @@ private:
     struct object_t {
         SDL_Texture* texture = nullptr;
         uint8_t index = 0;
+        
         uint8_t y = 0;
         uint8_t x = 0;
         uint8_t tile_index = 0;
@@ -54,6 +55,18 @@ private:
 
         ~object_t(){
             SDL_DestroyTexture(texture);
+        }
+
+        void clear(){
+            clear_texture(texture,gb_object_max_height);
+            y = 0;
+            x = 0;
+            tile_index = 0;
+            tile_address = 0;
+            palette_index = 0;
+            horizontal_flip = false;
+            vertical_flip = false;
+            priority = false;
         }
     };
 
@@ -89,7 +102,7 @@ private:
     bool obj_priority_mode = false;
     bool object_size = false;
     ImVec2 object_texture_uv0{0.0f,0.0f};
-    ImVec2 object_texture_uv1{1.0f,1.0f};
+    ImVec2 object_texture_uv1{1.0f,0.5f};
     obj_palette_t obj_palette;
     uint8_t oam[gb_oam_length] = {0};
     uint8_t vram[gb_vram_length] = {0};
@@ -98,7 +111,7 @@ private:
     std::vector<object_t*> objects_sorted;
     object_t* oam_table_object_hovered = nullptr;
 
-    gb_ppu_callback_handler_t callback_handler = {callback,this,gb_vblank_scanline,0,nullptr};
+    gb_ppu_handler_t callback_handler = {callback,this,gb_vblank_scanline,0,nullptr};
 
     bool open = false;
 
@@ -129,14 +142,16 @@ public:
 
     void render();
 
+    void clear();
+    
     void set_open(bool _open){
         if(open == _open) return;
         open = _open;
         if(open){
-            gb_add_ppu_callback(gb,&callback_handler);
+            gb_add_ppu_handler(gb,&callback_handler);
         }
         else{
-            gb_remove_ppu_callback(gb,&callback_handler);
+            gb_remove_ppu_handler(gb,&callback_handler);
         }
     }
 

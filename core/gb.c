@@ -52,60 +52,18 @@ gb_t* gb_new(){
 
 bool gb_insert_cartridge(gb_t* gb,const char* path){
     if(!gb_cartridge_load(&gb->cartridge,path)) return false;
-    gb_reset(gb);
+
     gb->cartridge_inserted = true;
+
+    gb_reset(gb);
+    
     return true;
 }
 
 void gb_remove_cartridge(gb_t* gb){
     gb_cartridge_clear(&gb->cartridge);
-    gb->cartridge_inserted = false;
-    gb_memory_clear_codes(&gb->memory);
-}
-
-
-void gb_add_ppu_callback(gb_t* gb,gb_ppu_callback_handler_t* callback){
-
-    gb_ppu_callback_handler_t* current = gb->callback_handles;
-
-    if(current == callback) return;
-
-    if(current != NULL){
-        
-        while(current->next != NULL){
-            
-            current = current->next;
-
-            if(current == callback) return;
-        }
-
-        current->next = callback;
-    }
-    else{
-        gb->callback_handles = callback;
-    }
-
-    callback->next = NULL;
-}
-
-void gb_remove_ppu_callback(gb_t* gb,gb_ppu_callback_handler_t* callback){
     
-    gb_ppu_callback_handler_t* prev = NULL;
-    gb_ppu_callback_handler_t* current = gb->callback_handles;
-
-    while(current != NULL){
-        if(current == callback){
-            if(prev != NULL){
-                prev->next = current->next;
-            }
-            else{
-                gb->callback_handles = current->next;
-            }
-            break;
-        }
-        prev = current;
-        current = current->next;
-    }
+    gb->cartridge_inserted = false;
 }
 
 

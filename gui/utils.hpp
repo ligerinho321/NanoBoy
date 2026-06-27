@@ -2,6 +2,8 @@
 
 #include "../core/gb.h"
 
+#include "../cJSON/cJSON.h"
+
 #include "../imgui/imgui.h"
 #include "../imgui/imgui_impl_sdl2.h"
 #include "../imgui/imgui_impl_sdlrenderer2.h"
@@ -67,6 +69,7 @@ struct bg_palette_t : public palette_t {
 
     bg_palette_t(SDL_Renderer* renderer):palette_t(renderer,false){}
 
+    void clear();
 
     uint8_t get_dmg_address_color(uint8_t palette_index, uint8_t color_index) const noexcept override {
         return (bgp >> ((color_index & 0x03) << 0x01)) & 0x03;
@@ -100,6 +103,8 @@ struct obj_palette_t : public palette_t {
 
     obj_palette_t(SDL_Renderer* renderer):palette_t(renderer,true){}
 
+    void clear();
+
     uint8_t get_dmg_address_color(uint8_t palette_index,uint8_t color_index) const noexcept override {
         return (obp[palette_index & 0x01] >> ((color_index & 0x03) << 0x01)) & 0x03;
     }
@@ -127,6 +132,13 @@ struct obj_palette_t : public palette_t {
 };
 
 
-float get_input_scalar_width();
+inline float get_input_scalar_width(){
+    ImGuiStyle& style = ImGui::GetStyle();
+    return ImGui::CalcTextSize("0000").x + style.FramePadding.x * 2.0f + (ImGui::GetFrameHeight() + style.ItemInnerSpacing.x) * 2.0f;
+}
 
-bool mouse_in_rect(ImVec2 m,ImVec2 rmin,ImVec2 rmax);
+inline bool mouse_in_rect(ImVec2 m,ImVec2 rmin,ImVec2 rmax){
+    return (m.x >= rmin.x && m.x <= rmax.x) && (m.y >= rmin.y && m.y <= rmax.y);
+}
+
+void clear_texture(SDL_Texture* texture,int height);

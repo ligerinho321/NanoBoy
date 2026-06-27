@@ -24,7 +24,7 @@ private:
     uint32_t border_color = 0;
     uint32_t border_hovered_color = 0;
 
-    gb_ppu_callback_handler_t callback_handler = {callback,this,gb_vblank_scanline,0,nullptr};
+    gb_ppu_handler_t callback_handler = {callback,this,gb_vblank_scanline,0,nullptr};
 
     bool open = false;
 
@@ -41,14 +41,16 @@ public:
 
     void render();
 
+    void clear();
+
     void set_open(bool _open){
         if(open == _open) return;
         open = _open;
         if(open){
-            gb_add_ppu_callback(gb,&callback_handler);
+            gb_add_ppu_handler(gb,&callback_handler);
         }
         else{
-            gb_remove_ppu_callback(gb,&callback_handler);
+            gb_remove_ppu_handler(gb,&callback_handler);
         }
     }
 

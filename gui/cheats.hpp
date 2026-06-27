@@ -20,12 +20,13 @@ private:
 
     enum error_type_t{
         error_description_empty = 0,
-        error_invalid_code_format = 1
+        error_codes_empty = 1,
+        error_invalid_code_format = 2
     };
 
     struct cheat_t {
         char description_buffer[buffer_length];
-        char code_buffer[buffer_length];
+        char codes_buffer[buffer_length];
         uint8_t format_type;
         bool enabled;
         std::vector<gb_cheat_code_t> codes;
@@ -33,8 +34,6 @@ private:
     };
 
     gb_t* gb = nullptr;
-
-    bool open = false;
 
     bool popup_open = false;
     uint8_t popup_type = 0;
@@ -47,8 +46,9 @@ private:
     std::regex game_shark_pattern_code;
 
     char description_buffer[buffer_length] = {0};
-    char code_buffer[buffer_length] = {0};
-    int code_buffer_length = 0;
+    int description_buffer_length = 0;
+    char codes_buffer[buffer_length] = {0};
+    int codes_buffer_length = 0;
     int format_type = 0;
     bool enabled = false;
 
@@ -58,16 +58,21 @@ private:
     cheat_t* cheats = nullptr;
     cheat_t* cheat_selected = nullptr;
 
+    bool open = false;
+
+    void copy_valuestring_to_buffer(const char* valuestring,char* buffer);
+
+    void load_cheat(cJSON* object);
+    
     void load_cheat_codes(cheat_t* cheat);
 
     bool cheat_is_valid();
 
-    void copy_code_buffer(char* dst);
+    void copy_codes_buffer(char* dst);
 
     void add_cheat();
     void edit_cheat();
     void delete_cheat_selected();
-    void clear_cheats();
 
     void open_popup(int type);
 
@@ -77,6 +82,10 @@ public:
     cheats_t(gb_t* gb);
 
     ~cheats_t();
+
+    void load(const char* path);
+    void save(const char* path);
+    void clear();
 
     void render();
 

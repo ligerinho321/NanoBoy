@@ -46,22 +46,17 @@ private:
     bg_palette_t bg_palette;
     uint8_t vram[gb_vram_length] = {0};
 
-    gb_ppu_callback_handler_t callback_handler = {callback,this,gb_vblank_scanline,0,nullptr};
+    gb_ppu_handler_t callback_handler = {callback,this,gb_vblank_scanline,0,nullptr};
 
     bool open = false;
 
     static void callback(void* data);
 
-
     void update_tilemap_texture(uint8_t map_index);
 
-
     void render_grid(ImVec2 tilemap_start);
-
     void render_scroll_overlay(ImVec2 tilemap_start,ImVec2 tilemap_end);
-
     void render_tile_tooltip(bool tilemap,uint8_t col,uint8_t row);
-
     void render_tilemap(const char* str_id,bool tilemap);
 
     void update_tilemap_size(){
@@ -75,18 +70,18 @@ public:
 
     ~tilemap_viewer_t();
 
-
     void render();
 
+    void clear();
 
     void set_open(bool _open){
         if(open == _open) return;
         open = _open;
         if(open){
-            gb_add_ppu_callback(gb,&callback_handler);
+            gb_add_ppu_handler(gb,&callback_handler);
         }
         else{
-            gb_remove_ppu_callback(gb,&callback_handler);
+            gb_remove_ppu_handler(gb,&callback_handler);
         }
     }
 

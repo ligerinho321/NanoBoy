@@ -132,9 +132,14 @@ typedef struct _gb_ppu_t {
     uint8_t* pixel_ptr;
 
     gb_memory_handler_t register_handler;
+
+    gb_ppu_handler_t* handles;
 } gb_ppu_t;
 
 void gb_ppu_init(gb_ppu_t* ppu,gb_t* gb);
+
+void gb_ppu_add_handler(gb_ppu_t* ppu,gb_ppu_handler_t* handler);
+void gb_ppu_remove_handler(gb_ppu_t* ppu,gb_ppu_handler_t* handler);
 
 void gb_ppu_clock(gb_ppu_t* ppu,int cycles);
 
