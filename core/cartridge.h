@@ -72,6 +72,10 @@ void gb_cartridge_load_rom_size(gb_cartridge_t* cartridge);
 
 void gb_cartridge_init_ram(gb_cartridge_t* cartridge,bool battery);
 
+void gb_cartridge_set_rom0_bank(gb_cartridge_t* cartridge,uint16_t bank);
+void gb_cartridge_set_rom1_bank(gb_cartridge_t* cartridge,uint16_t bank);
+void gb_cartridge_set_ram_bank(gb_cartridge_t* cartridge,uint8_t bank);
+
 uint8_t gb_cartridge_read_rom0(void* data,uint16_t address);
 uint8_t gb_cartridge_read_rom1(void* data,uint16_t address);
 
@@ -79,19 +83,6 @@ void gb_cartridge_write_ram(void* data,uint8_t value,uint16_t address);
 uint8_t gb_cartridge_read_ram(void* data,uint16_t address);
 
 void gb_cartridge_clear(gb_cartridge_t* cartridge);
-
-
-inline void gb_cartridge_set_rom0_bank(gb_cartridge_t* cartridge,uint16_t bank){
-    cartridge->rom0_ptr = cartridge->rom + ((bank & cartridge->rom_bank_mask) << 0x0E);
-}
-
-inline void gb_cartridge_set_rom1_bank(gb_cartridge_t* cartridge,uint16_t bank){
-    cartridge->rom1_ptr = cartridge->rom + ((bank & cartridge->rom_bank_mask) << 0x0E);
-}
-
-inline void gb_cartridge_set_ram_bank(gb_cartridge_t* cartridge,uint8_t bank){
-    cartridge->ram_ptr = cartridge->ram + ((bank & cartridge->ram_bank_mask) << 0x0D);
-}
 
 #ifdef __cplusplus
 }

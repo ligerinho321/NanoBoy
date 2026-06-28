@@ -48,36 +48,16 @@ typedef struct _gb_palette_t {
 
 extern const gb_rgb_t dmg_colors[gb_dmg_colors];
 
-
-inline gb_rgb_t gb_palette_get_dmg_bgp_color(gb_palette_t* palette,uint8_t palette_index){
-    return dmg_colors[(palette->bgp >> ((palette_index & 0x03) << 0x01)) & 0x03];
-}
-
-inline gb_rgb_t gb_palette_get_dmg_obp_color(gb_palette_t* palette,uint8_t palette_index,uint8_t color_index){
-    return dmg_colors[(palette->obp[palette_index & 0x01] >> ((color_index & 0x03) << 0x01)) & 0x03];
-}
-
-
-inline gb_rgb_t gb_palette_get_cgb_bgp_color(gb_palette_t* palette,uint8_t palette_index,uint8_t color_index){
-    return palette->bg_cram_converted[((palette_index & 0x07) << 0x02) | (color_index & 0x03)];
-}
-
-inline gb_rgb_t gb_palette_get_cgb_obp_color(gb_palette_t* palette,uint8_t palette_index,uint8_t color_index){
-    return palette->obj_cram_converted[((palette_index & 0x07) << 0x02) | (color_index & 0x03)];
-}
-
-
-inline gb_rgb_t gb_palette_get_cgb_dmg_bgp_color(gb_palette_t* palette,uint8_t palette_index){
-    return palette->bg_cram_converted[(palette->bgp >> ((palette_index & 0x03) << 0x01)) & 0x03];
-}
-
-inline gb_rgb_t gb_palette_get_cgb_dmg_obp_color(gb_palette_t* palette,uint8_t palette_index,uint8_t color_index){
-    return palette->obj_cram_converted[((palette_index & 0x01) << 0x02) | ((palette->obp[palette_index & 0x01] >> ((color_index & 0x03) << 0x01)) & 0x03)];
-}
-
-
-
 void gb_palette_init(gb_palette_t* palette,gb_t* gb);
+
+gb_rgb_t gb_palette_get_dmg_bgp_color(gb_palette_t* palette,uint8_t palette_index);
+gb_rgb_t gb_palette_get_dmg_obp_color(gb_palette_t* palette,uint8_t palette_index,uint8_t color_index);
+
+gb_rgb_t gb_palette_get_cgb_bgp_color(gb_palette_t* palette,uint8_t palette_index,uint8_t color_index);
+gb_rgb_t gb_palette_get_cgb_obp_color(gb_palette_t* palette,uint8_t palette_index,uint8_t color_index);
+
+gb_rgb_t gb_palette_get_cgb_dmg_bgp_color(gb_palette_t* palette,uint8_t palette_index);
+gb_rgb_t gb_palette_get_cgb_dmg_obp_color(gb_palette_t* palette,uint8_t palette_index,uint8_t color_index);
 
 gb_rgb_t gb_palette_rgb555_to_rgb888(uint16_t color);
 
