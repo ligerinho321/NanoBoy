@@ -23,14 +23,14 @@ void gb_ring_buffer_init(gb_ring_buffer_t* ring_buffer,size_t size){
 }
 
 size_t gb_ring_buffer_writeable(gb_ring_buffer_t* ring_buffer){
-    size_t write = atomic_load_explicit(&ring_buffer->write,memory_order_relaxed);
-    size_t read = atomic_load_explicit(&ring_buffer->read,memory_order_acquire);
+    size_t write = ring_buffer->write;
+    size_t read = ring_buffer->read;
     return (read + ring_buffer->size - write - 1) % ring_buffer->size;
 }
 
 size_t gb_ring_buffer_readable(gb_ring_buffer_t* ring_buffer){
-    size_t write = atomic_load_explicit(&ring_buffer->write,memory_order_acquire);
-    size_t read = atomic_load_explicit(&ring_buffer->read,memory_order_relaxed);
+    size_t write = ring_buffer->write;
+    size_t read = ring_buffer->read;
     return (write + ring_buffer->size - read) % ring_buffer->size;
 }
 
@@ -42,7 +42,7 @@ size_t gb_ring_buffer_write(gb_ring_buffer_t* ring_buffer,const uint8_t* src,siz
 
     len = gb_min(len,writable);
 
-    size_t write = atomic_load_explicit(&ring_buffer->write,memory_order_relaxed);
+    size_t write = ring_buffer->write;
 
     if(write + len > ring_buffer->size){
         
@@ -56,7 +56,7 @@ size_t gb_ring_buffer_write(gb_ring_buffer_t* ring_buffer,const uint8_t* src,siz
         memcpy(ring_buffer->data + write,src,len);
     }
 
-    atomic_store_explicit(&ring_buffer->write,(write + len) % ring_buffer->size,memory_order_release);
+    ring_buffer->write = (write + len) % ring_buffer->size;
 
     return len;
 }
@@ -69,7 +69,7 @@ size_t gb_ring_buffer_read(gb_ring_buffer_t* ring_buffer,uint8_t* dst,size_t len
 
     len = gb_min(len,readable);
 
-    size_t read = atomic_load_explicit(&ring_buffer->read,memory_order_relaxed);
+    size_t read = ring_buffer->read;
 
     if(read + len > ring_buffer->size){
         
@@ -83,14 +83,14 @@ size_t gb_ring_buffer_read(gb_ring_buffer_t* ring_buffer,uint8_t* dst,size_t len
         memcpy(dst,ring_buffer->data + read,len);
     }
 
-    atomic_store_explicit(&ring_buffer->read,(read + len) % ring_buffer->size,memory_order_release);
+    ring_buffer->read = (read + len) % ring_buffer->size;
 
     return len;
 }
 
 void gb_ring_buffer_clear(gb_ring_buffer_t* ring_buffer){
-    atomic_store_explicit(&ring_buffer->read,0,memory_order_relaxed);
-    atomic_store_explicit(&ring_buffer->write,0,memory_order_relaxed);
+    ring_buffer->read = 0;
+    ring_buffer->write = 0;
 }
 
 void gb_ring_buffer_free(gb_ring_buffer_t* ring_buffer){

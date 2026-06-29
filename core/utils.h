@@ -7,7 +7,6 @@
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
-#include <stdatomic.h>
 
 #ifdef _WIN32
 #include <windows.h> // Sleep()
@@ -119,11 +118,12 @@ typedef struct _gb_pixel_fifo_t {
 void gb_pixel_fifo_pop(gb_pixel_fifo_t* fifo);
 
 
+
 typedef struct _gb_ring_buffer_t {
     uint8_t *data;
     size_t size;
-    atomic_size_t read;
-    atomic_size_t write;
+    size_t read;
+    size_t write;
 } gb_ring_buffer_t;
 
 void gb_ring_buffer_init(gb_ring_buffer_t* ring_buffer,size_t size);

@@ -75,6 +75,9 @@ nanoboy_t::~nanoboy_t(){
 
     ImGui_ImplSDLRenderer2_Shutdown();
     ImGui_ImplSDL2_Shutdown();
+
+    save_imgui_ini_settings();
+
     ImGui::DestroyContext();
 
     SDL_CloseAudioDevice(audio_device);
@@ -88,14 +91,30 @@ nanoboy_t::~nanoboy_t(){
 
 void nanoboy_t::init_directories(){
     #ifdef _WIN32
-    #else
-    const char* home = getenv("HOME");
+    const char* home = getenv("USERPROFILE");
+    
     if(!home){
         home = "~";
     }
+    
     main_folder_path = home;
+    main_folder_path /= "AppData";
+    main_folder_path /= "Roaming";
+    main_folder_path /= "nanoboy";
+
+    printf("windows main folder path: %s\n",main_folder_path.u8string().c_str());
+    #else
+    const char* home = getenv("HOME");
+    
+    if(!home){
+        home = "~";
+    }
+    
+    main_folder_path = home;e
     main_folder_path /= ".config";
     main_folder_path /= "nanoboy";
+
+    printf("linux main folder path: %s\n",main_folder_path.u8string().c_str());
     #endif
 
     saves_path = main_folder_path / "saves";
@@ -129,9 +148,17 @@ void nanoboy_t::init_sdl(){
 }
 
 void nanoboy_t::init_imgui(){
+    
     ImGui::CreateContext();
+
     ImGuiIO& io = ImGui::GetIO();
+
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_NavEnableGamepad;
+
+    io.IniFilename = nullptr;
+    io.LogFilename = nullptr;
+
+    load_imgui_ini_settings();
 
     ImGui::StyleColorsDark();
 
@@ -145,14 +172,37 @@ void nanoboy_t::init_imgui(){
 }
 
 
+void nanoboy_t::save_imgui_ini_settings(){
+    ImGuiIO& io = ImGui::GetIO();
+
+    if(io.WantSaveIniSettings){
+        std::string imgui_ini_path = get_imgui_ini_path();
+
+        printf("save imgui ini settings from \"%s\"", imgui_ini_path.c_str());
+
+        ImGui::SaveIniSettingsToDisk((const char*)get_imgui_ini_path().c_str());
+
+        io.WantSaveIniSettings = false;
+    }
+}
+
+void nanoboy_t::load_imgui_ini_settings(){
+    std::string imgui_ini_path = get_imgui_ini_path();
+
+    printf("load imgui ini settings from \"%s\"\n", imgui_ini_path.c_str());
+
+    ImGui::LoadIniSettingsFromDisk((const char*)imgui_ini_path.c_str());
+}
+
+
 void nanoboy_t::insert_cartridge(std::filesystem::path path){
 
-    if(!gb_insert_cartridge(gb,path.c_str())){
+    if(!gb_insert_cartridge(gb,(const char*)path.u8string().c_str())){
         return;
     }
 
     rom_path = path;
-    rom_name = path.filename().replace_extension("");
+    rom_name = path.filename().replace_extension("").u8string();
 
     std::string rom_save_path = get_rom_save_path();
     std::string rom_cheat_path = get_rom_cheat_path();
@@ -250,6 +300,25 @@ void nanoboy_t::event(){
             }
         }
     }
+}
+
+
+void nanoboy_t::gb_run(){
+    if(paused || !gb->cartridge_inserted) return;
+
+    uint64_t frame = gb->ppu.frame_count;
+
+    while(frame == gb->ppu.frame_count){
+        gb_cpu_execute(&gb->cpu);
+    }
+
+    uint8_t* pixels = NULL;
+    int pitch = 0;
+    SDL_LockTexture(screen->texture, NULL, (void**)&pixels, &pitch);
+
+    memcpy(pixels, gb->ppu.screen, sizeof(gb->ppu.screen));
+
+    SDL_UnlockTexture(screen->texture);
 }
 
 
@@ -373,6 +442,40 @@ void nanoboy_t::render_main_menu_bar(){
     ImGui::EndMainMenuBar();
 }
 
+void nanoboy_t::imgui_render(){
+    ImGui_ImplSDLRenderer2_NewFrame();
+    ImGui_ImplSDL2_NewFrame();
+    ImGui::NewFrame();
+
+    render_main_menu_bar();
+
+    file_selector->render();
+    screen->render();
+    cheats->render();
+    tilemap_viewer->render();
+    object_viewer->render();
+    palette_viewer->render();
+    wave_form->render();
+
+    ImGui::Render();
+}
+
+void nanoboy_t::sdl_render(){
+
+    SDL_SetRenderDrawColor(renderer,0,0,0,0);
+
+    SDL_RenderClear(renderer);
+
+    if(screen->mode == screen->embedded_mode && gb->cartridge_inserted){
+        SDL_RenderCopy(renderer, screen->texture, NULL, &screen->embedded_rect);
+    }
+
+    ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer);
+
+    SDL_RenderPresent(renderer);
+}
+
+
 void nanoboy_t::run(){
     uint32_t frame_count = 0;
     auto last_time = std::chrono::steady_clock::now();
@@ -383,6 +486,7 @@ void nanoboy_t::run(){
         event();
 
         gb_run();
+
         imgui_render();
         sdl_render();
 

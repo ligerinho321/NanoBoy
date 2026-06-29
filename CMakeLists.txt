@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.25)
 
 project(NanoBoy)
 
+find_package(SDL2 REQUIRED)
+
 add_executable(NanoBoy)
 
 target_compile_features(
@@ -73,16 +75,17 @@ target_sources(
     main.cpp
 )
 
-target_link_libraries(
-    NanoBoy
-    PRIVATE
-    SDL2
-)
+target_link_libraries(NanoBoy PRIVATE SDL2::SDL2)
 
-find_package(SDL2 REQUIRED)
+if(WIN32)
+    target_link_libraries(NanoBoy PRIVATE SDL2::SDL2main)
 
-target_link_libraries(
-    NanoBoy
-    PRIVATE
-    SDL2::SDL2
-)
+    add_custom_command(
+        TARGET
+            NanoBoy
+        POST_BUILD COMMAND 
+            ${CMAKE_COMMAND} -E copy_if_different 
+            "$<TARGET_FILE:SDL2::SDL2>"
+            "$<TARGET_FILE_DIR:NanoBoy>"
+    )
+endif()

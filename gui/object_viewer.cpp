@@ -377,11 +377,11 @@ void object_viewer_t::render_oam_table(){
 
             if(ImGui::IsItemHovered()){
 
-                oam_table_object_hovered = object.base();
+                oam_table_object_hovered = &*object;
 
                 draw_list->AddRect(p_min,p_max,border_hovered_color,0.0f,ImDrawFlags_None,2.0f);
 
-                render_object_tooltip(object.base());
+                render_object_tooltip(oam_table_object_hovered);
             }
             else{
                 draw_list->AddRect(p_min,p_max,border_color);

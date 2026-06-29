@@ -1,7 +1,10 @@
 #include "screen.hpp"
 
 screen_t::screen_t(SDL_Renderer* renderer){
+
     texture = SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGB24,SDL_TEXTUREACCESS_STREAMING,gb_screen_width,gb_screen_height);
+    
+    clear();
 
     ImGuiStyle& style = ImGui::GetStyle();
 

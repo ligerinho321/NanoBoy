@@ -38,7 +38,7 @@ void file_selector_t::set_current_path(std::filesystem::path path){
     auto it = current_path.begin();
     auto end = current_path.end();
     
-    current /= *it++; //driver exmaple "C:"
+    current /= *it++; //driver exemple "C:"
     current /= *it++; //root path "\\"
     current_path_parts.emplace_back(current_path.begin()->string(),current);
 
@@ -117,7 +117,7 @@ void file_selector_t::load_current_directory_entries(){
 
             current_directory_entries.emplace_back(
                 (is_directory ? "[DIR] " : "[FILE] ") + entry_path.filename().string(),
-                entry_path,
+                entry_path.string(),
                 is_directory ? number_of_entries_in_directory(entry_path) : std::filesystem::file_size(entry_path),
                 entry_last_write_time(entry_path),
                 is_directory
