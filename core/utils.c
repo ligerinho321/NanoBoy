@@ -15,82 +15,112 @@ void gb_pixel_fifo_pop(gb_pixel_fifo_t* fifo){
 }
 
 
-void gb_ring_buffer_init(gb_ring_buffer_t* ring_buffer,size_t size){
-    ring_buffer->data = (uint8_t*)malloc(size + 1);
-    ring_buffer->size = size + 1;
-    ring_buffer->write = 0;
-    ring_buffer->read = 0;
+void gb_ring_buffer_init(gb_ring_buffer_t* rb,long size){
+    rb->data = (uint8_t*)malloc(size + 1);
+    rb->size = size + 1;
+    rb->write = 0;
+    rb->read = 0;
 }
 
-size_t gb_ring_buffer_writeable(gb_ring_buffer_t* ring_buffer){
-    size_t write = ring_buffer->write;
-    size_t read = ring_buffer->read;
-    return (read + ring_buffer->size - write - 1) % ring_buffer->size;
-}
-
-size_t gb_ring_buffer_readable(gb_ring_buffer_t* ring_buffer){
-    size_t write = ring_buffer->write;
-    size_t read = ring_buffer->read;
-    return (write + ring_buffer->size - read) % ring_buffer->size;
-}
-
-size_t gb_ring_buffer_write(gb_ring_buffer_t* ring_buffer,const uint8_t* src,size_t len){
+long gb_ring_buffer_writeable(gb_ring_buffer_t* rb){
+#ifdef _WIN32
+    return (rb->read + rb->size - rb->write - 1) % rb->size;
+#else
+    long write = atomic_load_explicit(&rb->write,memory_order_relaxed);
+    long read = atomic_load_explicit(&rb->read,memory_order_acquire);
+    return (read + rb->size - write - 1) % rb->size;
+#endif
     
-    size_t writable = gb_ring_buffer_writeable(ring_buffer);
+}
 
+long gb_ring_buffer_readable(gb_ring_buffer_t* rb){
+#ifdef _WIN32
+    return (rb->write + rb->size - rb->read) % rb->size;
+#else
+    long write = atomic_load_explicit(&rb->write, memory_order_acquire);
+    long read = atomic_load_explicit(&rb->read, memory_order_relaxed);
+    return (write + ring_buffer->size - read) % rb->size;
+#endif
+}
+
+long gb_ring_buffer_write(gb_ring_buffer_t* rb,const uint8_t* src,long len){
+    
+    long writable = gb_ring_buffer_writeable(rb);
+    
     if(!writable || !len) return 0;
 
     len = gb_min(len,writable);
 
-    size_t write = ring_buffer->write;
+#ifdef _WIN32
+    long write = rb->write;
+#else
+    long write = atomic_load_explicit(&rb->write,memory_order_relaxed);
+#endif
 
-    if(write + len > ring_buffer->size){
+    if(write + len > rb->size){
         
-        size_t first_len = ring_buffer->size - write;
-        memcpy(ring_buffer->data + write,src,first_len);
+        long first_len = rb->size - write;
+        memcpy(rb->data + write,src,first_len);
 
-        size_t second_len = len - first_len;
-        memcpy(ring_buffer->data,src + first_len,second_len);
+        long second_len = len - first_len;
+        memcpy(rb->data,src + first_len,second_len);
     }
     else{
-        memcpy(ring_buffer->data + write,src,len);
+        memcpy(rb->data + write,src,len);
     }
 
-    ring_buffer->write = (write + len) % ring_buffer->size;
+#ifdef _WIN32
+    InterlockedExchange(&rb->write,(write + len) % rb->size);
+#else
+    atomic_store_explicit(&rb->write,(write + len) % rb->size,memory_order_release);
+#endif
 
     return len;
 }
 
-size_t gb_ring_buffer_read(gb_ring_buffer_t* ring_buffer,uint8_t* dst,size_t len){
+long gb_ring_buffer_read(gb_ring_buffer_t* rb,uint8_t* dst,long len){
     
-    size_t readable = gb_ring_buffer_readable(ring_buffer);
+    long readable = gb_ring_buffer_readable(rb);
 
     if(!readable || !len) return 0;
 
     len = gb_min(len,readable);
 
-    size_t read = ring_buffer->read;
+#ifdef _WIN32
+    long read = rb->read;
+#else
+    long read = atomic_load_explicit(&rb->read,memory_order_relaxed);
+#endif
 
-    if(read + len > ring_buffer->size){
+    if(read + len > rb->size){
         
-        size_t first_len = ring_buffer->size - read;
-        memcpy(dst,ring_buffer->data + read,first_len);
+        long first_len = rb->size - read;
+        memcpy(dst,rb->data + read,first_len);
 
-        size_t second_len = len - first_len;
-        memcpy(dst + first_len,ring_buffer->data,second_len);
+        long second_len = len - first_len;
+        memcpy(dst + first_len,rb->data,second_len);
     }
     else{
-        memcpy(dst,ring_buffer->data + read,len);
+        memcpy(dst,rb->data + read,len);
     }
 
-    ring_buffer->read = (read + len) % ring_buffer->size;
+#ifdef _WIN32
+    InterlockedExchange(&rb->read,(read + len) % rb->size);
+#else
+    atomic_store_explicit(&rb->read,(read + len) % rb->size,memory_order_release);
+#endif
 
     return len;
 }
 
-void gb_ring_buffer_clear(gb_ring_buffer_t* ring_buffer){
-    ring_buffer->read = 0;
-    ring_buffer->write = 0;
+void gb_ring_buffer_clear(gb_ring_buffer_t* rb){
+#ifdef _WIN32
+#else
+    atomic_store_explicit(&rb->write,0,memory_order_relaxed);
+    atomic_store_explicit(&rb->read,0,memory_order_relaxed);
+#endif
+    InterlockedExchange(&rb->write,0);
+    InterlockedExchange(&rb->read,0);
 }
 
 void gb_ring_buffer_free(gb_ring_buffer_t* ring_buffer){
@@ -99,14 +129,14 @@ void gb_ring_buffer_free(gb_ring_buffer_t* ring_buffer){
 
 
 void gb_sleep(int ms){
-    #ifdef _WIN32
+#ifdef _WIN32
     Sleep(1);
-    #else
+#else
     struct timespec ts;
     ts.tv_sec = 0;
     ts.tv_nsec = 1000000 * ms;
     nanosleep(&ts,NULL);
-    #endif
+#endif
 }
 
 

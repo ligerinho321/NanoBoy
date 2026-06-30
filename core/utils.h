@@ -11,6 +11,7 @@
 #ifdef _WIN32
 #include <windows.h> // Sleep()
 #else
+#include <stdatomic.h>
 #include <time.h> // nanosleep()
 #endif
 
@@ -118,30 +119,35 @@ typedef struct _gb_pixel_fifo_t {
 void gb_pixel_fifo_pop(gb_pixel_fifo_t* fifo);
 
 
-
 typedef struct _gb_ring_buffer_t {
     uint8_t *data;
-    size_t size;
-    size_t read;
-    size_t write;
+    long size;
+#ifdef _WIN32
+    volatile long write;
+    volatile long read;
+#else
+    atomic_long_t write;
+    atomic_long_t read;
+#endif
 } gb_ring_buffer_t;
 
-void gb_ring_buffer_init(gb_ring_buffer_t* ring_buffer,size_t size);
+void gb_ring_buffer_init(gb_ring_buffer_t* rb,long size);
 
-size_t gb_ring_buffer_writeable(gb_ring_buffer_t* ring_buffer);
+long gb_ring_buffer_writeable(gb_ring_buffer_t* rb);
 
-size_t gb_ring_buffer_readable(gb_ring_buffer_t* ring_buffer);
+long gb_ring_buffer_readable(gb_ring_buffer_t* rb);
 
-size_t gb_ring_buffer_write(gb_ring_buffer_t* ring_buffer,const uint8_t* src,size_t len);
+long gb_ring_buffer_write(gb_ring_buffer_t* rb,const uint8_t* src,long len);
 
-size_t gb_ring_buffer_read(gb_ring_buffer_t* ring_buffer,uint8_t* dst,size_t len);
+long gb_ring_buffer_read(gb_ring_buffer_t* rb,uint8_t* dst,long len);
 
-void gb_ring_buffer_clear(gb_ring_buffer_t* ring_buffer);
+void gb_ring_buffer_clear(gb_ring_buffer_t* rb);
 
-void gb_ring_buffer_free(gb_ring_buffer_t* ring_buffer);
+void gb_ring_buffer_free(gb_ring_buffer_t* rb);
 
 
 void gb_sleep(int ms);
+
 
 bool gb_save_file(const char* path,void* data,size_t len);
 bool gb_load_file(const char* path,void** data,size_t* len);

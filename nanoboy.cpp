@@ -90,7 +90,7 @@ nanoboy_t::~nanoboy_t(){
 
 
 void nanoboy_t::init_directories(){
-    #ifdef _WIN32
+#ifdef _WIN32
     const char* home = getenv("USERPROFILE");
     
     if(!home){
@@ -103,7 +103,7 @@ void nanoboy_t::init_directories(){
     main_folder_path /= "nanoboy";
 
     printf("windows main folder path: %s\n",main_folder_path.u8string().c_str());
-    #else
+#else
     const char* home = getenv("HOME");
     
     if(!home){
@@ -115,7 +115,7 @@ void nanoboy_t::init_directories(){
     main_folder_path /= "nanoboy";
 
     printf("linux main folder path: %s\n",main_folder_path.u8string().c_str());
-    #endif
+#endif
 
     saves_path = main_folder_path / "saves";
     savestates_path = main_folder_path / "savestates";

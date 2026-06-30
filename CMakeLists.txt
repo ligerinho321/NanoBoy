@@ -89,3 +89,20 @@ if(WIN32)
             "$<TARGET_FILE_DIR:NanoBoy>"
     )
 endif()
+
+
+if(MSVC)
+    set(CMAKE_C_FLAGS_RELEASE "/O2")
+    set(CMAKE_CXX_FLAGS_RELEASE "/O2")
+
+    if(WIN32)
+        target_link_options(NanoBoy PRIVATE $<$<CONFIG:Release>:/SUBSYSTEM:WINDOWS>)
+    endif()
+else()
+    set(CMAKE_C_FLAGS_RELEASE "-O2")
+    set(CMAKE_CXX_FLAGS_RELEASE "-O2")
+
+    if(WIN32)
+        target_link_options(NanoBoy PRIVATE $<$<CONFIG:Release>:-mwindows>)
+    endif()
+endif()

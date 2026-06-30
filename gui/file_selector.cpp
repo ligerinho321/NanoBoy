@@ -34,7 +34,7 @@ void file_selector_t::set_current_path(std::filesystem::path path){
     
     std::filesystem::path current;
 
-    #ifdef _WIN32
+#ifdef _WIN32
     auto it = current_path.begin();
     auto end = current_path.end();
     
@@ -46,12 +46,12 @@ void file_selector_t::set_current_path(std::filesystem::path path){
         current /= *it;
         current_path_parts.emplace_back(it->string(),current);
     }
-    #else
+#else
     for(auto it = current_path.begin(); it != current_path.end(); ++it){
         current /= *it;
         current_path_parts.emplace_back(it->string(),current);
     }
-    #endif
+#endif
 }
 
 uintmax_t file_selector_t::number_of_entries_in_directory(std::filesystem::path directory){
