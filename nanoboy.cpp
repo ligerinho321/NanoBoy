@@ -110,7 +110,7 @@ void nanoboy_t::init_directories(){
         home = "~";
     }
     
-    main_folder_path = home;e
+    main_folder_path = home;
     main_folder_path /= ".config";
     main_folder_path /= "nanoboy";
 

@@ -126,8 +126,8 @@ typedef struct _gb_ring_buffer_t {
     volatile long write;
     volatile long read;
 #else
-    atomic_long_t write;
-    atomic_long_t read;
+    atomic_long write;
+    atomic_long read;
 #endif
 } gb_ring_buffer_t;
 

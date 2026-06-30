@@ -39,7 +39,7 @@ long gb_ring_buffer_readable(gb_ring_buffer_t* rb){
 #else
     long write = atomic_load_explicit(&rb->write, memory_order_acquire);
     long read = atomic_load_explicit(&rb->read, memory_order_relaxed);
-    return (write + ring_buffer->size - read) % rb->size;
+    return (write + rb->size - read) % rb->size;
 #endif
 }
 
@@ -115,12 +115,12 @@ long gb_ring_buffer_read(gb_ring_buffer_t* rb,uint8_t* dst,long len){
 
 void gb_ring_buffer_clear(gb_ring_buffer_t* rb){
 #ifdef _WIN32
+    InterlockedExchange(&rb->write,0);
+    InterlockedExchange(&rb->read,0);
 #else
     atomic_store_explicit(&rb->write,0,memory_order_relaxed);
     atomic_store_explicit(&rb->read,0,memory_order_relaxed);
 #endif
-    InterlockedExchange(&rb->write,0);
-    InterlockedExchange(&rb->read,0);
 }
 
 void gb_ring_buffer_free(gb_ring_buffer_t* ring_buffer){
