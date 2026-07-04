@@ -128,7 +128,8 @@ typedef struct _gb_ppu_t {
     uint64_t frame_count;
     bool first_frame;
 
-    uint8_t screen[gb_screen_length];
+    _Atomic(bool) screen_index;
+    uint8_t screen[2][gb_screen_length];
     uint8_t* pixel_ptr;
 
     gb_memory_handler_t register_handler;
@@ -138,10 +139,12 @@ typedef struct _gb_ppu_t {
 
 void gb_ppu_init(gb_ppu_t* ppu,gb_t* gb);
 
+void gb_ppu_clock(gb_ppu_t* ppu,int cycles);
+
+const uint8_t* gb_ppu_get_render_buffer(gb_ppu_t* ppu);
+
 void gb_ppu_add_handler(gb_ppu_t* ppu,gb_ppu_handler_t* handler);
 void gb_ppu_remove_handler(gb_ppu_t* ppu,gb_ppu_handler_t* handler);
-
-void gb_ppu_clock(gb_ppu_t* ppu,int cycles);
 
 void gb_ppu_write_vram(void* data,uint8_t value,uint16_t address);
 uint8_t gb_ppu_read_vram(void* data,uint16_t address);

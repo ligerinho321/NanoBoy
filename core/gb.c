@@ -13,8 +13,7 @@ gb_t* gb_new(){
     gb->type = gb_cgb;
     gb->type_pending = gb->type;
     gb->speed = 1.0f;
-    gb->cartridge_inserted = false;
-    
+
     gb_cpu_init(&gb->cpu,gb);
     gb_ppu_init(&gb->ppu,gb);
     gb_apu_init(&gb->apu,gb);
@@ -27,6 +26,7 @@ gb_t* gb_new(){
     gb_boot_init(&gb->boot,gb);
     gb_memory_init(&gb->memory,gb);
     gb_cartridge_init(&gb->cartridge,gb);
+    gb_frame_timer_init(&gb->frame_timer);
 
     gb->key0_register_handler = (gb_memory_handler_t){
         gb_write_key0_register,
@@ -51,12 +51,21 @@ gb_t* gb_new(){
 
 
 bool gb_insert_cartridge(gb_t* gb,const char* path){
-    if(!gb_cartridge_load(&gb->cartridge,path)) return false;
+
+    gb_remove_cartridge(gb);
+
+    if(!gb_cartridge_load(&gb->cartridge,path)){
+        return false;
+    }
 
     gb->cartridge_inserted = true;
 
     gb_reset(gb);
-    
+
+    if(!gb->paused){
+        gb_frame_timer_start(&gb->frame_timer);
+    }
+
     return true;
 }
 
@@ -64,28 +73,107 @@ void gb_remove_cartridge(gb_t* gb){
     gb_cartridge_clear(&gb->cartridge);
     
     gb->cartridge_inserted = false;
+
+    gb_frame_timer_stop(&gb->frame_timer);
 }
 
 
-void gb_set_joypad_callback(gb_t* gb,gb_joypad_callback_t callback,void* data){
-    gb->joypad.callback = callback;
-    gb->joypad.callback_data = data;
+void gb_thread_safe_set_joypad_callback(gb_t* gb,gb_joypad_callback_t callback,void* data){
+    gb_thread_stop(gb);
+    gb_joypad_set_callback(&gb->joypad,callback,data);
+    gb_thread_start(gb);
+}
+
+void gb_thread_safe_remove_joypad_callback(gb_t* gb){
+    gb_thread_stop(gb);
+    gb_joypad_remove_callback(&gb->joypad);
+    gb_thread_start(gb);
 }
 
 
-void gb_set_speed(gb_t* gb,float new_speed){
-    if(new_speed < gb_speed_min || new_speed > gb_speed_max) return;
+void gb_thread_safe_set_apu_callback(gb_t* gb,gb_apu_callback_t callback,void* data){
+    gb_thread_stop(gb);
+    gb_apu_set_callback(&gb->apu,callback,data);
+    gb_thread_start(gb);
+}
+
+void gb_thread_safe_remove_apu_callback(gb_t* gb){
+    gb_thread_stop(gb);
+    gb_apu_remove_callback(&gb->apu);
+    gb_thread_start(gb);
+}
+
+
+void gb_thread_safe_add_ppu_handler(gb_t* gb,gb_ppu_handler_t* handler){
+    gb_thread_stop(gb);
+    gb_ppu_add_handler(&gb->ppu,handler);
+    gb_thread_start(gb);
+}
+
+void gb_thread_safe_remove_ppu_handler(gb_t* gb,gb_ppu_handler_t* handler){
+    gb_thread_stop(gb);
+    gb_ppu_remove_handler(&gb->ppu,handler);
+    gb_thread_start(gb);
+}
+
+
+void gb_thread_safe_set_speed(gb_t* gb,float new_speed){
+    if(new_speed == gb->speed || new_speed < gb_speed_min || new_speed > gb_speed_max) return;
+    
+    gb_thread_stop(gb);
+
     gb->speed = new_speed;
+    
     gb_apu_update_rates(&gb->apu);
+    
+    gb_thread_start(gb);
 }
+
+void gb_thread_safe_set_execution_mode(gb_t* gb,bool multi_thread){
+    if(gb->multi_thread == multi_thread) return;
+    
+    gb_thread_stop(gb);
+
+    gb->multi_thread = multi_thread;
+    
+    gb_thread_start(gb);
+}
+
+void gb_thread_safe_set_paused(gb_t* gb,bool paused){
+    if(gb->paused == paused) return;
+    
+    gb_thread_stop(gb);
+    
+    gb->paused = paused;
+
+    if(gb->paused){
+        gb_frame_timer_stop(&gb->frame_timer);
+    }
+    else{
+        gb_frame_timer_start(&gb->frame_timer);
+    }
+    
+    gb_thread_start(gb);
+}
+
+
+void gb_thread_safe_reset(gb_t *gb){
+    gb_thread_stop(gb);
+    gb_reset(gb);
+    gb_thread_start(gb);
+}
+
 
 
 void gb_half_machine_cycle(gb_t* gb){
     gb->cycle += 2;
-    gb->apu.cycles += gb->double_speed ? 1 : 2;
 
-    gb_ppu_clock(&gb->ppu,gb->double_speed ? 1 : 2);
+    int cycles = gb->double_speed ? 1 : 2;
+
+    gb->apu.cycles += cycles;
     
+    gb_ppu_clock(&gb->ppu,cycles);
+
     if((gb->cycle & 0x03) == 0x03){
 
         gb_timer_clock(&gb->timer);
@@ -96,14 +184,82 @@ void gb_half_machine_cycle(gb_t* gb){
 
 void gb_machine_cycle(gb_t* gb){
     gb->cycle += 4;
-    gb->apu.cycles += gb->double_speed ? 2 : 4;
+
+    int cycles = gb->double_speed ? 2 : 4;
+
+    gb->apu.cycles += cycles;
     
-    gb_ppu_clock(&gb->ppu,gb->double_speed ? 2 : 4);
+    gb_ppu_clock(&gb->ppu,cycles);
 
     gb_timer_clock(&gb->timer);
 
     gb_oam_dma_clock(&gb->dma);
 }
+
+
+void gb_execute_frame(gb_t* gb){
+    if(!gb->cartridge_inserted || gb->multi_thread || gb->paused) return;
+
+    uint64_t frame = gb->ppu.frame_count;
+
+    while(frame == gb->ppu.frame_count){
+        gb_cpu_execute(&gb->cpu);
+    }
+
+    gb_frame_timer_clock(&gb->frame_timer);
+}
+
+static int gb_thread_function(void* data){
+    gb_t* gb = (gb_t*)data;
+    gb_ppu_t* ppu = &gb->ppu;
+    gb_cpu_t* cpu = &gb->cpu;
+    gb_frame_timer_t* frame_timer = &gb->frame_timer;
+    uint64_t frame;
+    
+    while(atomic_load_explicit(&gb->thread_running,memory_order_acquire)){
+        
+        frame = ppu->frame_count;
+
+        while(frame == ppu->frame_count){
+            gb_cpu_execute(cpu);
+        }
+        
+        gb_frame_timer_clock(frame_timer);
+    }
+    
+    return 0;
+}
+
+void gb_thread_stop(gb_t* gb){
+    if(!gb->cartridge_inserted || gb->paused) return;
+
+    if(!gb->multi_thread || !atomic_load_explicit(&gb->thread_running,memory_order_relaxed)) return;
+
+    atomic_store_explicit(&gb->thread_running,false,memory_order_release);
+
+    if(thrd_join(gb->thread_id,NULL) != thrd_success){
+        gb_printf_error("thrd_join failed\n");
+    }
+    else{
+        printf("gb_thread_function finished\n");
+    }
+}
+
+void gb_thread_start(gb_t* gb){
+    if(!gb->cartridge_inserted || gb->paused) return;
+
+    if(!gb->multi_thread || atomic_load_explicit(&gb->thread_running,memory_order_relaxed)) return;
+
+    atomic_store_explicit(&gb->thread_running,true,memory_order_relaxed);
+
+    if(thrd_create(&gb->thread_id,gb_thread_function,gb) != thrd_success){
+        gb_printf_error("thrd_create failed");
+    }
+    else{
+        printf("gb_thread_function started\n");
+    }
+}
+
 
 
 void gb_write_key0_register(void* data,uint8_t value,uint16_t address){
@@ -174,7 +330,7 @@ void gb_unmap_cgb_registers(gb_t* gb){
 
 
 void gb_reset(gb_t* gb){
-    
+
     if(gb->type_pending != gb->type){
         gb->type = gb->type_pending;
     }

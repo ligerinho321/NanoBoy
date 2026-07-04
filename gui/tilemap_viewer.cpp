@@ -19,7 +19,7 @@ tilemap_viewer_t::tilemap_viewer_t(gb_t* gb,SDL_Renderer* renderer):gb(gb),bg_pa
 }
 
 tilemap_viewer_t::~tilemap_viewer_t(){
-    gb_remove_ppu_handler(gb,&callback_handler);
+    gb_thread_safe_remove_ppu_handler(gb,&callback_handler);
 
     SDL_DestroyTexture(tilemap_texture[0]);
     SDL_DestroyTexture(tilemap_texture[1]);

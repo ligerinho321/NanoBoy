@@ -69,7 +69,6 @@ public:
     wave_form_t* wave_form = nullptr;
 
     bool running = false;
-    bool paused = false;
 
     nanoboy_t();
     ~nanoboy_t();

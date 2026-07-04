@@ -39,14 +39,14 @@ bool gb_cartridge_load(gb_cartridge_t* cartridge,const char* path){
     size_t size = ftell(file);
     fseek(file,0,SEEK_SET);
 
-    if((size < GB_CARTRIDGE_ROM_MIN_SIZE) || (size > GB_CARTRIDGE_ROM_MAX_SIZE)){
+    if((size < gb_cartridge_rom_min_size) || (size > gb_cartridge_rom_max_size)){
         gb_printf_error("invalid rom");
         goto fail;
     }
 
     fread(cartridge->rom,1,size,file);
 
-    gb_cartridge_load_rom_size(cartridge);
+    gb_cartridge_init_rom(cartridge);
 
     if(cartridge->rom_size != size){
         gb_printf_error("invalid rom");
@@ -114,6 +114,102 @@ bool gb_cartridge_verify_global_checksum(gb_cartridge_t* cartridge){
     return (checksum & 0xFFFF) == ((cartridge->rom[0x14E] << 0x08) | cartridge->rom[0x14F]);
 }
 
+
+void gb_cartridge_init_rom(gb_cartridge_t* cartridge){
+
+    switch(cartridge->rom[0x148]){
+        //32KB
+        case 0x00:
+            cartridge->rom_size = 0x8000;
+            cartridge->rom_bank_mask = 0x01;
+            break;
+        //64KB
+        case 0x01:
+            cartridge->rom_size = 0x10000;
+            cartridge->rom_bank_mask = 0x03;
+            break;
+        //128KB
+        case 0x02:
+            cartridge->rom_size = 0x20000;
+            cartridge->rom_bank_mask = 0x07;
+            break;
+        //256KB
+        case 0x03:
+            cartridge->rom_size = 0x40000;
+            cartridge->rom_bank_mask = 0x0F;
+            break;
+        //512KB
+        case 0x04:
+            cartridge->rom_size = 0x80000;
+            cartridge->rom_bank_mask = 0x1F;
+            break;
+        //1MB
+        case 0x05:
+            cartridge->rom_size = 0x100000;
+            cartridge->rom_bank_mask = 0x3F;
+            break;
+        //2MB
+        case 0x06:
+            cartridge->rom_size = 0x200000;
+            cartridge->rom_bank_mask = 0x7F;
+            break;
+        //4MB 
+        case 0x07:
+            cartridge->rom_size = 0x400000;
+            cartridge->rom_bank_mask = 0xFF;
+            break;
+        //8MB 
+        case 0x08:
+            cartridge->rom_size = 0x800000;
+            cartridge->rom_bank_mask = 0x1FF;
+            break;
+    }
+}
+
+void gb_cartridge_init_ram(gb_cartridge_t* cartridge,bool battery){
+
+    switch(cartridge->rom[0x149]){
+        //2KB
+        case 0x01:
+            cartridge->ram_size = 0x800;
+            cartridge->ram_bank_mask = 0x00;
+            break;
+        //8KB
+        case 0x02:
+            cartridge->ram_size = 0x2000;
+            cartridge->ram_bank_mask = 0x00;
+            break;
+        //32KB
+        case 0x03:
+            cartridge->ram_size = 0x8000;
+            cartridge->ram_bank_mask = 0x03;
+            break;
+        //128KB
+        case 0x04:
+            cartridge->ram_size = 0x20000;
+            cartridge->ram_bank_mask = 0x0F;
+            break;
+        //64KB
+        case 0x05:
+            cartridge->ram_size = 0x10000;
+            cartridge->ram_bank_mask = 0x07;
+            break;
+    }
+
+    if(cartridge->ram_size){
+        
+        memset(cartridge->ram,0,cartridge->ram_size);
+
+        if(cartridge->ram_size == 0x800){
+            cartridge->ram_address_mask = 0x07FF;
+        }
+        else{
+            cartridge->ram_address_mask = 0x1FFF;
+        }
+        
+        cartridge->ram_has_battery = battery;
+    }
+}
 
 bool gb_cartridge_init_mapper(gb_cartridge_t* cartridge){
 
@@ -202,117 +298,6 @@ void gb_no_mbc_init(gb_cartridge_t* cartridge,uint8_t flags){
 }
 
 
-void gb_cartridge_load_rom_size(gb_cartridge_t* cartridge){
-
-    switch(cartridge->rom[0x148]){
-        //32KB
-        case 0x00:
-            cartridge->rom_size = 0x8000;
-            cartridge->rom_bank_mask = 0x01;
-            break;
-        //64KB
-        case 0x01:
-            cartridge->rom_size = 0x10000;
-            cartridge->rom_bank_mask = 0x03;
-            break;
-        //128KB
-        case 0x02:
-            cartridge->rom_size = 0x20000;
-            cartridge->rom_bank_mask = 0x07;
-            break;
-        //256KB
-        case 0x03:
-            cartridge->rom_size = 0x40000;
-            cartridge->rom_bank_mask = 0x0F;
-            break;
-        //512KB
-        case 0x04:
-            cartridge->rom_size = 0x80000;
-            cartridge->rom_bank_mask = 0x1F;
-            break;
-        //1MB
-        case 0x05:
-            cartridge->rom_size = 0x100000;
-            cartridge->rom_bank_mask = 0x3F;
-            break;
-        //2MB
-        case 0x06:
-            cartridge->rom_size = 0x200000;
-            cartridge->rom_bank_mask = 0x7F;
-            break;
-        //4MB 
-        case 0x07:
-            cartridge->rom_size = 0x400000;
-            cartridge->rom_bank_mask = 0xFF;
-            break;
-        //8MB 
-        case 0x08:
-            cartridge->rom_size = 0x800000;
-            cartridge->rom_bank_mask = 0x1FF;
-            break;
-    }
-}
-
-
-void gb_cartridge_init_ram(gb_cartridge_t* cartridge,bool battery){
-
-    switch(cartridge->rom[0x149]){
-        //2KB
-        case 0x01:
-            cartridge->ram_size = 0x800;
-            cartridge->ram_bank_mask = 0x00;
-            break;
-        //8KB
-        case 0x02:
-            cartridge->ram_size = 0x2000;
-            cartridge->ram_bank_mask = 0x00;
-            break;
-        //32KB
-        case 0x03:
-            cartridge->ram_size = 0x8000;
-            cartridge->ram_bank_mask = 0x03;
-            break;
-        //128KB
-        case 0x04:
-            cartridge->ram_size = 0x20000;
-            cartridge->ram_bank_mask = 0x0F;
-            break;
-        //64KB
-        case 0x05:
-            cartridge->ram_size = 0x10000;
-            cartridge->ram_bank_mask = 0x07;
-            break;
-    }
-
-    if(cartridge->ram_size){
-        
-        memset(cartridge->ram,0,cartridge->ram_size);
-
-        if(cartridge->ram_size == 0x800){
-            cartridge->ram_address_mask = 0x07FF;
-        }
-        else{
-            cartridge->ram_address_mask = 0x1FFF;
-        }
-        
-        cartridge->ram_has_battery = battery;
-    }
-}
-
-
-void gb_cartridge_set_rom0_bank(gb_cartridge_t* cartridge,uint16_t bank){
-    cartridge->rom0_ptr = cartridge->rom + ((bank & cartridge->rom_bank_mask) << 0x0E);
-}
-
-void gb_cartridge_set_rom1_bank(gb_cartridge_t* cartridge,uint16_t bank){
-    cartridge->rom1_ptr = cartridge->rom + ((bank & cartridge->rom_bank_mask) << 0x0E);
-}
-
-void gb_cartridge_set_ram_bank(gb_cartridge_t* cartridge,uint8_t bank){
-    cartridge->ram_ptr = cartridge->ram + ((bank & cartridge->ram_bank_mask) << 0x0D);
-}
-
-
 uint8_t gb_cartridge_read_rom0(void* data,uint16_t address){
     gb_cartridge_t* cartridge = (gb_cartridge_t*)data;
     return cartridge->rom0_ptr[address & 0x3FFF];
@@ -352,5 +337,4 @@ void gb_cartridge_clear(gb_cartridge_t* cartridge){
     cartridge->ram_has_battery = false;
 
     cartridge->reset = NULL;
-
 }

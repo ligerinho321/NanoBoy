@@ -1,17 +1,48 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(NanoBoy)
+project(NanoBoy LANGUAGES C CXX)
 
 find_package(SDL2 REQUIRED)
 
+message("CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
+message("CMAKE_C_COMPILER: ${CMAKE_C_COMPILER}")
+message("CMAKE_CXX_COMPILER: ${CMAKE_CXX_COMPILER}")
+
 add_executable(NanoBoy)
 
-target_compile_features(
+#target_compile_options(NanoBoy PRIVATE -Wall -Wextra)
+
+set_target_properties(
     NanoBoy
-    PRIVATE
-    cxx_std_17
-    c_std_17
+    PROPERTIES
+
+    C_STANDARD 11
+    C_STANDARD_REQUIRED ON
+    C_EXTENSIONS ON
+
+    CXX_STANDARD 17
+    CXX_STANDARD_REQUIRED ON
+    CXX_EXTENSIONS ON
 )
+
+get_property(c_standard TARGET NanoBoy PROPERTY C_STANDARD)
+message("C_STANDARD: ${c_standard}")
+
+get_property(c_standard_required TARGET NanoBoy PROPERTY C_STANDARD_REQUIRED)
+message("C_STANDARD_REQUIRED: ${c_standard_required}")
+
+get_property(c_extensions TARGET NanoBoy PROPERTY C_EXTENSIONS)
+message("C_EXTENSIONS: ${c_extensions}")
+
+get_property(cxx_standard TARGET NanoBoy PROPERTY CXX_STANDARD)
+message("CXX_STANDARD: ${cxx_standard}")
+
+get_property(cxx_standard_required TARGET NanoBoy PROPERTY CXX_STANDARD_REQUIRED)
+message("CXX_STANDARD_REQUIRED: ${cxx_standard_required}")
+
+get_property(cxx_extensions TARGET NanoBoy PROPERTY CXX_EXTENSIONS)
+message("CXX_EXTENSIONS: ${cxx_extensions}")
+
 
 target_sources(
     NanoBoy
@@ -74,6 +105,7 @@ target_sources(
     nanoboy.cpp
     main.cpp
 )
+
 
 target_link_libraries(NanoBoy PRIVATE SDL2::SDL2)
 

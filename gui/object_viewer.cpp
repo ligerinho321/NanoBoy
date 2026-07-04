@@ -32,7 +32,7 @@ object_viewer_t::object_viewer_t(gb_t* gb,SDL_Renderer *renderer):gb(gb),obj_pal
 }
 
 object_viewer_t::~object_viewer_t(){
-    gb_remove_ppu_handler(gb,&callback_handler);
+    gb_thread_safe_remove_ppu_handler(gb,&callback_handler);
     
     SDL_DestroyTexture(bg_texture);
 }

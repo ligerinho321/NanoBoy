@@ -7,6 +7,18 @@ void gb_joypad_init(gb_joypad_t* joypad,gb_t* gb){
     gb_joypad_map_registers(joypad);
 }
 
+
+void gb_joypad_set_callback(gb_joypad_t* joypad,gb_joypad_callback_t callback,void* data){
+    joypad->callback = callback;
+    joypad->callback_data = data;
+}
+
+void gb_joypad_remove_callback(gb_joypad_t* joypad){
+    joypad->callback = NULL;
+    joypad->callback_data = NULL;
+}
+
+
 void gb_joypad_update(gb_joypad_t* joypad){
     if(!joypad->callback) return;
 

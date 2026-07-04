@@ -28,6 +28,10 @@ typedef struct _gb_t {
     gb_type_t type_pending;
     float speed;
     bool cartridge_inserted;
+    bool multi_thread;
+    thrd_t thread_id;
+    _Atomic(bool) thread_running;
+    bool paused;
     
     gb_cpu_t cpu;
     gb_ppu_t ppu;
@@ -41,6 +45,7 @@ typedef struct _gb_t {
     gb_boot_t boot;
     gb_memory_t memory;
     gb_cartridge_t cartridge;
+    gb_frame_timer_t frame_timer;
     
     bool cgb_mode;
     bool double_speed;
@@ -59,12 +64,28 @@ gb_t* gb_new();
 bool gb_insert_cartridge(gb_t* gb,const char* path);
 void gb_remove_cartridge(gb_t* gb);
 
-void gb_set_joypad_callback(gb_t* gb,gb_joypad_callback_t callback,void* data);
+void gb_thread_safe_set_joypad_callback(gb_t* gb,gb_joypad_callback_t callback,void* data);
+void gb_thread_safe_remove_joypad_callback(gb_t* gb);
 
-void gb_set_speed(gb_t* gb,float new_speed);
+void gb_thread_safe_set_apu_callback(gb_t* gb,gb_apu_callback_t callback,void* data);
+void gb_thread_safe_remove_apu_callback(gb_t* gb);
+
+void gb_thread_safe_add_ppu_handler(gb_t* gb,gb_ppu_handler_t* handler);
+void gb_thread_safe_remove_ppu_handler(gb_t* gb,gb_ppu_handler_t* handler);
+
+void gb_thread_safe_set_speed(gb_t* gb,float new_speed);
+void gb_thread_safe_set_execution_mode(gb_t* gb,bool multi_thread);
+void gb_thread_safe_set_paused(gb_t* gb,bool paused);
+
+void gb_thread_safe_reset(gb_t *gb);
 
 void gb_half_machine_cycle(gb_t* gb);
 void gb_machine_cycle(gb_t* gb);
+
+void gb_execute_frame(gb_t* gb);
+
+void gb_thread_stop(gb_t* gb);
+void gb_thread_start(gb_t* gb);
 
 void gb_write_key0_register(void* data,uint8_t value,uint16_t address);
 
@@ -81,42 +102,21 @@ void gb_reset(gb_t* gb);
 
 void gb_delete(gb_t* gb);
 
+#define gb_save_ram(gb,path) gb_cartridge_save_ram(&(gb)->cartridge,path)
+#define gb_load_ram(gb,path) gb_cartridge_load_ram(&(gb)->cartridge,path)
 
-inline void gb_save_ram(gb_t* gb,const char* path){
-    gb_cartridge_save_ram(&gb->cartridge,path);
-}
+#define gb_set_apu_callback(gb,callback,data) gb_apu_set_callback(&(gb)->apu,callback,data)
+#define gb_remove_apu_callback(gb) gb_apu_remove_callback(&(gb)->apu)
 
-inline void gb_load_ram(gb_t* gb,const char* path){
-    gb_cartridge_load_ram(&gb->cartridge,path);
-}
+#define gb_add_ppu_handler(gb,handler) gb_ppu_add_handler(&(gb)->ppu,handler)
+#define gb_remove_ppu_handler(gb,handler) gb_ppu_remove_handler(&(gb)->ppu,handler)
 
+#define gb_add_cheat_code(gb,code) gb_memory_add_cheat_code(&(gb)->memory,code)
+#define gb_remove_cheat_code(gb,code) gb_memory_remove_cheat_code(&(gb)->memory,code)
 
-inline void gb_set_apu_callback(gb_t* gb,gb_apu_callback_t callback,void* data){
-    gb_apu_set_callback(&gb->apu,callback,data);
-}
+#define gb_get_fps(gb) gb_frame_timer_get_fps(&(gb)->frame_timer)
 
-inline void gb_remove_apu_callback(gb_t* gb){
-    gb_apu_remove_callback(&gb->apu);
-}
-
-
-inline void gb_add_ppu_handler(gb_t* gb,gb_ppu_handler_t* handler){
-    gb_ppu_add_handler(&gb->ppu,handler);
-}
-
-inline void gb_remove_ppu_handler(gb_t* gb,gb_ppu_handler_t* handler){
-    gb_ppu_remove_handler(&gb->ppu,handler);
-}
-
-
-inline void gb_add_cheat_code(gb_t* gb,gb_cheat_code_t* code){
-    gb_memory_add_cheat_code(&gb->memory,code);
-}
-
-inline void gb_remove_cheat_code(gb_t* gb,gb_cheat_code_t* code){
-    gb_memory_remove_cheat_code(&gb->memory,code);
-}
-
+#define gb_get_render_buffer(gb) gb_ppu_get_render_buffer(&(gb)->ppu)
 
 #ifdef __cplusplus
 }

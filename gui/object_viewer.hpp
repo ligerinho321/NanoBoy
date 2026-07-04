@@ -144,14 +144,30 @@ public:
 
     void clear();
     
+
     void set_open(bool _open){
         if(open == _open) return;
+        
         open = _open;
+
         if(open){
             gb_add_ppu_handler(gb,&callback_handler);
         }
         else{
             gb_remove_ppu_handler(gb,&callback_handler);
+        }
+    }
+
+    void thread_safe_set_open(bool _open){
+        if(open == _open) return;
+        
+        open = _open;
+
+        if(open){
+            gb_thread_safe_add_ppu_handler(gb,&callback_handler);
+        }
+        else{
+            gb_thread_safe_remove_ppu_handler(gb,&callback_handler);
         }
     }
 

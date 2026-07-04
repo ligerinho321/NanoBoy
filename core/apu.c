@@ -247,7 +247,16 @@ void gb_apu_frame_end(gb_apu_t* apu){
 
     int len = apu->mixer_frame.samples_count * gb_audio_bytes_per_sample;
 
-    while(gb_ring_buffer_writeable(&apu->ring_buffer) < len) gb_sleep(1);
+    while(gb_ring_buffer_writeable(&apu->ring_buffer) < len){
+#ifdef _WIN32
+        Sleep(1);
+#else
+        struct timespec ts;
+        ts.tv_sec = 0;
+        ts.tv_nsec = 1000000;
+        nanosleep(&ts,NULL);
+#endif
+    }
 
     gb_ring_buffer_write(&apu->ring_buffer,(uint8_t*)apu->mixer_frame.samples,len);
 }

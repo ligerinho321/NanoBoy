@@ -62,10 +62,6 @@ void gb_ppu_remove_handler(gb_ppu_t* ppu,gb_ppu_handler_t* handler){
 }
 
 
-static inline void gb_ppu_clear_screen(gb_ppu_t* ppu){
-    memset(ppu->screen,0xFF,sizeof(ppu->screen));
-}
-
 static inline void gb_ppu_init_line_renderer(gb_ppu_t* ppu){
     ppu->wx_enabled = false;
 
@@ -122,6 +118,7 @@ static inline void gb_ppu_visible_scanline(gb_ppu_t* ppu){
             if(!ppu->wy_enabled){
                 ppu->wy_enabled = ppu->ly == ppu->wy;
             }
+
             break;
         }
     }
@@ -133,17 +130,23 @@ static inline void gb_ppu_vblank_scanline(gb_ppu_t* ppu){
             ppu->_lyc = ppu->lyc;
 
             if(ppu->_ly == 144){
-                ppu->frame_count++;
                 ppu->first_frame = false;
-                ppu->pixel_ptr = ppu->screen;
+
+                ppu->frame_count++;
+
+                bool screen_index = atomic_load_explicit(&ppu->screen_index,memory_order_relaxed);
+
+                atomic_store_explicit(&ppu->screen_index,!screen_index,memory_order_release);
+
+                ppu->pixel_ptr = ppu->screen[!screen_index];
 
                 gb_joypad_update(&ppu->gb->joypad);
 
+                ppu->wy_enabled = false;
+                
                 ppu->status.mode = gb_ppu_vblank_mode;
 
                 ppu->gb->interrupt.flag |= gb_interrupt_vblank_flag;
-
-                ppu->wy_enabled = false;
             }
             break;
         }
@@ -427,57 +430,78 @@ static inline void gb_ppu_drawing(gb_ppu_t* ppu){
 
 
 void gb_ppu_clock(gb_ppu_t* ppu,int cycles){
+    if(ppu->lcdc.lcd_enabled){
+        while(cycles--){
+            ppu->cycle++;
 
-    if(!ppu->lcdc.lcd_enabled){
-        ppu->off_cycle += cycles;
-        while(ppu->off_cycle >= gb_frame_cycles){
-            ppu->off_cycle -= gb_frame_cycles;
-            ppu->frame_count++;
-        }
-        return;
-    }
+            if(ppu->_ly < gb_vblank_scanline){
+                gb_ppu_visible_scanline(ppu);
+            }
+            else{
+                gb_ppu_vblank_scanline(ppu);
+            }
 
-    while(cycles--){
-        ppu->cycle++;
+            if(ppu->status.mode == gb_ppu_oam_mode){
+                gb_ppu_oam_evaluation(ppu);
+            }
+            else if(ppu->status.mode == gb_ppu_drawing_mode){
 
-        if(ppu->_ly < gb_vblank_scanline){
-            gb_ppu_visible_scanline(ppu);
-        }
-        else{
-            gb_ppu_vblank_scanline(ppu);
-        }
+                gb_ppu_drawing(ppu);
 
-        if(ppu->status.mode == gb_ppu_oam_mode){
-            gb_ppu_oam_evaluation(ppu);
-        }
-        else if(ppu->status.mode == gb_ppu_drawing_mode){
+                if(ppu->drawn_pixels >= gb_screen_width){
+                    ppu->status.mode = gb_ppu_hblank_mode;
 
-            gb_ppu_drawing(ppu);
+                    ppu->vram_blocked = false;
+                    ppu->oam_blocked = false;
 
-            if(ppu->drawn_pixels >= gb_screen_width){
-                ppu->status.mode = gb_ppu_hblank_mode;
+                    gb_vram_hblank_dma(&ppu->gb->dma);
+                }
+            }
 
-                ppu->vram_blocked = false;
-                ppu->oam_blocked = false;
+            ppu->status.lcy_equals_ly = ppu->ly == ppu->_lyc;
 
-                gb_vram_hblank_dma(&ppu->gb->dma);
+            gb_ppu_update_irq_line(ppu);
+
+            if(ppu->handles != NULL){
+                gb_ppu_handler_t* handler = ppu->handles;
+                do{
+                    if(handler->scanline == ppu->ly && handler->cycle == ppu->cycle){
+                        handler->callback(handler->data);
+                    }
+                    handler = handler->next;
+                }while(handler != NULL);
             }
         }
+    }
+    else{
+        ppu->off_cycle += cycles;
+        
+        while(ppu->off_cycle >= gb_frame_cycles){
+            
+            ppu->off_cycle -= gb_frame_cycles;
 
-        ppu->status.lcy_equals_ly = ppu->ly == ppu->_lyc;
+            ppu->frame_count++;
 
-        gb_ppu_update_irq_line(ppu);
+            if(ppu->first_frame){
+                ppu->first_frame = false;
 
-        if(ppu->handles != NULL){
-            gb_ppu_handler_t* handler = ppu->handles;
-            do{
-                if(handler->scanline == ppu->ly && handler->cycle == ppu->cycle){
-                    handler->callback(handler->data);
-                }
-                handler = handler->next;
-            }while(handler != NULL);
+                bool screen_index = atomic_load_explicit(&ppu->screen_index,memory_order_relaxed);
+                
+                memset(ppu->screen[screen_index],0xFF,gb_screen_length);
+                
+                atomic_store_explicit(&ppu->screen_index,!screen_index,memory_order_release);
+            }
+
+            gb_joypad_update(&ppu->gb->joypad);
+
         }
     }
+}
+
+
+const uint8_t* gb_ppu_get_render_buffer(gb_ppu_t* ppu){
+    bool screen_index = atomic_load_explicit(&ppu->screen_index,memory_order_acquire);
+    return ppu->screen[!screen_index];
 }
 
 
@@ -519,7 +543,6 @@ void gb_ppu_write_register(void* data,uint8_t value,uint16_t address){
 
                 ppu->status.mode = gb_ppu_hblank_mode;
 
-                gb_ppu_clear_screen(ppu);
                 ppu->off_cycle = ppu->ly * gb_scanline_cycles + ppu->cycle;
                 
                 ppu->ly = 0x00;
@@ -528,6 +551,8 @@ void gb_ppu_write_register(void* data,uint8_t value,uint16_t address){
 
                 ppu->vram_blocked = false;
                 ppu->oam_blocked = false;
+
+                ppu->first_frame = true;
             }
             else if(!ppu->lcdc.lcd_enabled && lcd_enabled){
 
@@ -536,9 +561,9 @@ void gb_ppu_write_register(void* data,uint8_t value,uint16_t address){
                 //Quando a PPU é ligado a linha 0 é mais curta em 5 T-cycles
                 ppu->cycle = 0x04;
 
-                ppu->first_frame = true;
+                ppu->pixel_ptr = ppu->screen[atomic_load_explicit(&ppu->screen_index,memory_order_relaxed)];
 
-                ppu->pixel_ptr = ppu->screen;
+                ppu->first_frame = true;
             }
 
             break;
@@ -773,6 +798,7 @@ void gb_ppu_reset(gb_ppu_t* ppu){
     ppu->frame_count = 0;
     ppu->first_frame = false;
 
-    gb_ppu_clear_screen(ppu);
-    ppu->pixel_ptr = ppu->screen;
+    atomic_store_explicit(&ppu->screen_index,0,memory_order_relaxed);
+    memset(ppu->screen,0xFF,sizeof(ppu->screen));
+    ppu->pixel_ptr = ppu->screen[0];
 }

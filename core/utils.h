@@ -7,12 +7,13 @@
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
+#include <threads.h>
 
 #ifdef _WIN32
-#include <windows.h> // Sleep()
+#include <windows.h> // Sleep(), QueryPerformanceFrequency(), QueryPerformanceCounter()
 #else
 #include <stdatomic.h>
-#include <time.h> // nanosleep()
+#include <time.h> // nanosleep(), clock_gettime()
 #endif
 
 #ifdef __cplusplus
@@ -80,6 +81,29 @@ enum {
 
 typedef struct _gb_t gb_t;
 
+typedef struct _gb_frame_timer_t {
+    uint32_t frame_count;
+    uint32_t cycles;
+    _Atomic(float) fps;
+#ifdef _WIN32
+    LARGE_INTERGER freq;
+    LARGE_INTERGER last;
+#else
+    struct timespec last;
+#endif
+} gb_frame_timer_t;
+
+void gb_frame_timer_init(gb_frame_timer_t* frame_timer);
+
+void gb_frame_timer_clock(gb_frame_timer_t* frame_timer);
+
+void gb_frame_timer_start(gb_frame_timer_t* frame_timer);
+
+void gb_frame_timer_stop(gb_frame_timer_t* frame_timer);
+
+float gb_frame_timer_get_fps(gb_frame_timer_t* frame_timer);
+
+
 typedef struct _gb_ppu_handler_t {
     void (*callback)(void* data);
     void* data;
@@ -126,8 +150,8 @@ typedef struct _gb_ring_buffer_t {
     volatile long write;
     volatile long read;
 #else
-    atomic_long write;
-    atomic_long read;
+    _Atomic(long) write;
+    _Atomic(long) read;
 #endif
 } gb_ring_buffer_t;
 
@@ -144,9 +168,6 @@ long gb_ring_buffer_read(gb_ring_buffer_t* rb,uint8_t* dst,long len);
 void gb_ring_buffer_clear(gb_ring_buffer_t* rb);
 
 void gb_ring_buffer_free(gb_ring_buffer_t* rb);
-
-
-void gb_sleep(int ms);
 
 
 bool gb_save_file(const char* path,void* data,size_t len);

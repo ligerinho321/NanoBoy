@@ -1,5 +1,65 @@
 #include "utils.h"
 
+void gb_frame_timer_init(gb_frame_timer_t* frame_timer){
+#ifdef _WIN32
+    if(!QueryPerformanceFrequency(&frame_timer->frequency)){
+        printf("QueryPerformanceFrequency failed");
+    }
+#endif
+}
+
+void gb_frame_timer_clock(gb_frame_timer_t* frame_timer){
+    
+    ++frame_timer->frame_count;
+
+#ifdef _WIN32
+    LARGE_INTERGER current = {0};
+
+    if(!QueryPerformanceCounter(&frame_timer->last)){
+        gb_printf_error("QueryPerformanceCounter failed");
+    }
+
+    float elapsed = (float)(current.QuadPart - frame_timer->last.QuadPart) / (float)frame_timer->freq.QuadPart;
+#else
+    struct timespec current = {0};
+        
+    if(clock_gettime(CLOCK_MONOTONIC,&current) < 0){
+        gb_printf_errno(clock_gettime);
+    }
+
+    float elapsed = (current.tv_sec - frame_timer->last.tv_sec) + ((current.tv_nsec - frame_timer->last.tv_nsec) / 1e+9);
+#endif
+
+    if(elapsed > 1.0f){
+        frame_timer->last = current;
+        atomic_store_explicit(&frame_timer->fps,frame_timer->frame_count / elapsed,memory_order_release);
+        frame_timer->frame_count = 0;
+    }
+}
+
+void gb_frame_timer_start(gb_frame_timer_t* frame_timer){
+    frame_timer->frame_count = 0;
+    frame_timer->cycles = 0;
+#ifdef _WIN32
+    if(!QueryPerformanceCounter(&frame_timer->last)){
+        gb_printf_error("QueryPerformanceCounter failed");
+    }
+#else
+    if(clock_gettime(CLOCK_MONOTONIC,&frame_timer->last) < 0){
+        gb_printf_errno(clock_gettime);
+    }
+#endif
+}
+
+void gb_frame_timer_stop(gb_frame_timer_t* frame_timer){
+    atomic_store_explicit(&frame_timer->fps,0.0f,memory_order_release);
+}
+
+float gb_frame_timer_get_fps(gb_frame_timer_t* frame_timer){
+    return atomic_load_explicit(&frame_timer->fps,memory_order_acquire);
+}
+
+
 void gb_pixel_fifo_pop(gb_pixel_fifo_t* fifo){
     if(fifo->length == 0x00) return;
 
@@ -125,18 +185,6 @@ void gb_ring_buffer_clear(gb_ring_buffer_t* rb){
 
 void gb_ring_buffer_free(gb_ring_buffer_t* ring_buffer){
     free(ring_buffer->data);
-}
-
-
-void gb_sleep(int ms){
-#ifdef _WIN32
-    Sleep(1);
-#else
-    struct timespec ts;
-    ts.tv_sec = 0;
-    ts.tv_nsec = 1000000 * ms;
-    nanosleep(&ts,NULL);
-#endif
 }
 
 

@@ -74,6 +74,28 @@ void gb_palette_unmap_cgb_registers(gb_palette_t* palette);
 
 void gb_palette_reset(gb_palette_t* palette);
 
+
+#define gb_palette_get_dmg_bgp_color(palette,palette_index)\
+    dmg_colors[((palette)->bgp >> (((palette_index) & 0x03) << 0x01)) & 0x03]
+
+#define gb_palette_get_dmg_obp_color(palette,palette_index,color_index)\
+    dmg_colors[((palette)->obp[(palette_index) & 0x01] >> (((color_index) & 0x03) << 0x01)) & 0x03]
+
+
+#define gb_palette_get_cgb_bgp_color(palette,palette_index,color_index)\
+    (palette)->bg_cram_converted[(((palette_index) & 0x07) << 0x02) | ((color_index) & 0x03)]
+
+#define gb_palette_get_cgb_obp_color(palette,palette_index,color_index)\
+    (palette)->obj_cram_converted[(((palette_index) & 0x07) << 0x02) | ((color_index) & 0x03)]
+
+
+#define gb_palette_get_cgb_dmg_bgp_color(palette,palette_index)\
+    (palette)->bg_cram_converted[((palette)->bgp >> (((palette_index) & 0x03) << 0x01)) & 0x03]
+
+#define gb_palette_get_cgb_dmg_obp_color(palette,palette_index,color_index)\
+    (palette)->obj_cram_converted[(((palette_index) & 0x01) << 0x02) | (((palette)->obp[(palette_index) & 0x01] >> (((color_index) & 0x03) << 0x01)) & 0x03)]
+
+
 #ifdef __cplusplus
 }
 #endif

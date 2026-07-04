@@ -27,7 +27,7 @@ public:
     wave_form_t(gb_t* gb):gb(gb){}
 
     ~wave_form_t(){
-        gb_remove_apu_callback(gb);
+        gb_thread_safe_remove_apu_callback(gb);
     }
 
     void render();
@@ -41,12 +41,27 @@ public:
 
     void set_open(bool _open){
         if(open == _open) return;
+        
         open = _open;
+
         if(open){
             gb_set_apu_callback(gb,frame_callback,this);
         }
         else{
             gb_remove_apu_callback(gb);
+        }
+    }
+
+    void thread_safe_set_open(bool _open){
+        if(open == _open) return;
+        
+        open = _open;
+
+        if(open){
+            gb_thread_safe_set_apu_callback(gb,frame_callback,this);
+        }
+        else{
+            gb_thread_safe_remove_apu_callback(gb);
         }
     }
 
