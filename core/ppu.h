@@ -128,7 +128,7 @@ typedef struct _gb_ppu_t {
     uint64_t frame_count;
     bool first_frame;
 
-    _Atomic(bool) screen_index;
+    gb_atomic_bool_t screen_index;
     uint8_t screen[2][gb_screen_length];
     uint8_t* pixel_ptr;
 

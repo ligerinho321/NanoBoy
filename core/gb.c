@@ -209,14 +209,14 @@ void gb_execute_frame(gb_t* gb){
     gb_frame_timer_clock(&gb->frame_timer);
 }
 
-static int gb_thread_function(void* data){
-    gb_t* gb = (gb_t*)data;
+
+static void gb_execute(gb_t* gb){
     gb_ppu_t* ppu = &gb->ppu;
     gb_cpu_t* cpu = &gb->cpu;
     gb_frame_timer_t* frame_timer = &gb->frame_timer;
     uint64_t frame;
     
-    while(atomic_load_explicit(&gb->thread_running,memory_order_acquire)){
+    while(gb_atomic_load_explicit(&gb->thread_running,gb_memory_order_acquire)){
         
         frame = ppu->frame_count;
 
@@ -226,40 +226,57 @@ static int gb_thread_function(void* data){
         
         gb_frame_timer_clock(frame_timer);
     }
-    
+}
+
+#ifdef _WIN32
+DWORD WINAPI gb_thread_function(void* data){
+    gb_execute((gb_t*)data);
     return 0;
 }
+#else
+void* gb_thread_function(void* data){
+    gb_execute((gb_t*)data);
+    pthread_exit(NULL;)
+}
+#endif
+
 
 void gb_thread_stop(gb_t* gb){
     if(!gb->cartridge_inserted || gb->paused) return;
 
-    if(!gb->multi_thread || !atomic_load_explicit(&gb->thread_running,memory_order_relaxed)) return;
+    if(!gb->multi_thread || !gb_atomic_load_explicit(&gb->thread_running,gb_memory_order_relaxed)) return;
 
-    atomic_store_explicit(&gb->thread_running,false,memory_order_release);
+    gb_atomic_store_explicit(&gb->thread_running,false,gb_memory_order_release);
 
-    if(thrd_join(gb->thread_id,NULL) != thrd_success){
-        gb_printf_error("thrd_join failed\n");
-    }
-    else{
-        printf("gb_thread_function finished\n");
-    }
+#ifdef _WIN32
+    WaitForSingleObject(gb->thread_handle,INFINITE);
+    CloseHandle(gb->thread_handle);
+    gb->thread_handle = NULL;
+#else
+    pthread_join(gb->thread_id,NULL);
+#endif
 }
 
 void gb_thread_start(gb_t* gb){
     if(!gb->cartridge_inserted || gb->paused) return;
 
-    if(!gb->multi_thread || atomic_load_explicit(&gb->thread_running,memory_order_relaxed)) return;
+    if(!gb->multi_thread || gb_atomic_load_explicit(&gb->thread_running,gb_memory_order_relaxed)) return;
 
-    atomic_store_explicit(&gb->thread_running,true,memory_order_relaxed);
+    gb_atomic_store_explicit(&gb->thread_running,true,gb_memory_order_relaxed);
 
-    if(thrd_create(&gb->thread_id,gb_thread_function,gb) != thrd_success){
-        gb_printf_error("thrd_create failed");
+#ifdef _WIN32
+    gb->thread_handle = CreateThread(NULL,0,gb_thread_function,gb,0,NULL);
+    if(!gb->thread_handle){
+        gb_atomic_store_explicit(&gb->thread_running,false,gb_memory_order_relaxed);
+        gb_printf_error("CreateThread failed\n");
     }
-    else{
-        printf("gb_thread_function started\n");
+#else
+    if(pthread_create(&gb->thread_id,NULL,gb_thread_function,gb) != 0){
+        gb_atomic_store_explicit(&gb->thread_running,false,gb_memory_order_relaxed);
+        gb_printf_error("pthread_create failed");
     }
+#endif
 }
-
 
 
 void gb_write_key0_register(void* data,uint8_t value,uint16_t address){

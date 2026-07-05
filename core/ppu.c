@@ -134,9 +134,9 @@ static inline void gb_ppu_vblank_scanline(gb_ppu_t* ppu){
 
                 ppu->frame_count++;
 
-                bool screen_index = atomic_load_explicit(&ppu->screen_index,memory_order_relaxed);
+                bool screen_index = gb_atomic_load_explicit(&ppu->screen_index,gb_memory_order_relaxed);
 
-                atomic_store_explicit(&ppu->screen_index,!screen_index,memory_order_release);
+                gb_atomic_store_explicit(&ppu->screen_index,!screen_index,gb_memory_order_release);
 
                 ppu->pixel_ptr = ppu->screen[!screen_index];
 
@@ -485,11 +485,11 @@ void gb_ppu_clock(gb_ppu_t* ppu,int cycles){
             if(ppu->first_frame){
                 ppu->first_frame = false;
 
-                bool screen_index = atomic_load_explicit(&ppu->screen_index,memory_order_relaxed);
+                bool screen_index = gb_atomic_load_explicit(&ppu->screen_index,gb_memory_order_relaxed);
                 
                 memset(ppu->screen[screen_index],0xFF,gb_screen_length);
                 
-                atomic_store_explicit(&ppu->screen_index,!screen_index,memory_order_release);
+                gb_atomic_store_explicit(&ppu->screen_index,!screen_index,gb_memory_order_release);
             }
 
             gb_joypad_update(&ppu->gb->joypad);
@@ -500,7 +500,7 @@ void gb_ppu_clock(gb_ppu_t* ppu,int cycles){
 
 
 const uint8_t* gb_ppu_get_render_buffer(gb_ppu_t* ppu){
-    bool screen_index = atomic_load_explicit(&ppu->screen_index,memory_order_acquire);
+    bool screen_index = gb_atomic_load_explicit(&ppu->screen_index,gb_memory_order_acquire);
     return ppu->screen[!screen_index];
 }
 
@@ -561,7 +561,7 @@ void gb_ppu_write_register(void* data,uint8_t value,uint16_t address){
                 //Quando a PPU é ligado a linha 0 é mais curta em 5 T-cycles
                 ppu->cycle = 0x04;
 
-                ppu->pixel_ptr = ppu->screen[atomic_load_explicit(&ppu->screen_index,memory_order_relaxed)];
+                ppu->pixel_ptr = ppu->screen[gb_atomic_load_explicit(&ppu->screen_index,gb_memory_order_relaxed)];
 
                 ppu->first_frame = true;
             }
@@ -798,7 +798,7 @@ void gb_ppu_reset(gb_ppu_t* ppu){
     ppu->frame_count = 0;
     ppu->first_frame = false;
 
-    atomic_store_explicit(&ppu->screen_index,0,memory_order_relaxed);
+    gb_atomic_store_explicit(&ppu->screen_index,0,gb_memory_order_relaxed);
     memset(ppu->screen,0xFF,sizeof(ppu->screen));
     ppu->pixel_ptr = ppu->screen[0];
 }

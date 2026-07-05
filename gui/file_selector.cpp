@@ -56,9 +56,12 @@ void file_selector_t::set_current_path(std::filesystem::path path){
 
 uintmax_t file_selector_t::number_of_entries_in_directory(std::filesystem::path directory){
     uintmax_t n = 0;
-    for(auto& entry : std::filesystem::directory_iterator(directory,std::filesystem::directory_options::skip_permission_denied)){
+    std::error_code error;
+
+    for(auto& entry : std::filesystem::directory_iterator(directory,std::filesystem::directory_options::skip_permission_denied,error)){
         n++;
     }
+
     return n;
 }
 
@@ -105,7 +108,9 @@ void file_selector_t::load_current_directory_entries(){
 
     current_directory_entries.clear();
 
-    for(auto& entry : std::filesystem::directory_iterator(current_path,std::filesystem::directory_options::skip_permission_denied)){
+    std::error_code error;
+
+    for(auto& entry : std::filesystem::directory_iterator(current_path,std::filesystem::directory_options::skip_permission_denied,error)){
         
         std::filesystem::path entry_path = entry.path();
 

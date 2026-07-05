@@ -25,12 +25,23 @@ typedef enum _gb_type_t {
 
 typedef struct _gb_t {
     gb_type_t type;
+    
     gb_type_t type_pending;
+    
     float speed;
+    
     bool cartridge_inserted;
+    
     bool multi_thread;
-    thrd_t thread_id;
-    _Atomic(bool) thread_running;
+
+#ifdef _WIN32
+    HANDLE thread_handle;
+#else
+    pthread_t thread_id;
+#endif
+
+    gb_atomic_bool_t thread_running;
+    
     bool paused;
     
     gb_cpu_t cpu;

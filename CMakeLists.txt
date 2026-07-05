@@ -107,34 +107,13 @@ target_sources(
 )
 
 
-target_link_libraries(NanoBoy PRIVATE SDL2::SDL2)
-
 if(WIN32)
     target_link_libraries(NanoBoy PRIVATE SDL2::SDL2main)
-
-    add_custom_command(
-        TARGET
-            NanoBoy
-        POST_BUILD COMMAND 
-            ${CMAKE_COMMAND} -E copy_if_different 
-            "$<TARGET_FILE:SDL2::SDL2>"
-            "$<TARGET_FILE_DIR:NanoBoy>"
-    )
+    target_link_options(NanoBoy PRIVATE $<$<CONFIG:Release>:-mwindows>)
 endif()
 
+target_link_libraries(NanoBoy PRIVATE SDL2::SDL2)
 
-if(MSVC)
-    set(CMAKE_C_FLAGS_RELEASE "/O2")
-    set(CMAKE_CXX_FLAGS_RELEASE "/O2")
 
-    if(WIN32)
-        target_link_options(NanoBoy PRIVATE $<$<CONFIG:Release>:/SUBSYSTEM:WINDOWS>)
-    endif()
-else()
-    set(CMAKE_C_FLAGS_RELEASE "-O2")
-    set(CMAKE_CXX_FLAGS_RELEASE "-O2")
-
-    if(WIN32)
-        target_link_options(NanoBoy PRIVATE $<$<CONFIG:Release>:-mwindows>)
-    endif()
-endif()
+set(CMAKE_C_FLAGS_RELEASE "-O2")
+set(CMAKE_CXX_FLAGS_RELEASE "-O2")
