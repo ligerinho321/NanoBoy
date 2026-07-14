@@ -1,6 +1,6 @@
 #pragma once
 
-#include "utils.hpp"
+#include <gui/utils/utils.hpp>
 
 class wave_form_t {
 private:
@@ -39,29 +39,27 @@ public:
         noise.count = 0;
     }
 
+    template<bool thread_safe>
     void set_open(bool _open){
         if(open == _open) return;
         
         open = _open;
 
         if(open){
-            gb_set_apu_callback(gb,frame_callback,this);
+            if constexpr (thread_safe){
+                gb_thread_safe_set_apu_callback(gb,frame_callback,this);
+            }
+            else{
+                gb_set_apu_callback(gb,frame_callback,this);
+            }
         }
         else{
-            gb_remove_apu_callback(gb);
-        }
-    }
-
-    void thread_safe_set_open(bool _open){
-        if(open == _open) return;
-        
-        open = _open;
-
-        if(open){
-            gb_thread_safe_set_apu_callback(gb,frame_callback,this);
-        }
-        else{
-            gb_thread_safe_remove_apu_callback(gb);
+            if constexpr (thread_safe){
+                gb_thread_safe_remove_apu_callback(gb);
+            }
+            else{
+                gb_remove_apu_callback(gb);
+            }
         }
     }
 

@@ -1,4 +1,4 @@
-#include "nanoboy.hpp"
+#include <nanoboy.hpp>
 
 static void joypad_callback(void* data,gb_joypad_key_t* key){
     const uint8_t* keyboard = SDL_GetKeyboardState(NULL);
@@ -31,6 +31,20 @@ static void audio_callback(void* userdata,uint8_t* data,int len){
 }
 
 
+const char* file_selector_filters[] = {
+    "All files\0.*",
+    "GB ROM files\0.gb;.gbc"
+};
+
+const int file_selector_filters_count = sizeof(file_selector_filters) / sizeof(file_selector_filters[0]);
+
+
+static void file_selector_callback(void* userdata,std::filesystem::path path){
+    nanoboy_t* nanoboy = (nanoboy_t*)userdata;
+    nanoboy->insert_cartridge(path);
+}
+
+
 nanoboy_t::nanoboy_t(){
     
     gb = gb_new();
@@ -40,11 +54,15 @@ nanoboy_t::nanoboy_t(){
     init_sdl();
     init_imgui();
 
-    file_selector = new file_selector_t(this);
+    file_selector = new file_selector_t();
+    file_selector->set_filters(file_selector_filters,file_selector_filters_count);
+    file_selector->set_callback(file_selector_callback,this);
 
     screen = new screen_t(renderer);
 
     cheats = new cheats_t(gb);
+
+    printer = new printer_t(gb,renderer);
 
     tilemap_viewer = new tilemap_viewer_t(gb,renderer);
 
@@ -69,6 +87,7 @@ nanoboy_t::~nanoboy_t(){
     delete palette_viewer;
     delete object_viewer;
     delete tilemap_viewer;
+    delete printer;
     delete cheats;
     delete screen;
     delete file_selector;
@@ -198,9 +217,12 @@ void nanoboy_t::load_imgui_ini_settings(){
 void nanoboy_t::insert_cartridge(std::filesystem::path path){
 
     bool cheats_open = cheats->get_open();
+    bool printer_open = printer->get_open();
+
     bool tilemap_viewer_open = tilemap_viewer->get_open();
     bool object_viewer_open = object_viewer->get_open();
     bool palette_viewer_open = palette_viewer->get_open();
+    
     bool wave_form_open = wave_form->get_open();
 
     remove_cartridge();
@@ -220,10 +242,13 @@ void nanoboy_t::insert_cartridge(std::filesystem::path path){
     cheats->load(rom_cheat_path.c_str());
 
     cheats->set_open(cheats_open);
-    tilemap_viewer->set_open(tilemap_viewer_open);
-    object_viewer->set_open(object_viewer_open);
-    palette_viewer->set_open(palette_viewer_open);
-    wave_form->set_open(wave_form_open);
+    printer->set_open<false>(printer_open);
+
+    tilemap_viewer->set_open<false>(tilemap_viewer_open);
+    object_viewer->set_open<false>(object_viewer_open);
+    palette_viewer->set_open<false>(palette_viewer_open);
+    
+    wave_form->set_open<false>(wave_form_open);
 
     gb_thread_start(gb);
 }
@@ -243,16 +268,18 @@ void nanoboy_t::remove_cartridge(){
     cheats->clear();
     cheats->set_open(false);
 
-    tilemap_viewer->set_open(false);
+    printer->set_open<false>(false);
+
+    tilemap_viewer->set_open<false>(false);
     tilemap_viewer->clear();
 
-    object_viewer->set_open(false);
+    object_viewer->set_open<false>(false);
     object_viewer->clear();
     
-    palette_viewer->set_open(false);
+    palette_viewer->set_open<false>(false);
     palette_viewer->clear();
 
-    wave_form->set_open(false);
+    wave_form->set_open<false>(false);
     wave_form->clear();
     
     screen->clear();
@@ -347,7 +374,7 @@ void nanoboy_t::render_main_menu_bar(){
     if(ImGui::BeginMenu("File")){
         
         if(ImGui::MenuItem("Open File")){
-            file_selector->opened = true;
+            file_selector->set_open(true);
         }
         
         if(ImGui::MenuItem("Exit")){
@@ -378,6 +405,11 @@ void nanoboy_t::render_main_menu_bar(){
         if(ImGui::MenuItem("Cheats",nullptr,nullptr,gb->cartridge_inserted)){
             cheats->set_open(true);
         }
+
+        if(ImGui::MenuItem("Printer",nullptr,nullptr,gb->cartridge_inserted)){
+            printer->set_open<true>(true);
+        }
+
         if(ImGui::MenuItem("Power off",nullptr,nullptr,gb->cartridge_inserted)){
             remove_cartridge();
         }
@@ -457,16 +489,16 @@ void nanoboy_t::render_main_menu_bar(){
 
     if(ImGui::BeginMenu("Debug")){
         if(ImGui::MenuItem("Tilemap Viewer",nullptr,nullptr,gb->cartridge_inserted)){
-            tilemap_viewer->thread_safe_set_open(true);
+            tilemap_viewer->set_open<true>(true);
         }
         if(ImGui::MenuItem("Object Viewer",nullptr,nullptr,gb->cartridge_inserted)){
-            object_viewer->thread_safe_set_open(true);
+            object_viewer->set_open<true>(true);
         }
         if(ImGui::MenuItem("Palette Viewer",nullptr,nullptr,gb->cartridge_inserted)){
-            palette_viewer->thread_safe_set_open(true);
+            palette_viewer->set_open<true>(true);
         }
         if(ImGui::MenuItem("Wave Form",nullptr,nullptr,gb->cartridge_inserted)){
-            wave_form->thread_safe_set_open(true);
+            wave_form->set_open<true>(true);
         }
         ImGui::EndMenu();
     }
@@ -482,11 +514,16 @@ void nanoboy_t::imgui_render(){
     render_main_menu_bar();
 
     file_selector->render();
+    
     screen->render();
+    
     cheats->render();
+    printer->render();
+    
     tilemap_viewer->render();
     object_viewer->render();
     palette_viewer->render();
+
     wave_form->render();
 
     ImGui::Render();

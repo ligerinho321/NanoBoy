@@ -1,14 +1,20 @@
 #pragma once
 
-#include "core/gb.h"
-#include "gui/utils.hpp"
-#include "gui/cheats.hpp"
-#include "gui/file_selector.hpp"
-#include "gui/object_viewer.hpp"
-#include "gui/palette_viewer.hpp"
-#include "gui/screen.hpp"
-#include "gui/tilemap_viewer.hpp"
-#include "gui/wave_form.hpp"
+#include <core/gb.h>
+
+#include <gui/utils/utils.hpp>
+
+#include <gui/file_dialog/file_selector_dialog.hpp>
+
+#include <gui/cheats/cheats.hpp>
+#include <gui/printer/printer.hpp>
+
+#include <gui/object_viewer/object_viewer.hpp>
+#include <gui/palette_viewer/palette_viewer.hpp>
+#include <gui/screen/screen.hpp>
+#include <gui/tilemap_viewer/tilemap_viewer.hpp>
+
+#include <gui/wave_form/wave_form.hpp>
 
 class nanoboy_t {
 private:
@@ -55,17 +61,23 @@ private:
     void gb_run();
 
 public:
+    gb_t* gb = nullptr;
+    
     SDL_Window* window = nullptr;
     SDL_Renderer* renderer = nullptr;
     SDL_AudioDeviceID audio_device = 0;
-
-    gb_t* gb = nullptr;
+    
     file_selector_t* file_selector = nullptr;
+    
     screen_t* screen = nullptr;
+    
     cheats_t* cheats = nullptr;
+    printer_t* printer = nullptr;
+
     tilemap_viewer_t* tilemap_viewer = nullptr;
     object_viewer_t* object_viewer = nullptr;
     palette_viewer_t* palette_viewer = nullptr;
+    
     wave_form_t* wave_form = nullptr;
 
     bool running = false;

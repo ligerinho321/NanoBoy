@@ -13,19 +13,33 @@ gb_t* gb_new(){
     gb->type = gb_cgb;
     gb->type_pending = gb->type;
     gb->speed = 1.0f;
-
+    
     gb_cpu_init(&gb->cpu,gb);
+    
     gb_ppu_init(&gb->ppu,gb);
+    
     gb_apu_init(&gb->apu,gb);
+    
     gb_joypad_init(&gb->joypad,gb);
+    
     gb_interrupt_init(&gb->interrupt,gb);
+    
     gb_timer_init(&gb->timer,gb);
+    
     gb_dma_init(&gb->dma,gb);
+    
     gb_palette_init(&gb->palette,gb);
+    
     gb_serial_init(&gb->serial,gb);
+    
     gb_boot_init(&gb->boot,gb);
+    
     gb_memory_init(&gb->memory,gb);
+    
     gb_cartridge_init(&gb->cartridge,gb);
+    
+    gb_printer_init(&gb->printer,gb);
+
     gb_frame_timer_init(&gb->frame_timer);
 
     gb->key0_register_handler = (gb_memory_handler_t){
@@ -75,6 +89,19 @@ void gb_remove_cartridge(gb_t* gb){
     gb->cartridge_inserted = false;
 
     gb_frame_timer_stop(&gb->frame_timer);
+}
+
+
+void gb_thread_safe_connect_printer(gb_t* gb,gb_printer_callback_t callback,void* userdata){
+    gb_thread_stop(gb);
+    gb_connect_printer(gb,callback,userdata);
+    gb_thread_start(gb);
+}
+
+void gb_thread_safe_disconnect_printer(gb_t* gb){
+    gb_thread_stop(gb);
+    gb_disconnect_printer(gb);
+    gb_thread_start(gb);
 }
 
 
@@ -164,6 +191,16 @@ void gb_thread_safe_reset(gb_t *gb){
 }
 
 
+void gb_connect_printer(gb_t* gb,gb_printer_callback_t callback,void* userdata){
+    gb_serial_set_callback(&gb->serial,gb_printer_receive_bit,&gb->printer);
+    gb_printer_set_callback(&gb->printer,callback,userdata);
+}
+
+void gb_disconnect_printer(gb_t* gb){
+    gb_serial_remove_callback(&gb->serial);
+    gb_printer_remove_callback(&gb->printer);
+}
+
 
 void gb_half_machine_cycle(gb_t* gb){
     gb->cycle += 2;
@@ -172,6 +209,8 @@ void gb_half_machine_cycle(gb_t* gb){
 
     gb->apu.cycles += cycles;
     
+    gb_printer_clock(&gb->printer,cycles);
+
     gb_ppu_clock(&gb->ppu,cycles);
 
     if((gb->cycle & 0x03) == 0x03){
@@ -179,6 +218,8 @@ void gb_half_machine_cycle(gb_t* gb){
         gb_timer_clock(&gb->timer);
 
         gb_oam_dma_clock(&gb->dma);
+
+        gb_serial_clock(&gb->serial);
     }
 }
 
@@ -189,11 +230,15 @@ void gb_machine_cycle(gb_t* gb){
 
     gb->apu.cycles += cycles;
     
+    gb_printer_clock(&gb->printer,cycles);
+
     gb_ppu_clock(&gb->ppu,cycles);
 
     gb_timer_clock(&gb->timer);
 
     gb_oam_dma_clock(&gb->dma);
+
+    gb_serial_clock(&gb->serial);
 }
 
 
@@ -216,7 +261,7 @@ static void gb_execute(gb_t* gb){
     gb_frame_timer_t* frame_timer = &gb->frame_timer;
     uint64_t frame;
     
-    while(gb_atomic_load_explicit(&gb->thread_running,gb_memory_order_acquire)){
+    while(gb_atomic_load_explicit(&gb->thread_running,gb_memory_order_relaxed)){
         
         frame = ppu->frame_count;
 
@@ -236,7 +281,7 @@ DWORD WINAPI gb_thread_function(void* data){
 #else
 void* gb_thread_function(void* data){
     gb_execute((gb_t*)data);
-    pthread_exit(NULL;)
+    pthread_exit(NULL);
 }
 #endif
 
@@ -246,7 +291,7 @@ void gb_thread_stop(gb_t* gb){
 
     if(!gb->multi_thread || !gb_atomic_load_explicit(&gb->thread_running,gb_memory_order_relaxed)) return;
 
-    gb_atomic_store_explicit(&gb->thread_running,false,gb_memory_order_release);
+    gb_atomic_store_explicit(&gb->thread_running,false,gb_memory_order_relaxed);
 
 #ifdef _WIN32
     WaitForSingleObject(gb->thread_handle,INFINITE);
@@ -353,16 +398,28 @@ void gb_reset(gb_t* gb){
     }
 
     gb_cpu_reset(&gb->cpu);
+    
     gb_ppu_reset(&gb->ppu);
+    
     gb_apu_reset(&gb->apu,true);
+    
     gb_joypad_reset(&gb->joypad);
+    
     gb_interrupt_reset(&gb->interrupt);
+    
     gb_timer_reset(&gb->timer);
+    
     gb_dma_reset(&gb->dma);
+    
     gb_palette_reset(&gb->palette);
+    
     gb_serial_reset(&gb->serial);
+    
     gb_boot_map(&gb->boot);
+
     gb_memory_reset(&gb->memory);
+
+    gb_printer_reset(&gb->printer);
     
     if(gb->cartridge.reset){
         gb->cartridge.reset(&gb->cartridge);

@@ -1,4 +1,4 @@
-#include "palette_viewer.hpp"
+#include <gui/palette_viewer/palette_viewer.hpp>
 
 palette_viewer_t::palette_viewer_t(gb_t* gb,SDL_Renderer* renderer):gb(gb),bg_palette(renderer),obj_palette(renderer){
     input_scalar_width = get_input_scalar_width();
@@ -232,7 +232,7 @@ void palette_viewer_t::render(){
     }
     ImGui::End();
 
-    set_open(_open);
+    set_open<true>(_open);
 }
 
 
@@ -245,4 +245,6 @@ void palette_viewer_t::clear(){
     memset(bg_cram,0,sizeof(bg_cram));
     memset(obj_cram,0,sizeof(obj_cram));
 }
+
+
 

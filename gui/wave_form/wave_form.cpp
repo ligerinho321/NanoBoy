@@ -1,4 +1,4 @@
-#include "wave_form.hpp"
+#include <gui/wave_form/wave_form.hpp>
 
 void wave_form_t::frame_callback(void* data){
     wave_form_t* wf = (wave_form_t*)data;
@@ -102,5 +102,7 @@ void wave_form_t::render(){
     }
     ImGui::End();
 
-    set_open(_open);
+    set_open<true>(_open);
 }
+
+

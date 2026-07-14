@@ -1,4 +1,4 @@
-#include "screen.hpp"
+#include <gui/screen/screen.hpp>
 
 screen_t::screen_t(SDL_Renderer* renderer){
 

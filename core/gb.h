@@ -13,6 +13,7 @@
 #include "boot.h"
 #include "memory.h"
 #include "cartridge.h"
+#include "printer.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -56,6 +57,7 @@ typedef struct _gb_t {
     gb_boot_t boot;
     gb_memory_t memory;
     gb_cartridge_t cartridge;
+    gb_printer_t printer;
     gb_frame_timer_t frame_timer;
     
     bool cgb_mode;
@@ -75,6 +77,9 @@ gb_t* gb_new();
 bool gb_insert_cartridge(gb_t* gb,const char* path);
 void gb_remove_cartridge(gb_t* gb);
 
+void gb_thread_safe_connect_printer(gb_t* gb,gb_printer_callback_t callback,void* userdata);
+void gb_thread_safe_disconnect_printer(gb_t* gb);
+
 void gb_thread_safe_set_joypad_callback(gb_t* gb,gb_joypad_callback_t callback,void* data);
 void gb_thread_safe_remove_joypad_callback(gb_t* gb);
 
@@ -89,6 +94,9 @@ void gb_thread_safe_set_execution_mode(gb_t* gb,bool multi_thread);
 void gb_thread_safe_set_paused(gb_t* gb,bool paused);
 
 void gb_thread_safe_reset(gb_t *gb);
+
+void gb_connect_printer(gb_t* gb,gb_printer_callback_t callback,void* userdata);
+void gb_disconnect_printer(gb_t* gb);
 
 void gb_half_machine_cycle(gb_t* gb);
 void gb_machine_cycle(gb_t* gb);
@@ -124,6 +132,8 @@ void gb_delete(gb_t* gb);
 
 #define gb_add_cheat_code(gb,code) gb_memory_add_cheat_code(&(gb)->memory,code)
 #define gb_remove_cheat_code(gb,code) gb_memory_remove_cheat_code(&(gb)->memory,code)
+
+#define gb_accelerate_printer(gb) gb_printer_accelerate(&(gb)->printer)
 
 #define gb_get_fps(gb) gb_frame_timer_get_fps(&(gb)->frame_timer)
 

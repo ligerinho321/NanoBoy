@@ -1,4 +1,4 @@
-#include "cheats.hpp"
+#include <gui/cheats/cheats.hpp>
 
 const char* popup_names[2] = {
     "Add Cheat",
@@ -309,7 +309,7 @@ void cheats_t::add_cheat(){
     
     cheat->next = nullptr;
 
-    popup_open = false;
+    popup_modal_open = false;
 }
 
 void cheats_t::edit_cheat(){
@@ -325,7 +325,7 @@ void cheats_t::edit_cheat(){
 
     load_cheat_codes(cheat_selected);
 
-    popup_open = false;
+    popup_modal_open = false;
 }
 
 void cheats_t::delete_cheat_selected(){
@@ -378,10 +378,12 @@ void cheats_t::clear(){
 
 
 void cheats_t::open_popup(int type){
-    popup_open = true;
-    popup_type = type;
+    
+    request_open_popup_modal = true;
 
-    if(popup_type == popup_add_cheat_type){
+    popup_modal_type = type;
+
+    if(popup_modal_type == popup_add_cheat_type){
         
         description_buffer[0] = '\0';
         description_buffer_length = 0;
@@ -410,21 +412,26 @@ void cheats_t::open_popup(int type){
     ImVec2 window_pos = ImGui::GetWindowPos();
     ImVec2 window_size = ImGui::GetWindowSize();
 
-    popup_start_pos.x = window_pos.x + window_size.x * 0.5f;
-    popup_start_pos.y = window_pos.y + window_size.y * 0.5f;
-
-    ImGui::OpenPopup(popup_names[popup_type]);
+    popup_modal_start_pos.x = window_pos.x + window_size.x * 0.5f;
+    popup_modal_start_pos.y = window_pos.y + window_size.y * 0.5f;
 }
 
 
-void cheats_t::render_popup(){
+void cheats_t::render_popup_modal(){
     
-    if(!popup_open) return;
+    if(request_open_popup_modal){
+        request_open_popup_modal = false;
 
-    ImGui::SetNextWindowPos(popup_start_pos,ImGuiCond_Appearing,ImVec2(0.5f,0.5f));
-    ImGui::SetNextWindowSize(popup_start_size,ImGuiCond_Appearing);
+        ImGui::OpenPopup(popup_names[popup_modal_type]);
+        popup_modal_open = true;
+    }
 
-    if(!ImGui::BeginPopupModal(popup_names[popup_type],&popup_open)) return;
+    if(!popup_modal_open) return;
+
+    ImGui::SetNextWindowPos(popup_modal_start_pos,ImGuiCond_Appearing,ImVec2(0.5f,0.5f));
+    ImGui::SetNextWindowSize(popup_modal_start_size,ImGuiCond_Appearing);
+
+    if(!ImGui::BeginPopupModal(popup_names[popup_modal_type],&popup_modal_open)) return;
 
     ImGuiStyle& style = ImGui::GetStyle();
 
@@ -504,7 +511,7 @@ void cheats_t::render_popup(){
     ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - button_ok_width -  button_cancel_width - style.ItemSpacing.x);
 
     if(ImGui::Button(ok)){
-        switch(popup_type){
+        switch(popup_modal_type){
             case popup_add_cheat_type:{
                 add_cheat();
                 break;
@@ -518,12 +525,15 @@ void cheats_t::render_popup(){
 
     ImGui::SameLine();
 
-    if(ImGui::Button(cancel)) popup_open = false;
+    if(ImGui::Button(cancel)){
+        popup_modal_open = false;
+    }
 
     ImGui::EndPopup();
 }
 
 void cheats_t::render(){
+
     if(!open) return;
 
     if(ImGui::Begin("Cheats",&open)){
@@ -593,8 +603,9 @@ void cheats_t::render(){
 
             ImGui::EndTable();
         }
-
-        render_popup();
     }
+
     ImGui::End();
+
+    render_popup_modal();
 }

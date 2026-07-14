@@ -24,9 +24,7 @@ void gb_timer_set_div(gb_timer_t* timer,uint16_t new_div){
         }
     }
 
-    uint16_t bit = timer->gb->double_speed ? 0x2000 : 0x1000;
-
-    if((timer->div & bit) && !(new_div & bit)){
+    if((timer->div & timer->apu_div_bit) && !(new_div & timer->apu_div_bit)){
         gb_apu_frame_sequencer_clock(&timer->gb->apu);
     }
 
@@ -144,4 +142,5 @@ void gb_timer_reset(gb_timer_t* timer){
     timer->div_bit = 0x200;
     timer->tima_reload_request = false;
     timer->tima_reloaded = false;
+    timer->apu_div_bit = 0x1000;
 }

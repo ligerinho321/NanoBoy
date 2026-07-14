@@ -1,6 +1,6 @@
 #pragma once
 
-#include "utils.hpp"
+#include <gui/utils/utils.hpp>
 
 class palette_viewer_t {
 private:
@@ -43,25 +43,27 @@ public:
 
     void clear();
 
+    template<bool thread_safe>
     void set_open(bool _open){
         if(open == _open) return;
-        open = _open;
-        if(open){
-            gb_add_ppu_handler(gb,&callback_handler);
-        }
-        else{
-            gb_remove_ppu_handler(gb,&callback_handler);
-        }
-    }
 
-    void thread_safe_set_open(bool _open){
-        if(open == _open) return;
         open = _open;
+        
         if(open){
-            gb_thread_safe_add_ppu_handler(gb,&callback_handler);
+            if constexpr (thread_safe){
+                gb_thread_safe_add_ppu_handler(gb,&callback_handler);
+            }
+            else{
+                gb_add_ppu_handler(gb,&callback_handler);
+            }
         }
         else{
-            gb_thread_safe_remove_ppu_handler(gb,&callback_handler);
+            if constexpr (thread_safe){
+                gb_thread_safe_remove_ppu_handler(gb,&callback_handler);
+            }
+            else{
+                gb_remove_ppu_handler(gb,&callback_handler);
+            }
         }
     }
 

@@ -1,0 +1,110 @@
+#pragma once
+
+#include <gui/utils/utils.hpp>
+
+class file_base_dialog_t {
+protected:
+    using file_dialog_callback_t = void (*)(void* userdata,std::filesystem::path);
+    
+    enum{
+        gigabytes = 0x01 << 0x1E,
+        megabytes = 0x01 << 0x14,
+        kilobytes = 0x01 << 0x0A
+    };
+
+    struct path_part_t {
+        std::string name;
+        std::filesystem::path path;
+
+        path_part_t(std::string _name,std::filesystem::path _path):
+        name(_name),
+        path(_path)
+        {}
+    };
+
+    struct directory_entry_t {
+        std::string name;
+        std::filesystem::path path;
+        uintmax_t size;
+        std::time_t last_write_time;
+        bool is_directory;
+
+        directory_entry_t(std::string _name,std::filesystem::path _path,uintmax_t _size,std::time_t _last_write_time):
+        name(_name),
+        path(_path),
+        size(_size),
+        last_write_time(_last_write_time)
+        {}
+    };
+    
+    std::filesystem::path current_path;
+    std::vector<path_part_t> current_path_parts;
+    std::vector<directory_entry_t> current_directory_entries;
+    
+    std::chrono::steady_clock::time_point last_update;
+
+    char name_buffer[256] = {0};
+    int name_buffer_length = 0;
+
+    uint8_t sort_column_index = 0;
+    bool sort_ascending = true;
+
+    int window_remaining_content_height;
+    ImVec2 window_min;
+    ImVec2 window_max;
+
+    file_dialog_callback_t callback;
+    void* userdata;
+
+    bool open = false;
+
+    void set_current_path(std::filesystem::path path);
+
+    std::uintmax_t number_of_entries_in_directory(const std::filesystem::path directory);
+
+    std::time_t get_entry_last_write_time(const std::filesystem::path entry);
+    
+    const char* get_entry_date_formated(const directory_entry_t& entry);
+
+    void sort_current_directory_entries();
+
+    virtual void load_current_directory_entries() = 0;
+
+    std::filesystem::path get_name_buffer_formated();
+
+    virtual void send_name_buffer() = 0;
+    
+    void update_directory_entries();
+
+    void render_current_path_parts();
+    virtual void render_directory() = 0;
+    void render_browser_table(ImVec2 size);
+    virtual void render_name_input();
+    void render_send_and_cancel(const char* send,const char* cancel);
+
+    void clear_name_buffer(){
+        name_buffer[0] = '\0';
+        name_buffer_length = 0;
+    }
+    
+public:
+    file_base_dialog_t();
+    
+    void set_callback(file_dialog_callback_t _callback,void* _userdata) noexcept {
+        callback = _callback;
+        userdata = _userdata;
+    }
+
+    void remove_callback() noexcept {
+        callback = nullptr;
+        userdata = nullptr;
+    }
+
+    void set_open(bool _open) noexcept {
+        open = _open;
+    }
+
+    bool get_open() const noexcept {
+        return open;
+    }
+};

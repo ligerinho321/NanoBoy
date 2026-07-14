@@ -1,12 +1,12 @@
 #pragma once
 
-#include "../core/gb.h"
+#include <core/gb.h>
 
-#include "../cJSON/cJSON.h"
+#include <gui/cJSON/cJSON.h>
 
-#include "../imgui/imgui.h"
-#include "../imgui/imgui_impl_sdl2.h"
-#include "../imgui/imgui_impl_sdlrenderer2.h"
+#include <imgui/imgui.h>
+#include <imgui/imgui_impl_sdl2.h>
+#include <imgui/imgui_impl_sdlrenderer2.h>
 
 #include <SDL2/SDL.h>
 
@@ -17,6 +17,8 @@
 #include <algorithm>
 #include <string>
 #include <regex>
+#include <mutex>
+#include <atomic>
 
 struct palette_t{
     enum{

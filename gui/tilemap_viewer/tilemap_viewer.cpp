@@ -1,4 +1,4 @@
-#include "tilemap_viewer.hpp"
+#include <gui/tilemap_viewer/tilemap_viewer.hpp>
 
 tilemap_viewer_t::tilemap_viewer_t(gb_t* gb,SDL_Renderer* renderer):gb(gb),bg_palette(renderer){
     
@@ -519,7 +519,7 @@ void tilemap_viewer_t::render(){
     }
     ImGui::End();
 
-    set_open(_open);
+    set_open<true>(_open);
 }
 
 

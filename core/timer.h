@@ -20,6 +20,8 @@ typedef struct _gb_timer_t {
     bool tima_reload_request;
     bool tima_reloaded;
 
+    uint16_t apu_div_bit;
+    
     gb_memory_handler_t register_handler;
 } gb_timer_t;
 

@@ -1,4 +1,4 @@
-#include "object_viewer.hpp"
+#include <gui/object_viewer/object_viewer.hpp>
 
 object_viewer_t::object_viewer_t(gb_t* gb,SDL_Renderer *renderer):gb(gb),obj_palette(renderer){
     
@@ -544,7 +544,7 @@ void object_viewer_t::render(){
     }
     ImGui::End();
 
-    set_open(_open);
+    set_open<true>(_open);
 }
 
 

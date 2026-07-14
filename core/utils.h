@@ -55,6 +55,12 @@ typedef bool gb_atomic_bool_t;
     _x_tmp < _y_tmp ? _x_tmp : _y_tmp;\
 })
 
+#define gb_max(x,y)({\
+    gb_auto _x_tmp = x;\
+    gb_auto _y_tmp = y;\
+    _x_tmp > _y_tmp ? _x_tmp : _y_tmp;\
+})
+
 #define gb_printf_errno(f) fprintf(stderr,"function: %s line: %d %s: %s\n",__func__,__LINE__,#f,strerror(errno))
 #define gb_printf_error(e) fprintf(stderr,"function: %s line: %d error: %s\n",__func__,__LINE__,e)
 
@@ -114,6 +120,12 @@ enum {
 
 typedef struct _gb_t gb_t;
 
+
+typedef struct gb_rgb_t {
+    uint8_t r;
+    uint8_t g;
+    uint8_t b;
+} gb_rgb_t;
 
 typedef struct _gb_ppu_handler_t {
     void (*callback)(void* data);

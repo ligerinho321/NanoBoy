@@ -1,4 +1,4 @@
-#include "utils.hpp"
+#include <gui/utils/utils.hpp>
 
 void palette_t::update_texture(gb_type_t type,bool cgb_mode){
     

@@ -43,13 +43,6 @@ message("CXX_STANDARD_REQUIRED: ${cxx_standard_required}")
 get_property(cxx_extensions TARGET NanoBoy PROPERTY CXX_EXTENSIONS)
 message("CXX_EXTENSIONS: ${cxx_extensions}")
 
-
-target_sources(
-    NanoBoy
-    PRIVATE
-    cJSON/cJSON.c
-)
-
 target_sources(
     NanoBoy
     PRIVATE
@@ -69,6 +62,7 @@ target_sources(
     core/memory.c
     core/palette.c
     core/ppu.c
+    core/printer.c  
     core/serial.c
     core/timer.c
     core/utils.c
@@ -89,14 +83,18 @@ target_sources(
 target_sources(
     NanoBoy
     PRIVATE
-    gui/cheats.cpp
-    gui/file_selector.cpp
-    gui/object_viewer.cpp
-    gui/palette_viewer.cpp
-    gui/screen.cpp
-    gui/tilemap_viewer.cpp
-    gui/utils.cpp
-    gui/wave_form.cpp
+    gui/cJSON/cJSON.c
+    gui/cheats/cheats.cpp
+    gui/file_dialog/file_base_dialog.cpp
+    gui/file_dialog/file_save_dialog.cpp
+    gui/file_dialog/file_selector_dialog.cpp
+    gui/object_viewer/object_viewer.cpp
+    gui/palette_viewer/palette_viewer.cpp
+    gui/printer/printer.cpp
+    gui/screen/screen.cpp
+    gui/tilemap_viewer/tilemap_viewer.cpp
+    gui/utils/utils.cpp
+    gui/wave_form/wave_form.cpp
 )
 
 target_sources(
@@ -104,6 +102,12 @@ target_sources(
     PRIVATE
     nanoboy.cpp
     main.cpp
+)
+
+target_include_directories(
+    NanoBoy
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 
@@ -115,5 +119,5 @@ endif()
 target_link_libraries(NanoBoy PRIVATE SDL2::SDL2)
 
 
-set(CMAKE_C_FLAGS_RELEASE "-O2")
-set(CMAKE_CXX_FLAGS_RELEASE "-O2")
+set(CMAKE_C_FLAGS_RELEASE "-O2 -DNDEBUG")
+set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")

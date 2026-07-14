@@ -1,6 +1,6 @@
 #pragma once
 
-#include "utils.hpp"
+#include <gui/utils/utils.hpp>
 
 class cheats_t {
 private:
@@ -35,10 +35,11 @@ private:
 
     gb_t* gb = nullptr;
 
-    bool popup_open = false;
-    uint8_t popup_type = 0;
-    ImVec2 popup_start_pos{0.0f,0.0f};
-    ImVec2 popup_start_size{250.0f,200.0f};
+    bool request_open_popup_modal = false;
+    bool popup_modal_open = false;
+    uint8_t popup_modal_type = 0;
+    ImVec2 popup_modal_start_pos{0.0f,0.0f};
+    ImVec2 popup_modal_start_size{250.0f,200.0f};
 
     std::regex game_genie_pattern_text;
     std::regex game_genie_pattern_code;
@@ -76,7 +77,7 @@ private:
 
     void open_popup(int type);
 
-    void render_popup();
+    void render_popup_modal();
 
 public:
     cheats_t(gb_t* gb);

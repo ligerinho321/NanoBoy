@@ -1,6 +1,6 @@
 #pragma once
 
-#include "utils.hpp"
+#include <gui/utils/utils.hpp>
 
 class screen_t {
 private:
