@@ -42,7 +42,7 @@ static inline void gb_printer_start_printing(gb_printer_t* printer){
 
     printer->status |= gb_printer_currently_printing_status;
 
-    printer->timer = gb_printer_freq;
+    printer->timer = gb_printer_printing_freq;
 
     if(gb_atomic_load_explicit(&printer->padding_enabled,gb_memory_order_relaxed) && (printer->padding & 0xF0)){
         
@@ -294,7 +294,7 @@ void gb_printer_clock(gb_printer_t* printer,int cycles){
         }
     }
 
-    printer->timer = gb_printer_freq;
+    printer->timer = gb_printer_printing_freq;
         
     switch(printer->printing_state){
         case gb_printer_top_padding_state:{

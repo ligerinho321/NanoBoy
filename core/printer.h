@@ -19,7 +19,7 @@ enum{
     gb_printer_packet_buffer_length = 0x280,
     gb_printer_ram_length = 0x2000,
 
-    gb_printer_freq = gb_clock_rate >> 0x05,
+    gb_printer_printing_freq = gb_clock_rate >> 0x05,
     gb_printer_timeout = gb_clock_rate >> 0x03
 };
 
