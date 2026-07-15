@@ -52,10 +52,16 @@ protected:
     int window_remaining_content_height;
     ImVec2 window_min;
     ImVec2 window_max;
+    ImVec2 window_start_pos;
+
+    const char** extensions;
+    int extensions_count;
+    int current_extension;
 
     file_dialog_callback_t callback;
     void* userdata;
 
+    bool request_open = false;
     bool open = false;
 
     void set_current_path(std::filesystem::path path);
@@ -66,21 +72,31 @@ protected:
     
     const char* get_entry_date_formated(const directory_entry_t& entry);
 
+    const char* get_current_extension() const noexcept;
+
+    virtual bool is_current_extension(std::string extension) const noexcept = 0;
+
     void sort_current_directory_entries();
 
-    virtual void load_current_directory_entries() = 0;
+    void load_current_directory_entries();
 
     std::filesystem::path get_name_buffer_formated();
 
     virtual void send_name_buffer() = 0;
     
+    virtual void select_file(std::filesystem::path& path) = 0;
+
     void update_directory_entries();
 
+    virtual void render_popup_modal() = 0;
+
     void render_current_path_parts();
-    virtual void render_directory() = 0;
+    void render_directory();
     void render_browser_table(ImVec2 size);
-    virtual void render_name_input();
+    void render_name_input();
+    void render_extension_combo();
     void render_send_and_cancel(const char* send,const char* cancel);
+    void render(const char* name,const char* send,const char* cancel);
 
     void clear_name_buffer(){
         name_buffer[0] = '\0';
@@ -89,7 +105,17 @@ protected:
     
 public:
     file_base_dialog_t();
-    
+
+    void set_extensions(const char** _extensions,int _extensions_count) noexcept {
+        extensions = _extensions;
+        extensions_count = _extensions_count;
+    }
+
+    void remove_extensions() noexcept {
+        extensions = nullptr;
+        extensions_count = 0;
+    }
+
     void set_callback(file_dialog_callback_t _callback,void* _userdata) noexcept {
         callback = _callback;
         userdata = _userdata;
@@ -101,7 +127,15 @@ public:
     }
 
     void set_open(bool _open) noexcept {
-        open = _open;
+        if(open == _open) return;
+
+        if(_open){
+            request_open = true;
+        }
+        else{
+            open = false;
+            clear_name_buffer();
+        }
     }
 
     bool get_open() const noexcept {

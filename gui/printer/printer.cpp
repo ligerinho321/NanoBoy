@@ -12,9 +12,10 @@ const char* image_formats[] = {
 
 const int image_formats_count = sizeof(image_formats) / sizeof(image_formats[0]);
 
+
 printer_t::printer_t(gb_t* _gb,SDL_Renderer* _renderer):gb(_gb),renderer(_renderer){
+    file_save.set_extensions(image_formats,image_formats_count);
     file_save.set_callback(file_save_callback,this);
-    file_save.set_formats(image_formats,image_formats_count);
 }
 
 
@@ -130,6 +131,7 @@ void printer_t::update(){
     mutex.unlock();
 }
 
+
 void printer_t::render(){
 
     if(!open) return;
@@ -173,13 +175,13 @@ void printer_t::render(){
         if(ImGui::Button("Clear")){
             mutex.lock();
             
+            texture_height = 0;
+
             buffer.clear();
             
             update_texture.store(false,std::memory_order_relaxed);
 
             mutex.unlock();
-
-            texture_height = 0;
         }
 
         ImGui::EndDisabled();
@@ -189,10 +191,10 @@ void printer_t::render(){
         if(ImGui::Button("Accelerate")){
             gb_accelerate_printer(gb);
         }
+
+        file_save.render();
     }
     ImGui::End();
 
     set_open<true>(_open);
-
-    file_save.render();
 }

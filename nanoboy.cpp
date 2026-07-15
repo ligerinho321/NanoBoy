@@ -55,7 +55,7 @@ nanoboy_t::nanoboy_t(){
     init_imgui();
 
     file_selector = new file_selector_t();
-    file_selector->set_filters(file_selector_filters,file_selector_filters_count);
+    file_selector->set_extensions(file_selector_filters,file_selector_filters_count);
     file_selector->set_callback(file_selector_callback,this);
 
     screen = new screen_t(renderer);

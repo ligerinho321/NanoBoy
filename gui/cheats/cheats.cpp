@@ -408,12 +408,6 @@ void cheats_t::open_popup(int type){
     }
 
     current_error = -1;
-
-    ImVec2 window_pos = ImGui::GetWindowPos();
-    ImVec2 window_size = ImGui::GetWindowSize();
-
-    popup_modal_start_pos.x = window_pos.x + window_size.x * 0.5f;
-    popup_modal_start_pos.y = window_pos.y + window_size.y * 0.5f;
 }
 
 
@@ -424,6 +418,12 @@ void cheats_t::render_popup_modal(){
 
         ImGui::OpenPopup(popup_names[popup_modal_type]);
         popup_modal_open = true;
+
+        ImVec2 window_pos = ImGui::GetWindowPos();
+        ImVec2 window_size = ImGui::GetWindowSize();
+
+        popup_modal_start_pos.x = window_pos.x + window_size.x * 0.5f;
+        popup_modal_start_pos.y = window_pos.y + window_size.y * 0.5f;
     }
 
     if(!popup_modal_open) return;
@@ -603,9 +603,9 @@ void cheats_t::render(){
 
             ImGui::EndTable();
         }
+
+        render_popup_modal();
     }
 
     ImGui::End();
-
-    render_popup_modal();
 }

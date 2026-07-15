@@ -6,13 +6,12 @@
 class printer_t {
 private:
     enum{
-        expand_height = gb_screen_height,
         texture_format = SDL_PIXELFORMAT_RGB24,
         texture_bytes_per_pixel = SDL_BYTESPERPIXEL(texture_format),
         texture_access = SDL_TEXTUREACCESS_STREAMING,
         texture_width = gb_screen_width,
-        texture_expand_height = expand_height,
-        buffer_expand_size = gb_printer_image_pitch * expand_height
+        texture_expand_height = gb_screen_height,
+        buffer_expand_size = gb_printer_image_pitch * texture_expand_height
     };
 
     gb_t* gb = nullptr;
@@ -68,12 +67,12 @@ public:
             else{
                 gb_disconnect_printer(gb);
             }
-            
+
+            texture_height = 0;
+
             buffer.clear();
 
             update_texture.store(false,std::memory_order_relaxed);
-
-            texture_height = 0;
         }
     }
 
