@@ -8,6 +8,10 @@
     (printer)->packet_buffer[(printer)->packet_buffer_length++] = (printer)->sb;\
 }
 
+#define gb_printer_finish_printing(printer)\
+    (printer)->status &= ~(gb_printer_currently_printing_status | gb_printer_image_data_full_status)
+
+
 const uint8_t printer_palette[gb_printer_palette_colors] = {
     0xFF,0xAA,0x55,0x00
 };
@@ -20,6 +24,9 @@ static inline void gb_printer_start_printing(gb_printer_t* printer){
     if(printer->packet_buffer_length != 0x04) return;
 
     if(printer->ram_length < gb_printer_bytes_per_row) return;
+
+
+    printer->padding = printer->packet_buffer[0x01];
 
     uint8_t palette = printer->packet_buffer[0x02];
 
@@ -36,6 +43,16 @@ static inline void gb_printer_start_printing(gb_printer_t* printer){
     printer->status |= gb_printer_currently_printing_status;
 
     printer->timer = gb_printer_freq;
+
+    if(gb_atomic_load_explicit(&printer->padding_enabled,gb_memory_order_relaxed) && (printer->padding & 0xF0)){
+        
+        printer->printing_state = gb_printer_top_padding_state;
+
+        memset(printer->line_buffer,printer_palette[0],sizeof(printer->line_buffer));
+    }
+    else{
+        printer->printing_state = gb_printer_image_state;
+    }
 
     gb_atomic_store_explicit(&printer->accelerate,false,gb_memory_order_relaxed);
 }
@@ -250,6 +267,15 @@ void gb_printer_remove_callback(gb_printer_t* printer){
 }
 
 
+void gb_printer_set_padding_enabled(gb_printer_t* printer,bool enabled){
+    gb_atomic_store_explicit(&printer->padding_enabled,enabled,gb_memory_order_relaxed);
+}
+
+bool gb_printer_get_padding_enabled(gb_printer_t* printer){
+    return gb_atomic_load_explicit(&printer->padding_enabled,gb_memory_order_relaxed);
+}
+
+
 void gb_printer_accelerate(gb_printer_t* printer){
     gb_atomic_store_explicit(&printer->accelerate,true,gb_memory_order_relaxed);
 }
@@ -260,41 +286,91 @@ void gb_printer_clock(gb_printer_t* printer,int cycles){
     if(!(printer->status & gb_printer_currently_printing_status)) return;
 
     if(!gb_atomic_load_explicit(&printer->accelerate,gb_memory_order_relaxed)){
-        if((printer->timer -= cycles) > 0) return;
+        
+        printer->timer -= cycles;
+
+        if(printer->timer > 0){
+            return;
+        }
     }
 
-    if(printer->callback){
-        uint8_t* dst = printer->line_buffer;
-
-        uint32_t row = printer->line >> 0x03;
-        uint32_t y = printer->line & 0x07;
-
-        uint8_t* src = printer->ram + row * gb_printer_bytes_per_row + y * gb_printer_bytes_per_tile_line;
-
-        for(int col = 0; col < gb_screen_columns; ++col){
+    printer->timer = gb_printer_freq;
+        
+    switch(printer->printing_state){
+        case gb_printer_top_padding_state:{
+                                
+            uint8_t top_padding = printer->padding >> 0x04;
             
-            for(uint8_t bit = 0x80; bit > 0x00; bit >>= 0x01){
-                
-                uint8_t color_index = ((src[1] & bit) ? 0x02 : 0x00) | ((src[0] & bit) ? 0x01 : 0x00);
-                
-                uint8_t color = printer->palette[color_index];
-
-                *dst++ = color;
-                *dst++ = color;
-                *dst++ = color;
+            if(--top_padding == 0x00){
+                printer->printing_state = gb_printer_image_state;
+            }
+            else{
+                printer->padding = ((top_padding & 0x0F) << 0x04) | (printer->padding & 0x0F);
             }
 
-            src += gb_printer_bytes_per_tile;
+            break;
         }
+        case gb_printer_image_state:{
 
+            uint8_t* dst = printer->line_buffer;
+
+            uint32_t row = printer->line >> 0x03;
+            uint32_t y = printer->line & 0x07;
+
+            uint8_t* src = printer->ram + row * gb_printer_bytes_per_row + y * gb_printer_bytes_per_tile_line;
+
+            for(int col = 0; col < gb_screen_columns; ++col){
+                
+                for(uint8_t bit = 0x80; bit > 0x00; bit >>= 0x01){
+                    
+                    uint8_t color_index = ((src[1] & bit) ? 0x02 : 0x00) | ((src[0] & bit) ? 0x01 : 0x00);
+                    
+                    uint8_t color = printer->palette[color_index];
+
+                    *dst++ = color;
+                    *dst++ = color;
+                    *dst++ = color;
+                }
+
+                src += gb_printer_bytes_per_tile;
+            }
+
+            if(++printer->line >= printer->lines){
+                if(gb_atomic_load_explicit(&printer->padding_enabled,gb_memory_order_relaxed) && (printer->padding & 0x0F)){
+                    
+                    printer->printing_state = gb_printer_bottom_padding_state;
+
+                    memset(printer->line_buffer,printer_palette[0],sizeof(printer->line_buffer));
+                }
+                else{
+                    gb_printer_finish_printing(printer);
+                }
+            }
+
+            break;
+        }
+        case gb_printer_bottom_padding_state:{
+
+            uint8_t bottom_padding = printer->padding & 0x0F;
+            
+            if(--bottom_padding == 0x00){
+                gb_printer_finish_printing(printer);
+            }
+            else{
+                printer->padding = (printer->padding & 0xF0) | (bottom_padding & 0x0F);
+            }
+
+            break;
+        }
+        default:{
+            gb_printf_error("printing state invalid");
+            gb_printer_finish_printing(printer);
+            break;
+        }
+    }
+
+    if(printer->callback != NULL){
         printer->callback(printer->userdata,printer->line_buffer,sizeof(printer->line_buffer));
-    }
-
-    if(++printer->line >= printer->lines){
-        printer->status &= ~(gb_printer_currently_printing_status | gb_printer_image_data_full_status);
-    }
-    else{
-        printer->timer = gb_printer_freq;
     }
 }
 

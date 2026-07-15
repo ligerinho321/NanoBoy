@@ -57,6 +57,12 @@ typedef enum _gb_printer_packet_state_t {
     gb_printer_status_state
 } gb_printer_packet_state_t;
 
+typedef enum _gb_printer_printing_state_t {
+    gb_printer_top_padding_state,
+    gb_printer_image_state,
+    gb_printer_bottom_padding_state
+} gb_printer_printing_state_t;
+
 
 typedef void (*gb_printer_callback_t)(void* userdata,const uint8_t* data,int len);
 
@@ -84,6 +90,9 @@ typedef struct _gb_printer_t {
     uint8_t ram[gb_printer_ram_length];
     uint32_t ram_length;
 
+    uint8_t printing_state;
+    gb_atomic_bool_t padding_enabled;
+    uint8_t padding;
     uint8_t palette[gb_printer_palette_colors];
     uint32_t lines;
     uint32_t line;
@@ -102,6 +111,9 @@ void gb_printer_init(gb_printer_t* printer,gb_t* gb);
 
 void gb_printer_set_callback(gb_printer_t* printer,gb_printer_callback_t callback,void* userdata);
 void gb_printer_remove_callback(gb_printer_t* printer);
+
+void gb_printer_set_padding_enabled(gb_printer_t* printer,bool enabled);
+bool gb_printer_get_padding_enabled(gb_printer_t* printer);
 
 void gb_printer_accelerate(gb_printer_t* printer);
 

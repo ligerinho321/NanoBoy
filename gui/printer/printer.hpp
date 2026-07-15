@@ -27,6 +27,8 @@ private:
     std::vector<uint8_t> buffer;
     std::atomic<bool> update_texture = false;
 
+    bool padding_enabled = false;
+    
     bool open = false;
 
     static void gb_printer_callback(void* userdata,const uint8_t* data,int len);

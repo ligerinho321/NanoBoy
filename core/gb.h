@@ -133,6 +133,9 @@ void gb_delete(gb_t* gb);
 #define gb_add_cheat_code(gb,code) gb_memory_add_cheat_code(&(gb)->memory,code)
 #define gb_remove_cheat_code(gb,code) gb_memory_remove_cheat_code(&(gb)->memory,code)
 
+#define gb_set_printer_padding_enabled(gb,enabled) gb_printer_set_padding_enabled(&(gb)->printer,enabled)
+#define gb_get_printer_padding_enabled(gb) gb_printer_get_padding_enabled(&(gb)->printer)
+
 #define gb_accelerate_printer(gb) gb_printer_accelerate(&(gb)->printer)
 
 #define gb_get_fps(gb) gb_frame_timer_get_fps(&(gb)->frame_timer)

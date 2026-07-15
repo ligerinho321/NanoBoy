@@ -16,6 +16,8 @@ const int image_formats_count = sizeof(image_formats) / sizeof(image_formats[0])
 printer_t::printer_t(gb_t* _gb,SDL_Renderer* _renderer):gb(_gb),renderer(_renderer){
     file_save.set_extensions(image_formats,image_formats_count);
     file_save.set_callback(file_save_callback,this);
+
+    gb_set_printer_padding_enabled(gb,padding_enabled);
 }
 
 
@@ -163,6 +165,12 @@ void printer_t::render(){
             }
         }
         ImGui::EndChild();
+
+        if(ImGui::Checkbox("Padding",&padding_enabled)){
+            gb_set_printer_padding_enabled(gb,padding_enabled);
+        }
+
+        ImGui::SameLine();
 
         ImGui::BeginDisabled(!texture_height);
 
