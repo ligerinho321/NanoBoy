@@ -64,6 +64,11 @@ gb_t* gb_new(){
 }
 
 
+uint32_t gb_get_clock_rate(gb_t* gb){
+    return gb_clock_rate << (gb->double_speed ? 0x01 : 0x00); 
+}
+
+
 bool gb_insert_cartridge(gb_t* gb,const char* path){
 
     gb_remove_cartridge(gb);
@@ -324,6 +329,20 @@ void gb_thread_start(gb_t* gb){
 }
 
 
+void gb_switch_speed(gb_t* gb){
+    gb_apu_run(&gb->apu);
+
+    gb_cartridge_update_rtc_timer(&gb->cartridge);
+    
+    gb_timer_set_div(&gb->timer,0);
+
+    gb->speed_switch_needed = false;
+    gb->double_speed = !gb->double_speed;
+
+    gb->timer.apu_div_bit = gb->double_speed ? 0x2000 : 0x1000;
+}
+
+
 void gb_write_key0_register(void* data,uint8_t value,uint16_t address){
     gb_t* gb = (gb_t*)data;
     gb->cgb_mode = !(value & 0x0C);
@@ -397,6 +416,22 @@ void gb_reset(gb_t* gb){
         gb->type = gb->type_pending;
     }
 
+    gb->double_speed = false;
+    gb->speed_switch_needed = false;
+    
+    if(gb->type == gb_cgb){
+        gb->cgb_mode = true;
+        gb->obj_priority_mode = false;
+        gb_map_cgb_registers(gb);
+    }
+    else{
+        gb->cgb_mode = false;
+        gb->obj_priority_mode = true;
+        gb_unmap_cgb_registers(gb);
+    }
+    
+    gb->cycle = (uint64_t)-1;
+
     gb_cpu_reset(&gb->cpu);
     
     gb_ppu_reset(&gb->ppu);
@@ -419,27 +454,9 @@ void gb_reset(gb_t* gb){
 
     gb_memory_reset(&gb->memory);
 
-    gb_printer_reset(&gb->printer);
-    
-    if(gb->cartridge.reset){
-        gb->cartridge.reset(&gb->cartridge);
-    }
+    gb_cartridge_reset(&gb->cartridge);
 
-    gb->double_speed = false;
-    gb->speed_switch_needed = false;
-    
-    if(gb->type == gb_cgb){
-        gb->cgb_mode = true;
-        gb->obj_priority_mode = false;
-        gb_map_cgb_registers(gb);
-    }
-    else{
-        gb->cgb_mode = false;
-        gb->obj_priority_mode = true;
-        gb_unmap_cgb_registers(gb);
-    }
-    
-    gb->cycle = (uint64_t)-1;
+    gb_printer_reset(&gb->printer);
 }
 
 

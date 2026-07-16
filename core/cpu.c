@@ -510,14 +510,7 @@ static inline void gb_cpu_stop(gb_cpu_t* cpu){
         if(gb->speed_switch_needed){
             if(interrupt_pending){
                 //STOP is a 1byte opcode, mode doesnt's change, DIV is reset, CPU speed changes
-                gb_apu_run(&gb->apu);
-
-                gb_timer_set_div(&gb->timer,0);
-
-                gb->speed_switch_needed = false;
-                gb->double_speed = !gb->double_speed;
-
-                gb->timer.apu_div_bit = gb->double_speed ? 0x2000 : 0x1000;
+                gb_switch_speed(gb);
             }
             else{
                 //STOP is a 2byte opcode, HALT mode is entered, DIV is reset, CPU speed changes
@@ -525,15 +518,8 @@ static inline void gb_cpu_stop(gb_cpu_t* cpu){
                 
                 cpu->halted = true;
                 cpu->halt_fetch = true;
-                
-                gb_apu_run(&gb->apu);
 
-                gb_timer_set_div(&gb->timer,0);
-
-                gb->speed_switch_needed = false;
-                gb->double_speed = !gb->double_speed;
-
-                gb->timer.apu_div_bit = gb->double_speed ? 0x2000 : 0x1000;
+                gb_switch_speed(gb);
 
                 //Unless an interrupt ocurrs before the, HALT mode whill exit automatically after about 0x20000 T-cycles
                 cpu->halt_cycles = 0x20000 >> 0x02;

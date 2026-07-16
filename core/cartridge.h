@@ -43,14 +43,17 @@ typedef struct _gb_cartridge_t {
     uint16_t ram_address_mask;
     bool ram_has_battery;
 
-    void (*reset)(struct _gb_cartridge_t*);
-
     union{
         gb_mbc1_t mbc1;
         gb_mbc2_t mbc2;
         gb_mbc3_t mbc3;
         gb_mbc5_t mbc5;
     };
+
+    void (*rtc_update_timer)(struct _gb_cartridge_t*);
+    void (*rtc_save)(struct _gb_cartridge_t*,const char*);
+    void (*rtc_load)(struct _gb_cartridge_t*,const char*);
+    void (*reset)(struct _gb_cartridge_t*);
 } gb_cartridge_t;
 
 void gb_cartridge_init(gb_cartridge_t* cartridge,gb_t* gb);
@@ -75,6 +78,11 @@ uint8_t gb_cartridge_read_rom1(void* data,uint16_t address);
 
 void gb_cartridge_write_ram(void* data,uint8_t value,uint16_t address);
 uint8_t gb_cartridge_read_ram(void* data,uint16_t address);
+
+void gb_cartridge_update_rtc_timer(gb_cartridge_t* cartridge);
+void gb_cartridge_save_rtc(gb_cartridge_t* cartridge,const char* path);
+void gb_cartridge_load_rtc(gb_cartridge_t* cartridge,const char* path);
+void gb_cartridge_reset(gb_cartridge_t* cartridge);
 
 void gb_cartridge_clear(gb_cartridge_t* cartridge);
 

@@ -74,6 +74,8 @@ typedef struct _gb_t {
 
 gb_t* gb_new();
 
+uint32_t gb_get_clock_rate(gb_t* gb);
+
 bool gb_insert_cartridge(gb_t* gb,const char* path);
 void gb_remove_cartridge(gb_t* gb);
 
@@ -106,6 +108,8 @@ void gb_execute_frame(gb_t* gb);
 void gb_thread_stop(gb_t* gb);
 void gb_thread_start(gb_t* gb);
 
+void gb_switch_speed(gb_t* gb);
+
 void gb_write_key0_register(void* data,uint8_t value,uint16_t address);
 
 void gb_write_key1_register(void* data,uint8_t value,uint16_t address);
@@ -123,6 +127,9 @@ void gb_delete(gb_t* gb);
 
 #define gb_save_ram(gb,path) gb_cartridge_save_ram(&(gb)->cartridge,path)
 #define gb_load_ram(gb,path) gb_cartridge_load_ram(&(gb)->cartridge,path)
+
+#define gb_save_rtc(gb,path) gb_cartridge_save_rtc(&(gb)->cartridge,path)
+#define gb_load_rtc(gb,path) gb_cartridge_load_rtc(&(gb)->cartridge,path)
 
 #define gb_set_apu_callback(gb,callback,data) gb_apu_set_callback(&(gb)->apu,callback,data)
 #define gb_remove_apu_callback(gb) gb_apu_remove_callback(&(gb)->apu)

@@ -7,11 +7,11 @@
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
+#include <time.h> // nanosleep(), clock_gettime(), time()
 
 #ifdef _WIN32
 #include <windows.h> // Sleep(), QueryPerformanceFrequency(), QueryPerformanceCounter(), CreateThread(), WaitForSingleObject()
 #else
-#include <time.h> // nanosleep(), clock_gettime()
 #include <pthread.h> // pthread_create(), pthread_join()
 #endif
 

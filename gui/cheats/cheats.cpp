@@ -19,7 +19,7 @@ cheats_t::cheats_t(gb_t* gb):
 {}
 
 cheats_t::~cheats_t(){
-    clear();
+    clear(true);
 }
 
 
@@ -35,7 +35,7 @@ void cheats_t::copy_valuestring_to_buffer(const char* valuestring,char* buffer){
     buffer[len] = '\0';
 }
 
-void cheats_t::load_cheat(cJSON* object){
+void cheats_t::load_cheat(cJSON* object,bool thread_safe){
 
     cJSON* item = object->child;
 
@@ -76,10 +76,10 @@ void cheats_t::load_cheat(cJSON* object){
         item = item->next;
     }
 
-    add_cheat();
+    add_cheat(thread_safe);
 }
 
-void cheats_t::load(const char* path){
+void cheats_t::load(const char* path,bool thread_safe){
     char* data = nullptr;
     size_t len = 0;
 
@@ -105,7 +105,7 @@ void cheats_t::load(const char* path){
 
     object = array->child;
     while(object != nullptr){
-        load_cheat(object);
+        load_cheat(object,thread_safe);
         object = object->next;
     }
 
@@ -156,12 +156,60 @@ void cheats_t::save(const char* path){
 }
 
 
-void cheats_t::load_cheat_codes(cheat_t* cheat){
+bool cheats_t::cheat_is_valid(){
+    if(!description_buffer_length){
+        current_error = error_description_empty;
+        return false;
+    }
+
+    if(!codes_buffer_length){
+        current_error = error_codes_empty;
+        return false;
+    }
+
+    switch(format_type){
+        case format_game_genie_type:
+            if(!std::regex_match(codes_buffer,game_genie_pattern_text)){
+                current_error = error_invalid_code_format;
+                return false;
+            }
+            break;
+        case format_game_shark_type:
+            if(!std::regex_match(codes_buffer,game_shark_pattern_text)){
+                current_error = error_invalid_code_format;
+                return false;
+            }
+            break;
+        default:
+            return false;
+    }
+
+    return true;
+}
+
+void cheats_t::copy_codes_buffer(char* dst){
+    char* src = codes_buffer;
+    char* end = codes_buffer + strlen(codes_buffer);
+    while(src != end){
+        if(*src != ' '){
+            *dst = *src;
+            ++dst;
+        }
+        ++src;
+    }
+    *dst = '\0';
+}
+
+void cheats_t::load_cheat_codes(cheat_t* cheat,bool thread_safe){
+
+    if(thread_safe) gb_thread_stop(gb);
 
     if(cheat->codes.size() > 0){
+
         for(auto& code : cheat->codes){
             gb_remove_cheat_code(gb,&code);
         }
+
         cheat->codes.clear();
     }
 
@@ -230,56 +278,11 @@ void cheats_t::load_cheat_codes(cheat_t* cheat){
     for(auto& code : cheat->codes){
         gb_add_cheat_code(gb,&code);
     }
+
+    if(thread_safe) gb_thread_start(gb);
 }
 
-
-bool cheats_t::cheat_is_valid(){
-    if(!description_buffer_length){
-        current_error = error_description_empty;
-        return false;
-    }
-
-    if(!codes_buffer_length){
-        current_error = error_codes_empty;
-        return false;
-    }
-
-    switch(format_type){
-        case format_game_genie_type:
-            if(!std::regex_match(codes_buffer,game_genie_pattern_text)){
-                current_error = error_invalid_code_format;
-                return false;
-            }
-            break;
-        case format_game_shark_type:
-            if(!std::regex_match(codes_buffer,game_shark_pattern_text)){
-                current_error = error_invalid_code_format;
-                return false;
-            }
-            break;
-        default:
-            return false;
-    }
-
-    return true;
-}
-
-
-void cheats_t::copy_codes_buffer(char* dst){
-    char* src = codes_buffer;
-    char* end = codes_buffer + strlen(codes_buffer);
-    while(src != end){
-        if(*src != ' '){
-            *dst = *src;
-            ++dst;
-        }
-        ++src;
-    }
-    *dst = '\0';
-}
-
-
-void cheats_t::add_cheat(){
+void cheats_t::add_cheat(bool thread_safe){
 
     if(!cheat_is_valid()) return;
 
@@ -293,7 +296,7 @@ void cheats_t::add_cheat(){
     
     cheat->enabled = enabled;
 
-    load_cheat_codes(cheat);
+    load_cheat_codes(cheat,thread_safe);
 
     cheat_t* current = cheats;
 
@@ -312,7 +315,7 @@ void cheats_t::add_cheat(){
     popup_modal_open = false;
 }
 
-void cheats_t::edit_cheat(){
+void cheats_t::edit_cheat(bool thread_safe){
     if(!cheat_is_valid()) return;
 
     strcpy(cheat_selected->description_buffer,description_buffer);
@@ -323,12 +326,12 @@ void cheats_t::edit_cheat(){
     
     cheat_selected->enabled = enabled;
 
-    load_cheat_codes(cheat_selected);
+    load_cheat_codes(cheat_selected,thread_safe);
 
     popup_modal_open = false;
 }
 
-void cheats_t::delete_cheat_selected(){
+void cheats_t::delete_cheat_selected(bool thread_safe){
     if(cheat_selected == nullptr) return;
 
     cheat_t* prev = NULL;
@@ -348,18 +351,24 @@ void cheats_t::delete_cheat_selected(){
         current = current->next;
     }
 
+    if(thread_safe) gb_thread_stop(gb);
+
     for(auto& code : cheat_selected->codes){
         gb_remove_cheat_code(gb,&code);
     }
+
+    if(thread_safe) gb_thread_start(gb);
     
     delete cheat_selected;
     
     cheat_selected = nullptr;
 }
 
-void cheats_t::clear(){
+void cheats_t::clear(bool thread_safe){
     
     cheat_t* cheat = cheats;
+
+    if(thread_safe) gb_thread_stop(gb);
 
     while(cheat != nullptr){
         cheat_t* next = cheat->next;
@@ -372,6 +381,8 @@ void cheats_t::clear(){
         
         cheat = next; 
     }
+
+    if(thread_safe) gb_thread_start(gb);
 
     cheats = nullptr;
 }
@@ -513,11 +524,11 @@ void cheats_t::render_popup_modal(){
     if(ImGui::Button(ok)){
         switch(popup_modal_type){
             case popup_add_cheat_type:{
-                add_cheat();
+                add_cheat(true);
                 break;
             }
             case popup_edit_cheat_type:{
-                edit_cheat();
+                edit_cheat(true);
                 break;
             }
         }
@@ -548,7 +559,7 @@ void cheats_t::render(){
 
         ImGui::SameLine();
         
-        if(ImGui::Button("Delete")) delete_cheat_selected();
+        if(ImGui::Button("Delete")) delete_cheat_selected(true);
 
         ImGui::EndDisabled();
 

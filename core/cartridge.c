@@ -320,6 +320,31 @@ uint8_t gb_cartridge_read_ram(void* data,uint16_t address){
 }
 
 
+void gb_cartridge_update_rtc_timer(gb_cartridge_t* cartridge){
+    if(cartridge->rtc_update_timer != NULL){
+        cartridge->rtc_update_timer(cartridge);
+    }
+}
+
+void gb_cartridge_save_rtc(gb_cartridge_t* cartridge,const char* path){
+    if(cartridge->rtc_save != NULL){
+        cartridge->rtc_save(cartridge,path);
+    }
+}
+
+void gb_cartridge_load_rtc(gb_cartridge_t* cartridge,const char* path){
+    if(cartridge->rtc_load != NULL){
+        cartridge->rtc_load(cartridge,path);
+    }
+}
+
+void gb_cartridge_reset(gb_cartridge_t* cartridge){
+    if(cartridge->reset != NULL){
+        cartridge->reset(cartridge);
+    }    
+}
+
+
 void gb_cartridge_clear(gb_cartridge_t* cartridge){
     cartridge->rom_size = 0x00;
     cartridge->rom0_handler.write = NULL;
@@ -336,5 +361,8 @@ void gb_cartridge_clear(gb_cartridge_t* cartridge){
     cartridge->ram_address_mask = 0x00;
     cartridge->ram_has_battery = false;
 
+    cartridge->rtc_update_timer = NULL;
+    cartridge->rtc_save = NULL;
+    cartridge->rtc_load = NULL;
     cartridge->reset = NULL;
 }

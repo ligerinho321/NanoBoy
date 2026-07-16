@@ -32,6 +32,12 @@ private:
         return path.u8string();
     }
 
+    std::string get_rom_rtc_path() const {
+        std::filesystem::path path = saves_path / rom_name;
+        path.replace_extension(".rtc");
+        return path.u8string();
+    }
+
     std::string get_rom_savestate_path() const {
         std::filesystem::path path = savestates_path / rom_name;
         path.replace_extension(".ss");

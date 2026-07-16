@@ -234,14 +234,13 @@ void nanoboy_t::insert_cartridge(std::filesystem::path path){
     rom_path = path;
     rom_name = path.filename().replace_extension("").u8string();
 
-    std::string rom_save_path = get_rom_save_path();
-    std::string rom_cheat_path = get_rom_cheat_path();
+    gb_load_ram(gb,get_rom_save_path().c_str());
 
-    gb_load_ram(gb,rom_save_path.c_str());
+    gb_load_rtc(gb,get_rom_rtc_path().c_str());
 
-    cheats->load(rom_cheat_path.c_str());
-
+    cheats->load(get_rom_cheat_path().c_str(),false);
     cheats->set_open(cheats_open);
+    
     printer->set_open<false>(printer_open);
 
     tilemap_viewer->set_open<false>(tilemap_viewer_open);
@@ -259,13 +258,12 @@ void nanoboy_t::remove_cartridge(){
 
     gb_thread_stop(gb);
 
-    std::string rom_save_path = get_rom_save_path();
-    std::string rom_cheat_path = get_rom_cheat_path();
-
-    gb_save_ram(gb,rom_save_path.c_str());
+    gb_save_ram(gb,get_rom_save_path().c_str());
     
-    cheats->save(rom_cheat_path.c_str());
-    cheats->clear();
+    gb_save_rtc(gb,get_rom_rtc_path().c_str());
+
+    cheats->save(get_rom_cheat_path().c_str());
+    cheats->clear(false);
     cheats->set_open(false);
 
     printer->set_open<false>(false);
