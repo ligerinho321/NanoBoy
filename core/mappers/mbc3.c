@@ -58,8 +58,8 @@ void gb_mbc3_update_ram_and_rtc_mapping(gb_cartridge_t* cartridge){
     return;
 
     unmap:
-    cartridge->ram_handler.write = NULL;
-    cartridge->ram_handler.read = NULL;
+    cartridge->ram_handler.write = gb_memory_write_empty;
+    cartridge->ram_handler.read = gb_memory_read_empty;
 }
 
 

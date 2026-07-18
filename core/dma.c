@@ -4,7 +4,11 @@
 void gb_dma_init(gb_dma_t* dma,gb_t* gb){
     dma->gb = gb;
 
-    gb_oam_dma_map_registers(dma);
+    dma->oam_register_handler = (gb_memory_handler_t){
+        gb_oam_dma_write_register,
+        gb_oam_dma_read_register,
+        dma
+    };
     
     dma->vram_register_handler = (gb_memory_handler_t){
         gb_vram_dma_write_register,
@@ -94,15 +98,7 @@ void gb_vram_hblank_dma(gb_dma_t* dma){
     
     gb_t* gb = dma->gb;
 
-    if(dma->oam_running){
-        printf("vram hbalnk dma running during oam dma\n");
-    }
-
     gb_memory_t* memory = &dma->gb->memory;
-
-    uint16_t len = ((dma->vram_length & 0x7F) + 0x01) << 0x04;
-
-    //printf("vram hblank dma src: %04x dst: %04x len: %d\n",dma->vram_src,dma->vram_dst,len);
 
     for(uint8_t i = 0x00; i < 0x10; ++i){
 
@@ -117,14 +113,10 @@ void gb_vram_hblank_dma(gb_dma_t* dma){
 
         gb_memory_vram_dma_write(memory,byte,0x8000 | (dma->vram_dst & 0x1FFF));
 
-        --len;
-
         if(++dma->vram_dst == 0x00){
             break;
         }
     }
-
-    //printf("vram hblank dma remaining bytes %d\n",len);
 
     dma->vram_length = (dma->vram_length - 0x01) & 0x7F;
 
@@ -141,27 +133,21 @@ void gb_vram_dma_write_register(void* data,uint8_t value,uint16_t address){
         //Src msb
         case 0xFF51:
             dma->vram_src = (value << 0x08) | (dma->vram_src & 0xF0);
-            //printf("write hdma1 %02x\n",value);
             break;
         //Src lsb
         case 0xFF52:
             dma->vram_src = (dma->vram_src & 0xFF00) | (value & 0xF0);
-            //printf("write hdma2 %02x\n",value);
             break;
         //Dst msb
         case 0xFF53:
             dma->vram_dst = (value << 0x08) | (dma->vram_dst & 0xF0);
-            //printf("write hdma3 %02x\n",value);
             break;
         //Dst lsb
         case 0xFF54:
             dma->vram_dst = (dma->vram_dst & 0xFF00) | (value & 0xF0);
-            //printf("write hdma4 %02x\n",value);
             break;
         //Control
         case 0xFF55:
-            //printf("write hdma5 %02x\n",value);
-
             dma->vram_length = value & 0x7F;
 
             //Hblank
@@ -178,12 +164,6 @@ void gb_vram_dma_write_register(void* data,uint8_t value,uint16_t address){
                     dma->vram_hblank_running = false;
                     return;
                 }
-
-                if(dma->oam_running){
-                    printf("vram hbalnk dma running during oam dma\n");
-                }
-
-                //printf("vram general dma src: %04x dst: %04x len: %d\n",dma->vram_src,dma->vram_dst,len);
 
                 gb_t* gb = dma->gb;
                 gb_memory_t* memory = &dma->gb->memory;
@@ -212,8 +192,6 @@ void gb_vram_dma_write_register(void* data,uint8_t value,uint16_t address){
                     }
                 }
 
-                //printf("vram general dma remaining bytes %d\n",len);
-
                 dma->vram_length = ((len >> 0x04) - 0x01) & 0x7F;
             }
 
@@ -228,7 +206,6 @@ uint8_t gb_vram_dma_read_register(void* data,uint16_t address){
 
     if(address == 0xFF55){
         value = (dma->vram_hblank_running ? 0x00 : 0x80) | (dma->vram_length & 0x7F);
-        //printf("read hdma5 %02x\n",value);
     }
 
     return value;
@@ -236,35 +213,16 @@ uint8_t gb_vram_dma_read_register(void* data,uint16_t address){
 
 
 void gb_oam_dma_map_registers(gb_dma_t* dma){
-
-    dma->oam_register_handler = (gb_memory_handler_t){
-        gb_oam_dma_write_register,
-        gb_oam_dma_read_register,
-        dma
-    };
-
-    gb_memory_handler_t** bus = dma->gb->memory.bus;
-
-    bus[0xFF46] = &dma->oam_register_handler;
+    gb_memory_map(&dma->gb->memory,&dma->oam_register_handler,0xFF46);
 }
 
 
 void gb_vram_dma_map_registers(gb_dma_t* dma){
-    gb_memory_handler_t** bus = dma->gb->memory.bus;
-    bus[0xFF51] = &dma->vram_register_handler;
-    bus[0xFF52] = &dma->vram_register_handler;
-    bus[0xFF53] = &dma->vram_register_handler;
-    bus[0xFF54] = &dma->vram_register_handler;
-    bus[0xFF55] = &dma->vram_register_handler;
+    gb_memory_map_in_range(&dma->gb->memory,&dma->vram_register_handler,0xFF51,0xFF55);
 }
 
 void gb_vram_dma_unmap_registers(gb_dma_t* dma){
-    gb_memory_handler_t** bus = dma->gb->memory.bus;
-    bus[0xFF51] = NULL;
-    bus[0xFF52] = NULL;
-    bus[0xFF53] = NULL;
-    bus[0xFF54] = NULL;
-    bus[0xFF55] = NULL;
+    gb_memory_unmap_in_range(&dma->gb->memory,0xFF51,0xFF55);
 }
 
 

@@ -1,30 +1,33 @@
 #include "cartridge.h"
 #include "gb.h"
 
+static const uint8_t nintendo_logo[0x30] = {
+    0xCE,0xED,0x66,0x66,0xCC,0x0D,0x00,0x0B,0x03,0x73,0x00,0x83,0x00,0x0C,0x00,0x0D,
+    0x00,0x08,0x11,0x1F,0x88,0x89,0x00,0x0E,0xDC,0xCC,0x6E,0xE6,0xDD,0xDD,0xD9,0x99,
+    0xBB,0xBB,0x67,0x63,0x6E,0x0E,0xEC,0xCC,0xDD,0xDC,0x99,0x9F,0xBB,0xB9,0x33,0x3E
+};
+
+
 void gb_cartridge_init(gb_cartridge_t* cartridge,gb_t* gb){
     cartridge->gb = gb;
 
     cartridge->rom0_handler = (gb_memory_handler_t){
-        NULL,
+        gb_memory_write_empty,
         gb_cartridge_read_rom0,
         cartridge
     };
 
     cartridge->rom1_handler = (gb_memory_handler_t){
-        NULL,
+        gb_memory_write_empty,
         gb_cartridge_read_rom1,
         cartridge
     };
 
     cartridge->ram_handler = (gb_memory_handler_t){
-        NULL,
-        NULL,
+        gb_memory_write_empty,
+        gb_memory_read_empty,
         cartridge
     };
-
-    gb_memory_map(&cartridge->gb->memory,&cartridge->rom0_handler,0x0000,0x3FFF);
-    gb_memory_map(&cartridge->gb->memory,&cartridge->rom1_handler,0x4000,0x7FFF);
-    gb_memory_map(&cartridge->gb->memory,&cartridge->ram_handler,0xA000,0xBFFF);
 }
 
 
@@ -45,6 +48,29 @@ bool gb_cartridge_load(gb_cartridge_t* cartridge,const char* path){
     }
 
     fread(cartridge->rom,1,size,file);
+
+    uint8_t* mmm01_header = cartridge->rom + (size - 0x8000) + 0x100;
+    uint8_t mapper = mmm01_header[0x47];
+
+    uint8_t* default_header = cartridge->rom + 0x100;
+
+    if(
+        (mapper == 0x0B || mapper == 0x0C || mapper == 0x0D) &&
+        gb_cartridge_verify_nintendo_logo(mmm01_header) &&
+        gb_cartridge_verify_header_checksum(mmm01_header)
+    ){
+        cartridge->header = mmm01_header;
+    }
+    else if(
+        gb_cartridge_verify_nintendo_logo(default_header) &&
+        gb_cartridge_verify_header_checksum(default_header)
+    ){
+        cartridge->header = default_header;
+    }
+    else{
+        gb_printf_error("invalid rom");
+        goto fail;
+    }
 
     gb_cartridge_init_rom(cartridge);
 
@@ -97,27 +123,29 @@ void gb_cartridge_load_ram(gb_cartridge_t* cartridge,const char* path){
 }
 
 
-bool gb_cartridge_verify_header_checksum(gb_cartridge_t* cartridge){
-    uint8_t checksum = 0x00;
-    for (uint16_t address = 0x0134; address <= 0x014C; address++) {
-        checksum = checksum - cartridge->rom[address] - 1;
+bool gb_cartridge_verify_nintendo_logo(uint8_t* header){
+
+    if(!memcmp(header + 0x04,nintendo_logo,sizeof(nintendo_logo))){
+        return true;
     }
-    return checksum == cartridge->rom[0x14D];
+
+    return false;
 }
 
-bool gb_cartridge_verify_global_checksum(gb_cartridge_t* cartridge){
-    uint32_t checksum = 0x00;
-    for(uint32_t i = 0; i < cartridge->rom_size; ++i){
-        if(i == 0x14E || i == 0x14F) continue;
-        checksum += cartridge->rom[i];
+bool gb_cartridge_verify_header_checksum(uint8_t* header){
+    uint8_t checksum = 0x00;
+    
+    for (uint16_t address = 0x34; address <= 0x4C; address++) {
+        checksum = checksum - header[address] - 1;
     }
-    return (checksum & 0xFFFF) == ((cartridge->rom[0x14E] << 0x08) | cartridge->rom[0x14F]);
+
+    return checksum == header[0x4D];
 }
 
 
 void gb_cartridge_init_rom(gb_cartridge_t* cartridge){
 
-    switch(cartridge->rom[0x148]){
+    switch(cartridge->header[0x48]){
         //32KB
         case 0x00:
             cartridge->rom_size = 0x8000;
@@ -168,7 +196,7 @@ void gb_cartridge_init_rom(gb_cartridge_t* cartridge){
 
 void gb_cartridge_init_ram(gb_cartridge_t* cartridge,bool battery){
 
-    switch(cartridge->rom[0x149]){
+    switch(cartridge->header[0x49]){
         //2KB
         case 0x01:
             cartridge->ram_size = 0x800;
@@ -215,7 +243,7 @@ bool gb_cartridge_init_mapper(gb_cartridge_t* cartridge){
 
     bool result = true;
 
-    switch(cartridge->rom[0x147]){
+    switch(cartridge->header[0x47]){
         //ROM ONLY
         case 0x00: gb_no_mbc_init(cartridge,0x00); break;
         //MBC1
@@ -233,11 +261,11 @@ bool gb_cartridge_init_mapper(gb_cartridge_t* cartridge){
         //ROM+RAM+BATTERY
         case 0x09: gb_no_mbc_init(cartridge,gb_cartridge_ram | gb_cartridge_battery); break;
         //MMM01
-        case 0x0B: result = false; break;
+        case 0x0B: gb_mmm01_init(cartridge,0x00); break;
         //MMM01+BATTERY
-        case 0x0C: result = false; break;
+        case 0x0C: gb_mmm01_init(cartridge,gb_cartridge_battery); break;
         //MMM01+RAM+BATTERY
-        case 0x0D: result = false; break;
+        case 0x0D: gb_mmm01_init(cartridge,gb_cartridge_ram | gb_cartridge_battery); break;
         //MBC3+TIMER+BATTERY
         case 0x0F: gb_mbc3_init(cartridge,gb_cartridge_rtc | gb_cartridge_battery); break;
         //MBC3+TIMER+RAM+BATTERY
@@ -288,9 +316,13 @@ void gb_no_mbc_init(gb_cartridge_t* cartridge,uint8_t flags){
     gb_cartridge_set_rom1_bank(cartridge,0x01);
     
     if(flags & gb_cartridge_ram){
+        
         gb_cartridge_init_ram(cartridge,flags & gb_cartridge_battery);
+
         if(cartridge->ram_size){
+            
             gb_cartridge_set_ram_bank(cartridge,0x00);
+
             cartridge->ram_handler.write = gb_cartridge_write_ram;
             cartridge->ram_handler.read = gb_cartridge_read_ram;
         }
@@ -317,6 +349,14 @@ void gb_cartridge_write_ram(void* data,uint8_t value,uint16_t address){
 uint8_t gb_cartridge_read_ram(void* data,uint16_t address){
     gb_cartridge_t* cartridge = (gb_cartridge_t*)data;
     return cartridge->ram_ptr[address & cartridge->ram_address_mask];
+}
+
+
+void gb_cartridge_map(gb_cartridge_t* cartridge){
+    gb_memory_t* memory = &cartridge->gb->memory;
+    gb_memory_map_in_range(memory,&cartridge->rom0_handler,0x0000,0x3FFF);
+    gb_memory_map_in_range(memory,&cartridge->rom1_handler,0x4000,0x7FFF);
+    gb_memory_map_in_range(memory,&cartridge->ram_handler,0xA000,0xBFFF); 
 }
 
 
@@ -347,15 +387,15 @@ void gb_cartridge_reset(gb_cartridge_t* cartridge){
 
 void gb_cartridge_clear(gb_cartridge_t* cartridge){
     cartridge->rom_size = 0x00;
-    cartridge->rom0_handler.write = NULL;
-    cartridge->rom1_handler.write = NULL;
+    cartridge->rom0_handler.write = gb_memory_write_empty;
+    cartridge->rom1_handler.write = gb_memory_write_empty;
     cartridge->rom0_ptr = NULL;
     cartridge->rom1_ptr = NULL;
     cartridge->rom_bank_mask = 0x00;
 
     cartridge->ram_size = 0x00;
-    cartridge->ram_handler.write = NULL;
-    cartridge->ram_handler.read = NULL;
+    cartridge->ram_handler.write = gb_memory_write_empty;
+    cartridge->ram_handler.read = gb_memory_read_empty;
     cartridge->ram_ptr = NULL;
     cartridge->ram_bank_mask = 0x00;
     cartridge->ram_address_mask = 0x00;

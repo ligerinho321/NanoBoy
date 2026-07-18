@@ -4,15 +4,27 @@
 void gb_ppu_init(gb_ppu_t* ppu,gb_t* gb){
     ppu->gb = gb;
 
-    gb_ppu_map_vram(ppu);
+    ppu->vram_handler = (gb_memory_handler_t){
+        gb_ppu_write_vram,
+        gb_ppu_read_vram,
+        ppu
+    };
 
-    gb_ppu_map_registers(ppu);
+    ppu->register_handler = (gb_memory_handler_t){
+        gb_ppu_write_register,
+        gb_ppu_read_register,
+        ppu
+    };
 
-    gb_ppu_map_oam(ppu);
-    
     ppu->vbk_register_handler = (gb_memory_handler_t){
         gb_ppu_write_vbk_register,
         gb_ppu_read_vbk_register,
+        ppu
+    };
+    
+    ppu->oam_handler = (gb_memory_handler_t){
+        gb_ppu_write_oam,
+        gb_ppu_read_oam,
         ppu
     };
 }
@@ -705,45 +717,17 @@ uint8_t gb_ppu_read_oam(void* data,uint16_t address){
 
 
 void gb_ppu_map_vram(gb_ppu_t* ppu){
-
-    ppu->vram_handler = (gb_memory_handler_t){
-        gb_ppu_write_vram,
-        gb_ppu_read_vram,
-        ppu
-    };
-
-    gb_memory_map(&ppu->gb->memory,&ppu->vram_handler,0x8000,0x9FFF);
+    gb_memory_map_in_range(&ppu->gb->memory,&ppu->vram_handler,0x8000,0x9FFF);
 }
 
 void gb_ppu_map_registers(gb_ppu_t* ppu){
-
-    ppu->register_handler = (gb_memory_handler_t){
-        gb_ppu_write_register,
-        gb_ppu_read_register,
-        ppu
-    };
-
-    gb_memory_handler_t** bus = ppu->gb->memory.bus;
-
-    bus[0xFF40] = &ppu->register_handler;
-    bus[0xFF41] = &ppu->register_handler;
-    bus[0xFF42] = &ppu->register_handler;
-    bus[0xFF43] = &ppu->register_handler;
-    bus[0xFF44] = &ppu->register_handler;
-    bus[0xFF45] = &ppu->register_handler;
-    bus[0xFF4A] = &ppu->register_handler;
-    bus[0xFF4B] = &ppu->register_handler;
+    gb_memory_t* memory = &ppu->gb->memory;
+    gb_memory_map_in_range(memory,&ppu->register_handler,0xFF40,0xFF45);
+    gb_memory_map_in_range(memory,&ppu->register_handler,0xFF4A,0xFF4B);
 }
 
 void gb_ppu_map_oam(gb_ppu_t* ppu){
-
-    ppu->oam_handler = (gb_memory_handler_t){
-        gb_ppu_write_oam,
-        gb_ppu_read_oam,
-        ppu
-    };
-
-    gb_memory_map(&ppu->gb->memory,&ppu->oam_handler,0xFE00,0xFE9F);
+    gb_memory_map_in_range(&ppu->gb->memory,&ppu->oam_handler,0xFE00,0xFE9F);
 }
 
 

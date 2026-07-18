@@ -171,8 +171,8 @@ void gb_boot_init(gb_boot_t* boot,gb_t* gb){
     boot->gb = gb;
 
     boot->rom_handler = (gb_memory_handler_t){
-        NULL,
-        NULL,
+        gb_memory_write_empty,
+        gb_memory_read_empty,
         boot
     };
 
@@ -185,17 +185,19 @@ void gb_boot_init(gb_boot_t* boot,gb_t* gb){
 
 void gb_boot_map(gb_boot_t* boot){
 
+    gb_memory_t* memory = &boot->gb->memory;
+
     if(boot->gb->type == gb_cgb){
         boot->rom_handler.read = gb_boot_read_cgb_rom;
-        gb_memory_map(&boot->gb->memory,&boot->rom_handler,0x0000,0x00FF);
-        gb_memory_map(&boot->gb->memory,&boot->rom_handler,0x0200,0x08FF);
+        gb_memory_map_in_range(memory,&boot->rom_handler,0x0000,0x00FF);
+        gb_memory_map_in_range(memory,&boot->rom_handler,0x0200,0x08FF);
     }
     else{
         boot->rom_handler.read = gb_boot_read_dmg_rom;
-        gb_memory_map(&boot->gb->memory,&boot->rom_handler,0x0000,0x00FF);
+        gb_memory_map_in_range(memory,&boot->rom_handler,0x0000,0x00FF);
     }
 
-    boot->gb->memory.bus[0xFF50] = &boot->bank_register_handler;
+    gb_memory_map(memory,&boot->bank_register_handler,0xFF50);
 
     boot->rom_mapped = true;
 }
@@ -204,14 +206,17 @@ void gb_boot_write_bank_register(void* data,uint8_t value,uint16_t address){
     gb_boot_t* boot = (gb_boot_t*)data;
     
     if(value & 0x01){
-        gb_memory_map(&boot->gb->memory,&boot->gb->cartridge.rom0_handler,0x0000,0x00FF);
+
+        gb_memory_t* memory = &boot->gb->memory;
+
+        gb_memory_map_in_range(memory,&boot->gb->cartridge.rom0_handler,0x0000,0x00FF);
         
         if(boot->gb->type == gb_cgb){
 
-            gb_memory_map(&boot->gb->memory,&boot->gb->cartridge.rom0_handler,0x0200,0x08FF);
+            gb_memory_map_in_range(memory,&boot->gb->cartridge.rom0_handler,0x0200,0x08FF);
 
             //KEY0
-            boot->gb->memory.bus[0xFF4C] = NULL;
+            gb_memory_unmap(memory,0xFF4C);
 
             if(!boot->gb->cgb_mode){
                 gb_unmap_cgb_registers(boot->gb);
@@ -219,7 +224,7 @@ void gb_boot_write_bank_register(void* data,uint8_t value,uint16_t address){
         }
 
         //BANK
-        boot->gb->memory.bus[0xFF50] = NULL;
+        gb_memory_unmap(memory,0xFF50);
 
         boot->rom_mapped = false;
     }

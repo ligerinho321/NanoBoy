@@ -36,8 +36,8 @@ void gb_mbc2_write_register(void* data,uint8_t value,uint16_t address){
             cartridge->ram_handler.read = gb_mbc2_read_ram;
         }
         else{
-            cartridge->ram_handler.write = NULL;
-            cartridge->ram_handler.read = NULL;
+            cartridge->ram_handler.write = gb_memory_write_empty;
+            cartridge->ram_handler.read = gb_memory_read_empty;
         }
     }
 }
@@ -54,8 +54,8 @@ uint8_t gb_mbc2_read_ram(void* data,uint16_t address){
 
 void gb_mbc2_reset(gb_cartridge_t* cartridge){
     cartridge->mbc2.ram_enabled = false;
-    cartridge->ram_handler.write = NULL;
-    cartridge->ram_handler.read = NULL;
+    cartridge->ram_handler.write = gb_memory_write_empty;
+    cartridge->ram_handler.read = gb_memory_read_empty;
 
     cartridge->mbc2.rom_bank = 0x01;
     gb_cartridge_set_rom1_bank(cartridge,cartridge->mbc2.rom_bank);

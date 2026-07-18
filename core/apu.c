@@ -47,16 +47,50 @@ void gb_apu_init(gb_apu_t* apu,gb_t* gb){
     apu->wave.external_enabled = true;
     apu->noise.external_enabled = true;
 
-    gb_apu_map_registers(apu);
+    apu->square1_register_handler = (gb_memory_handler_t){
+        gb_apu_write_square_register,
+        gb_apu_read_square_register,
+        &apu->square1
+    };
+
+    apu->square2_register_handler = (gb_memory_handler_t){
+        gb_apu_write_square_register,
+        gb_apu_read_square_register,
+        &apu->square2
+    };
+
+    apu->wave_register_handler = (gb_memory_handler_t){
+        gb_apu_write_wave_register,
+        gb_apu_read_wave_register,
+        &apu->wave
+    };
+
+    apu->noise_register_handler = (gb_memory_handler_t){
+        gb_apu_write_noise_register,
+        gb_apu_read_noise_register,
+        &apu->noise
+    };
+
+    apu->register_handler = (gb_memory_handler_t){
+        gb_apu_write_register,
+        gb_apu_read_register,
+        apu
+    };
+
+    apu->wave_ram_handler = (gb_memory_handler_t){
+        gb_apu_write_wave_ram,
+        gb_apu_read_wave_ram,
+        &apu->wave
+    };
     
     apu->pcm12_register_handler = (gb_memory_handler_t){
-        NULL,
+        gb_memory_write_empty,
         gb_apu_read_pcm12_register,
         apu
     };
 
     apu->pcm34_register_handler = (gb_memory_handler_t){
-        NULL,
+        gb_memory_write_empty,
         gb_apu_read_pcm34_register,
         apu
     };
@@ -1139,62 +1173,26 @@ uint8_t gb_apu_read_pcm34_register(void* data,uint16_t address){
 
 
 void gb_apu_map_registers(gb_apu_t* apu){
-
-    apu->square1_register_handler = (gb_memory_handler_t){
-        gb_apu_write_square_register,
-        gb_apu_read_square_register,
-        &apu->square1
-    };
-
-    apu->square2_register_handler = (gb_memory_handler_t){
-        gb_apu_write_square_register,
-        gb_apu_read_square_register,
-        &apu->square2
-    };
-
-    apu->wave_register_handler = (gb_memory_handler_t){
-        gb_apu_write_wave_register,
-        gb_apu_read_wave_register,
-        &apu->wave
-    };
-
-    apu->noise_register_handler = (gb_memory_handler_t){
-        gb_apu_write_noise_register,
-        gb_apu_read_noise_register,
-        &apu->noise
-    };
-
-    apu->register_handler = (gb_memory_handler_t){
-        gb_apu_write_register,
-        gb_apu_read_register,
-        apu
-    };
-
-    apu->wave_ram_handler = (gb_memory_handler_t){
-        gb_apu_write_wave_ram,
-        gb_apu_read_wave_ram,
-        &apu->wave
-    };
-
-    gb_memory_map(&apu->gb->memory,&apu->square1_register_handler,0xFF10,0xFF14);
-    gb_memory_map(&apu->gb->memory,&apu->square2_register_handler,0xFF16,0xFF19);
-    gb_memory_map(&apu->gb->memory,&apu->wave_register_handler,0xFF1A,0xFF1E);
-    gb_memory_map(&apu->gb->memory,&apu->noise_register_handler,0xFF20,0xFF23);
-    gb_memory_map(&apu->gb->memory,&apu->register_handler,0xFF24,0xFF26);
-    gb_memory_map(&apu->gb->memory,&apu->wave_ram_handler,0xFF30,0xFF3F);
+    gb_memory_t* memory = &apu->gb->memory;
+    gb_memory_map_in_range(memory,&apu->square1_register_handler,0xFF10,0xFF14);
+    gb_memory_map_in_range(memory,&apu->square2_register_handler,0xFF16,0xFF19);
+    gb_memory_map_in_range(memory,&apu->wave_register_handler,0xFF1A,0xFF1E);
+    gb_memory_map_in_range(memory,&apu->noise_register_handler,0xFF20,0xFF23);
+    gb_memory_map_in_range(memory,&apu->register_handler,0xFF24,0xFF26);
+    gb_memory_map_in_range(memory,&apu->wave_ram_handler,0xFF30,0xFF3F);
 }
 
 
 void gb_apu_map_pcm_registers(gb_apu_t* apu){
-    gb_memory_handler_t** bus = apu->gb->memory.bus;
-    bus[0xFF76] = &apu->pcm12_register_handler;
-    bus[0xFF77] = &apu->pcm34_register_handler;
+    gb_memory_t* memory = &apu->gb->memory;
+    gb_memory_map(memory,&apu->pcm12_register_handler,0xFF76);
+    gb_memory_map(memory,&apu->pcm34_register_handler,0xFF77);
 }
 
 void gb_apu_unmap_pcm_registers(gb_apu_t* apu){
-    gb_memory_handler_t** bus = apu->gb->memory.bus;
-    bus[0xFF76] = NULL;
-    bus[0xFF77] = NULL;
+    gb_memory_t* memory = &apu->gb->memory;
+    gb_memory_unmap(memory,0xFF76);
+    gb_memory_unmap(memory,0xFF77);
 }
 
 

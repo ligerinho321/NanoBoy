@@ -61,8 +61,8 @@ void gb_mbc1_write_register0(void* data,uint8_t value,uint16_t address){
             cartridge->ram_handler.read = gb_cartridge_read_ram;
         }
         else{
-            cartridge->ram_handler.write = NULL;
-            cartridge->ram_handler.read = NULL;
+            cartridge->ram_handler.write = gb_memory_write_empty;
+            cartridge->ram_handler.read = gb_memory_read_empty;
         }
     }
     //0x2000-0x3FFF
@@ -91,13 +91,18 @@ void gb_mbc1_write_register1(void* data,uint8_t value,uint16_t address){
 }
 
 void gb_mbc1_reset(gb_cartridge_t* cartridge){
+    
     if(cartridge->ram_size){
         cartridge->mbc1.ram_enabled = false;
-        cartridge->ram_handler.write = NULL;
-        cartridge->ram_handler.read = NULL;
+        
+        cartridge->ram_handler.write = gb_memory_write_empty;
+        cartridge->ram_handler.read = gb_memory_read_empty;
     }
+    
     cartridge->mbc1.bank[0] = 0x01;
     cartridge->mbc1.bank[1] = 0x00;
+    
     cartridge->mbc1.mode = false;
+
     gb_mbc1_update_mapping(cartridge);
 }

@@ -4,7 +4,11 @@
 void gb_joypad_init(gb_joypad_t* joypad,gb_t* gb){
     joypad->gb = gb;
 
-    gb_joypad_map_registers(joypad);
+    joypad->register_handler = (gb_memory_handler_t){
+        gb_joypad_write_register,
+        gb_joypad_read_register,
+        joypad
+    };
 }
 
 
@@ -89,16 +93,7 @@ bool gb_joypad_is_any_button_pressed(gb_joypad_t* joypad){
 }
 
 void gb_joypad_map_registers(gb_joypad_t* joypad){
-
-    joypad->register_handler = (gb_memory_handler_t){
-        gb_joypad_write_register,
-        gb_joypad_read_register,
-        joypad
-    };
-
-    gb_memory_handler_t** bus = joypad->gb->memory.bus;
-
-    bus[0xFF00] = &joypad->register_handler;
+    gb_memory_map(&joypad->gb->memory,&joypad->register_handler,0xFF00);
 }
 
 void gb_joypad_reset(gb_joypad_t* joypad){

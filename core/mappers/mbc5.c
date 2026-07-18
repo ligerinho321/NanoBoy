@@ -31,8 +31,8 @@ void gb_mbc5_write_register0(void* data,uint8_t value,uint16_t address){
             cartridge->ram_handler.read = gb_cartridge_read_ram;
         }
         else{
-            cartridge->ram_handler.write = NULL;
-            cartridge->ram_handler.read = NULL;
+            cartridge->ram_handler.write = gb_memory_write_empty;
+            cartridge->ram_handler.read = gb_memory_read_empty;
         }
     }
     //0x2000-0x2FFF
@@ -62,8 +62,8 @@ void gb_mbc5_reset(gb_cartridge_t* cartridge){
 
     if(cartridge->ram_size){
         cartridge->mbc5.ram_enabled = false;
-        cartridge->ram_handler.write = NULL;
-        cartridge->ram_handler.read = NULL;
+        cartridge->ram_handler.write = gb_memory_write_empty;
+        cartridge->ram_handler.read = gb_memory_read_empty;
 
         cartridge->mbc5.ram_bank = 0x00;
         gb_cartridge_set_ram_bank(cartridge,cartridge->mbc5.ram_bank);

@@ -12,7 +12,11 @@ const gb_rgb_t dmg_colors[gb_dmg_colors] = {
 void gb_palette_init(gb_palette_t* palette,gb_t* gb){
     palette->gb = gb;
 
-    gb_palette_map_dmg_registers(palette);
+    palette->dmg_register_handler = (gb_memory_handler_t){
+        gb_palette_write_dmg_register,
+        gb_palette_read_dmg_register,
+        palette
+    };
     
     palette->cgb_register_handler = (gb_memory_handler_t){
         gb_palette_write_cgb_register,
@@ -133,35 +137,16 @@ uint8_t gb_palette_read_cgb_register(void* data,uint16_t address){
 
 
 void gb_palette_map_dmg_registers(gb_palette_t* palette){
-
-    palette->dmg_register_handler = (gb_memory_handler_t){
-        gb_palette_write_dmg_register,
-        gb_palette_read_dmg_register,
-        palette
-    };
-
-    gb_memory_handler_t** bus = palette->gb->memory.bus;
-
-    bus[0xFF47] = &palette->dmg_register_handler;
-    bus[0xFF48] = &palette->dmg_register_handler;
-    bus[0xFF49] = &palette->dmg_register_handler;
+    gb_memory_map_in_range(&palette->gb->memory,&palette->dmg_register_handler,0xFF47,0xFF49);
 }
 
 
 void gb_palette_map_cgb_registers(gb_palette_t* palette){
-    gb_memory_handler_t** bus = palette->gb->memory.bus;
-    bus[0xFF68] = &palette->cgb_register_handler;
-    bus[0xFF69] = &palette->cgb_register_handler;
-    bus[0xFF6A] = &palette->cgb_register_handler;
-    bus[0xFF6B] = &palette->cgb_register_handler;
+    gb_memory_map_in_range(&palette->gb->memory,&palette->cgb_register_handler,0xFF68,0xFF6B);
 }
 
 void gb_palette_unmap_cgb_registers(gb_palette_t* palette){
-    gb_memory_handler_t** bus = palette->gb->memory.bus;
-    bus[0xFF68] = NULL;
-    bus[0xFF69] = NULL;
-    bus[0xFF6A] = NULL;
-    bus[0xFF6B] = NULL; 
+    gb_memory_unmap_in_range(&palette->gb->memory,0xFF68,0xFF6B);
 }
 
 

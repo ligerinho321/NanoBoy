@@ -14,6 +14,24 @@ gb_t* gb_new(){
     gb->type_pending = gb->type;
     gb->speed = 1.0f;
     
+    gb->key0_register_handler = (gb_memory_handler_t){
+        gb_write_key0_register,
+        gb_memory_read_empty,
+        gb
+    };
+
+    gb->key1_register_handler = (gb_memory_handler_t){
+        gb_write_key1_register,
+        gb_read_key1_register,
+        gb
+    };
+
+    gb->opri_register_handler = (gb_memory_handler_t){
+        gb_write_opri_register,
+        gb_read_opri_register,
+        gb
+    };
+
     gb_cpu_init(&gb->cpu,gb);
     
     gb_ppu_init(&gb->ppu,gb);
@@ -42,23 +60,7 @@ gb_t* gb_new(){
 
     gb_frame_timer_init(&gb->frame_timer);
 
-    gb->key0_register_handler = (gb_memory_handler_t){
-        gb_write_key0_register,
-        NULL,
-        gb
-    };
-
-    gb->key1_register_handler = (gb_memory_handler_t){
-        gb_write_key1_register,
-        gb_read_key1_register,
-        gb
-    };
-
-    gb->opri_register_handler = (gb_memory_handler_t){
-        gb_write_opri_register,
-        gb_read_opri_register,
-        gb
-    };
+    gb_map(gb);
 
     return gb;
 }
@@ -371,40 +373,69 @@ uint8_t gb_read_opri_register(void* data,uint16_t address){
 }
 
 
+void gb_map(gb_t* gb){
+    gb_ppu_map_vram(&gb->ppu);
+
+    gb_ppu_map_registers(&gb->ppu);
+
+    gb_ppu_map_oam(&gb->ppu);
+
+    gb_apu_map_registers(&gb->apu);
+
+    gb_joypad_map_registers(&gb->joypad);
+
+    gb_interrupt_map_registers(&gb->interrupt);
+
+    gb_timer_map_registers(&gb->timer);
+
+    gb_oam_dma_map_registers(&gb->dma);
+
+    gb_palette_map_dmg_registers(&gb->palette);
+
+    gb_serial_map_registers(&gb->serial);
+
+    gb_memory_map_wram(&gb->memory);
+
+    gb_memory_map_hram(&gb->memory);
+
+    gb_cartridge_map(&gb->cartridge);
+}
+
+
 void gb_map_cgb_registers(gb_t* gb){
-    gb_memory_handler_t** bus = gb->memory.bus;
+    gb_memory_t* memory = &gb->memory;
     //KEY0
-    bus[0xFF4C] = &gb->key0_register_handler;
+    gb_memory_map(memory,&gb->key0_register_handler,0xFF4C);
     //KEY1
-    bus[0xFF4D] = &gb->key1_register_handler;
+    gb_memory_map(memory,&gb->key1_register_handler,0xFF4D);
     //VBK
-    bus[0xFF4F] = &gb->ppu.vbk_register_handler;
+    gb_memory_map(memory,&gb->ppu.vbk_register_handler,0xFF4F);
     //VRAM DMA
     gb_vram_dma_map_registers(&gb->dma);
     //Palette
     gb_palette_map_cgb_registers(&gb->palette);
     //OPRI
-    bus[0xFF6C] = &gb->opri_register_handler;
+    gb_memory_map(memory,&gb->opri_register_handler,0xFF6C);
     //WBK
-    bus[0xFF70] = &gb->memory.wbk_register_handler;
+    gb_memory_map(memory,&gb->memory.wbk_register_handler,0xFF70);
     //PCM
     gb_apu_map_pcm_registers(&gb->apu);
 }
 
 void gb_unmap_cgb_registers(gb_t* gb){
-    gb_memory_handler_t** bus = gb->memory.bus;
+    gb_memory_t* memory = &gb->memory;
     //KEY1
-    bus[0xFF4D] = NULL;
+    gb_memory_unmap(memory,0xFF4D);
     //VBK
-    bus[0xFF4F] = NULL;
+    gb_memory_unmap(memory,0xFF4F);
     //VRAM DMA
     gb_vram_dma_unmap_registers(&gb->dma);
     //Palette
     gb_palette_unmap_cgb_registers(&gb->palette);
     //OPRI
-    bus[0xFF6C] = NULL;
+    gb_memory_unmap(memory,0xFF6C);
     //WBK
-    bus[0xFF70] = NULL;
+    gb_memory_unmap(memory,0xFF70);
     //PCM
     gb_apu_unmap_pcm_registers(&gb->apu);
 }

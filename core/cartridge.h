@@ -5,16 +5,19 @@
 #include "mappers/mbc2.h"
 #include "mappers/mbc3.h"
 #include "mappers/mbc5.h"
+#include "mappers/mmm01.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#define gb_cartridge_rom_min_size 0x8000
-#define gb_cartridge_rom_max_size 0x800000
+enum{
+    gb_cartridge_rom_min_size = 0x8000,
+    gb_cartridge_rom_max_size = 0x800000,
 
-#define gb_cartridge_ram_min_size 0x2000
-#define gb_cartridge_ram_max_size 0x20000
+    gb_cartridge_ram_min_size = 0x2000,
+    gb_cartridge_ram_max_size = 0x20000,
+};
 
 typedef enum _gb_cartridge_component_t {
     gb_cartridge_ram = 0x01,
@@ -26,6 +29,8 @@ typedef enum _gb_cartridge_component_t {
 
 typedef struct _gb_cartridge_t {
     gb_t* gb;
+
+    uint8_t* header;
 
     uint8_t rom[gb_cartridge_rom_max_size];
     size_t rom_size;
@@ -48,6 +53,7 @@ typedef struct _gb_cartridge_t {
         gb_mbc2_t mbc2;
         gb_mbc3_t mbc3;
         gb_mbc5_t mbc5;
+        gb_mmm01_t mmm01;
     };
 
     void (*rtc_update_timer)(struct _gb_cartridge_t*);
@@ -63,9 +69,8 @@ bool gb_cartridge_load(gb_cartridge_t* cartridge,const char* path);
 void gb_cartridge_save_ram(gb_cartridge_t* cartridge,const char* path);
 void gb_cartridge_load_ram(gb_cartridge_t* cartridge,const char* path);
 
-bool gb_cartridge_verify_header_checksum(gb_cartridge_t* cartridge);
-
-bool gb_cartridge_verify_global_checksum(gb_cartridge_t* cartridge);
+bool gb_cartridge_verify_nintendo_logo(uint8_t* header);
+bool gb_cartridge_verify_header_checksum(uint8_t* header);
 
 void gb_cartridge_init_rom(gb_cartridge_t* cartridge);
 void gb_cartridge_init_ram(gb_cartridge_t* cartridge,bool battery);
@@ -78,6 +83,8 @@ uint8_t gb_cartridge_read_rom1(void* data,uint16_t address);
 
 void gb_cartridge_write_ram(void* data,uint8_t value,uint16_t address);
 uint8_t gb_cartridge_read_ram(void* data,uint16_t address);
+
+void gb_cartridge_map(gb_cartridge_t* cartridge);
 
 void gb_cartridge_update_rtc_timer(gb_cartridge_t* cartridge);
 void gb_cartridge_save_rtc(gb_cartridge_t* cartridge,const char* path);
