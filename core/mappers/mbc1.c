@@ -67,10 +67,7 @@ void gb_mbc1_write_register0(void* data,uint8_t value,uint16_t address){
     }
     //0x2000-0x3FFF
     else{
-        cartridge->mbc1.bank[0] = value & 0x1F;
-        if(!cartridge->mbc1.bank[0]){
-            cartridge->mbc1.bank[0] = 0x01;
-        }
+        cartridge->mbc1.bank[0] = gb_max(0x01,value & 0x1F);
         gb_mbc1_update_mapping(cartridge);
     }
 }

@@ -4,7 +4,7 @@
 void gb_mbc3_init(gb_cartridge_t* cartridge,uint8_t flags){
 
     printf("Mapper: MBC3\n");
-    
+
     gb_cartridge_set_rom0_bank(cartridge,0x00);
 
     cartridge->rom0_handler.write = gb_mbc3_write_register0;
@@ -33,8 +33,11 @@ void gb_mbc3_update_ram_and_rtc_mapping(gb_cartridge_t* cartridge){
     if(!cartridge->mbc3.ram_and_rtc_enabled) goto unmap;
 
     if(cartridge->mbc3.ram_and_rtc_bank <= 0x07){
-        if(cartridge->ram_size){
+
+        if(cartridge->ram_size > 0){
+            
             gb_cartridge_set_ram_bank(cartridge,cartridge->mbc3.ram_and_rtc_bank);
+
             cartridge->ram_handler.write = gb_cartridge_write_ram;
             cartridge->ram_handler.read = gb_cartridge_read_ram;
         }
@@ -43,7 +46,9 @@ void gb_mbc3_update_ram_and_rtc_mapping(gb_cartridge_t* cartridge){
         }
     }
     else if(cartridge->mbc3.ram_and_rtc_bank <= 0x0C){
+
         if(cartridge->mbc3.has_rtc){
+            
             cartridge->ram_handler.write = gb_mbc3_rtc_write_register;
             cartridge->ram_handler.read = gb_mbc3_rtc_read_register;
         }
@@ -75,11 +80,7 @@ void gb_mbc3_write_register0(void* data,uint8_t value,uint16_t address){
     }
     //0x2000-0x3FFF
     else{
-        cartridge->mbc3.rom_bank = value & 0x7F;
-
-        if(!cartridge->mbc3.rom_bank){
-            cartridge->mbc3.rom_bank = 0x01;
-        }
+        cartridge->mbc3.rom_bank = gb_max(0x01,value);
         
         gb_cartridge_set_rom1_bank(cartridge,cartridge->mbc3.rom_bank);
     }

@@ -49,34 +49,33 @@ bool gb_cartridge_load(gb_cartridge_t* cartridge,const char* path){
 
     fread(cartridge->rom,1,size,file);
 
-    uint8_t* mmm01_header = cartridge->rom + (size - 0x8000) + 0x100;
-    uint8_t mapper = mmm01_header[0x47];
+    uint8_t* singlecard_header = cartridge->rom + 0x100;
+    size_t singlecard_rom_size = gb_cartridge_get_rom_size(singlecard_header);
 
-    uint8_t* default_header = cartridge->rom + 0x100;
-
-    if(
-        (mapper == 0x0B || mapper == 0x0C || mapper == 0x0D) &&
-        gb_cartridge_verify_nintendo_logo(mmm01_header) &&
-        gb_cartridge_verify_header_checksum(mmm01_header)
-    ){
-        cartridge->header = mmm01_header;
-    }
-    else if(
-        gb_cartridge_verify_nintendo_logo(default_header) &&
-        gb_cartridge_verify_header_checksum(default_header)
-    ){
-        cartridge->header = default_header;
+    if(gb_cartridge_verify_nintendo_logo(singlecard_header) && gb_cartridge_verify_header_checksum(singlecard_header) && (singlecard_rom_size == size)){
+        
+        cartridge->header = singlecard_header;
+        
+        cartridge->rom_size = singlecard_rom_size;
+        
+        cartridge->rom_bank_mask = (singlecard_rom_size >> 0x0E) - 0x01;
     }
     else{
-        gb_printf_error("invalid rom");
-        goto fail;
-    }
+        uint8_t* multicard_header = cartridge->rom + (size - 0x8000) + 0x100;
+        size_t multicard_rom_size = gb_cartridge_get_rom_size(multicard_header);
 
-    gb_cartridge_init_rom(cartridge);
-
-    if(cartridge->rom_size != size){
-        gb_printf_error("invalid rom");
-        goto fail;
+        if(gb_cartridge_verify_nintendo_logo(multicard_header) && gb_cartridge_verify_header_checksum(multicard_header) && (multicard_rom_size == size)){
+            
+            cartridge->header = multicard_header;
+            
+            cartridge->rom_size = multicard_rom_size;
+            
+            cartridge->rom_bank_mask = (multicard_rom_size >> 0x0E) - 0x01;
+        }
+        else{
+            gb_printf_error("invalid rom");
+            goto fail;
+        }
     }
 
     if(!gb_cartridge_init_mapper(cartridge)){
@@ -143,56 +142,34 @@ bool gb_cartridge_verify_header_checksum(uint8_t* header){
 }
 
 
-void gb_cartridge_init_rom(gb_cartridge_t* cartridge){
+size_t gb_cartridge_get_rom_size(uint8_t* header){
 
-    switch(cartridge->header[0x48]){
+    size_t rom_size = 0x00;
+
+    switch(header[0x48]){
         //32KB
-        case 0x00:
-            cartridge->rom_size = 0x8000;
-            cartridge->rom_bank_mask = 0x01;
-            break;
+        case 0x00: rom_size = 0x8000; break;
         //64KB
-        case 0x01:
-            cartridge->rom_size = 0x10000;
-            cartridge->rom_bank_mask = 0x03;
-            break;
+        case 0x01: rom_size = 0x10000; break;
         //128KB
-        case 0x02:
-            cartridge->rom_size = 0x20000;
-            cartridge->rom_bank_mask = 0x07;
-            break;
+        case 0x02: rom_size = 0x20000; break;
         //256KB
-        case 0x03:
-            cartridge->rom_size = 0x40000;
-            cartridge->rom_bank_mask = 0x0F;
-            break;
+        case 0x03: rom_size = 0x40000; break;
         //512KB
-        case 0x04:
-            cartridge->rom_size = 0x80000;
-            cartridge->rom_bank_mask = 0x1F;
-            break;
+        case 0x04: rom_size = 0x80000; break;
         //1MB
-        case 0x05:
-            cartridge->rom_size = 0x100000;
-            cartridge->rom_bank_mask = 0x3F;
-            break;
+        case 0x05: rom_size = 0x100000; break;
         //2MB
-        case 0x06:
-            cartridge->rom_size = 0x200000;
-            cartridge->rom_bank_mask = 0x7F;
-            break;
+        case 0x06: rom_size = 0x200000; break;
         //4MB 
-        case 0x07:
-            cartridge->rom_size = 0x400000;
-            cartridge->rom_bank_mask = 0xFF;
-            break;
+        case 0x07: rom_size = 0x400000; break;
         //8MB 
-        case 0x08:
-            cartridge->rom_size = 0x800000;
-            cartridge->rom_bank_mask = 0x1FF;
-            break;
+        case 0x08: rom_size = 0x800000; break;
     }
+
+    return rom_size;
 }
+
 
 void gb_cartridge_init_ram(gb_cartridge_t* cartridge,bool battery){
 
@@ -299,7 +276,7 @@ bool gb_cartridge_init_mapper(gb_cartridge_t* cartridge){
         //HuC3
         case 0xFE: result = false; break;
         //HuC1+RAM+BATTERY
-        case 0xFF: result = false; break;
+        case 0xFF: gb_huc1_init(cartridge,gb_cartridge_ram | gb_cartridge_battery); break;
         
         default: result = false; break;
     }

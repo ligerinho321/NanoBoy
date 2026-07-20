@@ -52,6 +52,7 @@ target_sources(
     core/mappers/mbc3.c
     core/mappers/mbc5.c
     core/mappers/mmm01.c
+    core/mappers/huc1.c
     core/apu.c
     core/boot.c
     core/cartridge.c

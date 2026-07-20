@@ -23,10 +23,7 @@ void gb_mbc2_write_register(void* data,uint8_t value,uint16_t address){
     gb_cartridge_t* cartridge = (gb_cartridge_t*)data;
 
     if(address & 0x0100){
-        cartridge->mbc2.rom_bank = value & 0x0F;
-        if(!cartridge->mbc2.rom_bank){
-            cartridge->mbc2.rom_bank = 0x01;
-        }
+        cartridge->mbc2.rom_bank = gb_max(0x01,value & 0x0F);
         gb_cartridge_set_rom1_bank(cartridge,cartridge->mbc2.rom_bank);
     }
     else{

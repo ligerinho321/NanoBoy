@@ -6,6 +6,7 @@
 #include "mappers/mbc3.h"
 #include "mappers/mbc5.h"
 #include "mappers/mmm01.h"
+#include "mappers/huc1.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -54,6 +55,7 @@ typedef struct _gb_cartridge_t {
         gb_mbc3_t mbc3;
         gb_mbc5_t mbc5;
         gb_mmm01_t mmm01;
+        gb_huc1_t huc1;
     };
 
     void (*rtc_update_timer)(struct _gb_cartridge_t*);
@@ -72,7 +74,8 @@ void gb_cartridge_load_ram(gb_cartridge_t* cartridge,const char* path);
 bool gb_cartridge_verify_nintendo_logo(uint8_t* header);
 bool gb_cartridge_verify_header_checksum(uint8_t* header);
 
-void gb_cartridge_init_rom(gb_cartridge_t* cartridge);
+size_t gb_cartridge_get_rom_size(uint8_t* header);
+
 void gb_cartridge_init_ram(gb_cartridge_t* cartridge,bool battery);
 bool gb_cartridge_init_mapper(gb_cartridge_t* cartridge);
 
