@@ -134,7 +134,7 @@ typedef struct _gb_ppu_t {
 
     gb_memory_handler_t register_handler;
 
-    gb_ppu_handler_t* handles;
+    gb_ppu_handler_t* handlers;
 } gb_ppu_t;
 
 void gb_ppu_init(gb_ppu_t* ppu,gb_t* gb);

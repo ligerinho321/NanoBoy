@@ -58,47 +58,11 @@ static inline void gb_memory_apply_cheat(gb_memory_t* memory,uint8_t* value,uint
 }
 
 void gb_memory_add_cheat_code(gb_memory_t* memory,gb_cheat_code_t* code){
-    
-    gb_cheat_code_t* current = memory->codes[code->address];
-
-    if(current == code) return;
-    
-    if(current != NULL){
-
-        while(current->next != NULL){
-
-            current = current->next;
-
-            if(current == code) return;
-        }
-
-        current->next = code;
-    }
-    else{
-        memory->codes[code->address] = code;
-    }
-
-    code->next = NULL;
+    gb_list_add_element(memory->codes[code->address],code,gb_cheat_code_t);
 }
 
 void gb_memory_remove_cheat_code(gb_memory_t* memory,gb_cheat_code_t* code){
-    
-    gb_cheat_code_t* prev = NULL;
-    gb_cheat_code_t* current = memory->codes[code->address];
-
-    while(current != NULL){
-        if(current == code){
-            if(prev != NULL){
-                prev->next = code->next;
-            }
-            else{
-                memory->codes[code->address] = code->next;
-            }
-            break;
-        }
-        prev = current;
-        current = current->next;
-    }
+    gb_list_remove_element(memory->codes[code->address],code,gb_cheat_code_t);
 }
 
 

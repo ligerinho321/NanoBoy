@@ -6,12 +6,6 @@ class file_base_dialog_t {
 protected:
     using file_dialog_callback_t = void (*)(void* userdata,std::filesystem::path);
     
-    enum{
-        gigabytes = 0x01 << 0x1E,
-        megabytes = 0x01 << 0x14,
-        kilobytes = 0x01 << 0x0A
-    };
-
     struct path_part_t {
         std::string name;
         std::filesystem::path path;
@@ -105,6 +99,18 @@ protected:
     
 public:
     file_base_dialog_t();
+
+    void copy_to_name_buffer(const char* src) noexcept {
+        size_t len = strlen(src);
+        if(len >= sizeof(name_buffer)) return;
+        strcpy(name_buffer,src);
+        name_buffer_length = len;
+    }
+
+    void set_current_extension(int _current_extension) noexcept {
+        if(_current_extension < 0 || _current_extension >= extensions_count) return;
+        current_extension = _current_extension;
+    }
 
     void set_extensions(const char** _extensions,int _extensions_count) noexcept {
         extensions = _extensions;

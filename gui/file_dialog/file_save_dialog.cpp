@@ -115,7 +115,11 @@ void file_save_dialog_t::render_popup_modal(){
     float overwrite_button_width = ImGui::CalcTextSize(overwrite).x + style.FramePadding.x * 2.0f;
     float cancel_button_width = ImGui::CalcTextSize(cancel).x + style.FramePadding.x * 2.0f;
 
-    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - overwrite_button_width - cancel_button_width - style.ItemSpacing.x);
+    ImGui::SetCursorPosX(
+        ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - 
+        overwrite_button_width - cancel_button_width - 
+        style.ItemSpacing.x
+    );
 
     if(ImGui::Button(overwrite)){
         

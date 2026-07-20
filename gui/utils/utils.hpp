@@ -20,6 +20,16 @@
 #include <mutex>
 #include <atomic>
 
+enum{
+    kilobytes = 1024,
+    megabytes = 1024 * kilobytes,
+    gigabytes = 1024 * megabytes,
+
+    kilohertz = 1000,
+    megahertz = 1000 * kilohertz,
+    gigahertz = 1000 * megahertz
+};
+
 struct palette_t{
     enum{
         texture_max_width = gb_palette_colors * gb_tile_size,
@@ -141,6 +151,36 @@ inline float get_input_scalar_width(){
 
 inline bool mouse_in_rect(ImVec2 m,ImVec2 rmin,ImVec2 rmax){
     return (m.x >= rmin.x && m.x <= rmax.x) && (m.y >= rmin.y && m.y <= rmax.y);
+}
+
+inline void render_size_text(size_t size){
+    if(size >= gigabytes){
+        ImGui::Text("%.1f GB",(float)size / (float)gigabytes);
+    }
+    else if(size >= megabytes){
+        ImGui::Text("%.1f MB",(float)size / (float)megabytes);
+    }
+    else if(size >= kilobytes){
+        ImGui::Text("%.1f KB",(float)size / (float)kilobytes);
+    }
+    else{
+        ImGui::Text("%lu B",size);
+    }
+}
+
+inline void render_hertz_text(size_t hertz){
+    if(hertz >= gigahertz){
+        ImGui::Text("%.1f gHz",(float)hertz / (float)gigahertz);
+    }
+    else if(hertz >= megahertz){
+        ImGui::Text("%.1f mHz",(float)hertz / (float)megahertz);
+    }
+    else if(hertz >= kilohertz){
+        ImGui::Text("%.1f kHz",(float)hertz / (float)kilohertz);
+    }
+    else{
+        ImGui::Text("%lu Hz",hertz);
+    }
 }
 
 void clear_texture(SDL_Texture* texture,int height);

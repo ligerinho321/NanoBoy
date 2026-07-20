@@ -252,18 +252,7 @@ void file_base_dialog_t::render_directory(){
 
                 ImGui::TableNextColumn();
                 
-                if(entry.size >= gigabytes){
-                    ImGui::Text("%.1f GB",(float)entry.size / (float)gigabytes);
-                }
-                else if(entry.size >= megabytes){
-                    ImGui::Text("%.1f MB",(float)entry.size / (float)megabytes);
-                }
-                else if(entry.size >= kilobytes){
-                    ImGui::Text("%.1f KB",(float)entry.size / (float)kilobytes);
-                }
-                else{
-                    ImGui::Text("%lu B",entry.size);
-                }
+                render_size_text(entry.size);
 
                 ImGui::TableNextColumn();
 

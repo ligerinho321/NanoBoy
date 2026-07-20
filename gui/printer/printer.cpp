@@ -85,6 +85,15 @@ void printer_t::file_save_callback(void* userdata,std::filesystem::path path){
 }
 
 
+const char* printer_t::get_print_file_name() const noexcept {
+    static char buffer[128] = {0};
+    time_t current_time = time(NULL);
+    struct tm* local_time = localtime(&current_time);
+    strftime(buffer,sizeof(buffer),"NanoBoy_Print_%d%m%Y_%H%M%S",local_time);
+    return buffer;
+}
+
+
 void printer_t::update(){
     if(!update_texture.load(std::memory_order_acquire)) return;
 
@@ -175,6 +184,7 @@ void printer_t::render(){
         ImGui::BeginDisabled(!texture_height);
 
         if(ImGui::Button("Save")){
+            file_save.copy_to_name_buffer(get_print_file_name());
             file_save.set_open(true);
         }
 

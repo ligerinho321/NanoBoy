@@ -56,6 +56,7 @@ nanoboy_t::nanoboy_t(){
 
     file_selector = new file_selector_t();
     file_selector->set_extensions(file_selector_filters,file_selector_filters_count);
+    file_selector->set_current_extension(1);
     file_selector->set_callback(file_selector_callback,this);
 
     screen = new screen_t(renderer);
@@ -247,7 +248,7 @@ void nanoboy_t::insert_cartridge(std::filesystem::path path){
     object_viewer->set_open<false>(object_viewer_open);
     palette_viewer->set_open<false>(palette_viewer_open);
     
-    wave_form->set_open<false>(wave_form_open);
+    wave_form->set_open(wave_form_open,true,false);
 
     gb_thread_start(gb);
 }
@@ -277,7 +278,7 @@ void nanoboy_t::remove_cartridge(){
     palette_viewer->set_open<false>(false);
     palette_viewer->clear();
 
-    wave_form->set_open<false>(false);
+    wave_form->set_open(false,true,false);
     wave_form->clear();
     
     screen->clear();
@@ -496,7 +497,7 @@ void nanoboy_t::render_main_menu_bar(){
             palette_viewer->set_open<true>(true);
         }
         if(ImGui::MenuItem("Wave Form",nullptr,nullptr,gb->cartridge_inserted)){
-            wave_form->set_open<true>(true);
+            wave_form->set_open(true,false,true);
         }
         ImGui::EndMenu();
     }

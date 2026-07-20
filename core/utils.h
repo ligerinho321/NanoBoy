@@ -61,6 +61,38 @@ typedef bool gb_atomic_bool_t;
     _x_tmp > _y_tmp ? _x_tmp : _y_tmp;\
 })
 
+#define gb_list_add_element(list,element,type)\
+    type* current = list;\
+    if(current == element) return;\
+    if(current != NULL){\
+        while(current->next != NULL){\
+            current = current->next;\
+            if(current == element) return;\
+        }\
+        current->next = element;\
+    }\
+    else{\
+        list = element;\
+    }\
+    element->next = NULL;
+
+#define gb_list_remove_element(list,element,type)\
+    type* prev = NULL;\
+    type* current = list;\
+    while(current != NULL){\
+        if(current == element){\
+            if(prev != NULL){\
+                prev->next = current->next;\
+            }\
+            else{\
+                list = current->next;\
+            }\
+            break;\
+        }\
+        prev = current;\
+        current = current->next;\
+    }
+
 #define gb_printf_errno(f) fprintf(stderr,"function: %s line: %d %s: %s\n",__func__,__LINE__,#f,strerror(errno))
 #define gb_printf_error(e) fprintf(stderr,"function: %s line: %d error: %s\n",__func__,__LINE__,e)
 
@@ -104,8 +136,10 @@ enum {
     gb_frame_cycles = 70224,
 
     gb_audio_sample_rate = 44100,
-    gb_audio_bytes_per_sample = sizeof(int16_t),
     gb_audio_channels = 2,
+    gb_audio_bytes_per_sample = sizeof(int16_t),
+    gb_audio_bits_per_sample = gb_audio_bytes_per_sample * 8,
+    gb_audio_byte_rate = gb_audio_sample_rate * gb_audio_channels * gb_audio_bytes_per_sample,
     gb_audio_frame_samples = 739, // gb_frame_cycles / (gb_clock_rate / gb_sample_rate)
 
     gb_audio_channel_volume_shift = 6,
@@ -120,26 +154,25 @@ enum {
 
 typedef struct _gb_t gb_t;
 
-
 typedef struct gb_rgb_t {
     uint8_t r;
     uint8_t g;
     uint8_t b;
 } gb_rgb_t;
 
+typedef struct _gb_apu_handler_t {
+    void (*callback)(void*);
+    void* userdata;
+    struct _gb_apu_handler_t* next;
+} gb_apu_handler_t;
+
 typedef struct _gb_ppu_handler_t {
-    void (*callback)(void* data);
-    void* data;
+    void (*callback)(void*);
+    void* userdata;
     uint8_t scanline;
     uint16_t cycle;
     struct _gb_ppu_handler_t* next;
 } gb_ppu_handler_t;
-
-typedef struct _gb_memory_handler_t {
-    void (*write)(void*,uint8_t,uint16_t);
-    uint8_t (*read)(void*,uint16_t);
-    void* data;
-} gb_memory_handler_t;
 
 typedef struct _gb_cheat_code_t {
     uint8_t new_value;
@@ -148,6 +181,12 @@ typedef struct _gb_cheat_code_t {
     bool* enabled;
     struct _gb_cheat_code_t* next;
 } gb_cheat_code_t;
+
+typedef struct _gb_memory_handler_t {
+    void (*write)(void*,uint8_t,uint16_t);
+    uint8_t (*read)(void*,uint16_t);
+    void* data;
+} gb_memory_handler_t;
 
 
 typedef struct _gb_pixel_fifo_entry_t {

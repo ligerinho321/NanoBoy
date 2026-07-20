@@ -97,19 +97,19 @@ void gb_apu_init(gb_apu_t* apu,gb_t* gb){
 }
 
 
-void gb_apu_set_callback(gb_apu_t* apu,gb_apu_callback_t callback,void* data){
-    apu->callback = callback;
-    apu->callback_data = data;
+void gb_apu_add_handler(gb_apu_t* apu,gb_apu_handler_t* handler){
+    gb_list_add_element(apu->handlers,handler,gb_apu_handler_t);
 }
 
-void gb_apu_remove_callback(gb_apu_t* apu){
-    apu->callback = NULL;
-    apu->callback_data = NULL;
+void gb_apu_remove_handler(gb_apu_t* apu,gb_apu_handler_t* handler){
+    gb_list_remove_element(apu->handlers,handler,gb_apu_handler_t);
 
-    gb_apu_channel_frame_reset(&apu->square1_frame);
-    gb_apu_channel_frame_reset(&apu->square2_frame);
-    gb_apu_channel_frame_reset(&apu->wave_frame);
-    gb_apu_channel_frame_reset(&apu->noise_frame);
+    if(!apu->handlers){
+        gb_apu_channel_frame_reset(&apu->square1_frame);
+        gb_apu_channel_frame_reset(&apu->square2_frame);
+        gb_apu_channel_frame_reset(&apu->wave_frame);
+        gb_apu_channel_frame_reset(&apu->noise_frame);
+    }
 }
 
 
@@ -160,7 +160,7 @@ void gb_apu_update_output(gb_apu_t* apu){
         apu->mixer_frame.last_right_output = right_output;
     }
 
-    if(apu->callback){
+    if(apu->handlers != NULL){
         if(square1_output != apu->square1_frame.last_output){
             blip_add_delta(apu->square1_frame.blip,apu->frame_cycle,square1_output - apu->square1_frame.last_output);
             apu->square1_frame.last_output = square1_output;
@@ -270,13 +270,18 @@ void gb_apu_frame_end(gb_apu_t* apu){
 
     gb_apu_mixer_frame_end(&apu->mixer_frame);
 
-    if(apu->callback){
+    if(apu->handlers != NULL){
+        
         gb_apu_channel_frame_end(&apu->square1_frame);
         gb_apu_channel_frame_end(&apu->square2_frame);
         gb_apu_channel_frame_end(&apu->wave_frame);
         gb_apu_channel_frame_end(&apu->noise_frame);
 
-        apu->callback(apu->callback_data);
+        gb_apu_handler_t* handler = apu->handlers;
+        do{
+            handler->callback(handler->userdata);
+            handler = handler->next;
+        }while(handler != NULL);
     }
 
     int len = apu->mixer_frame.samples_count * gb_audio_bytes_per_sample;

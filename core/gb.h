@@ -85,8 +85,8 @@ void gb_thread_safe_disconnect_printer(gb_t* gb);
 void gb_thread_safe_set_joypad_callback(gb_t* gb,gb_joypad_callback_t callback,void* data);
 void gb_thread_safe_remove_joypad_callback(gb_t* gb);
 
-void gb_thread_safe_set_apu_callback(gb_t* gb,gb_apu_callback_t callback,void* data);
-void gb_thread_safe_remove_apu_callback(gb_t* gb);
+void gb_thread_safe_add_apu_handler(gb_t* gb,gb_apu_handler_t* handler);
+void gb_thread_safe_remove_apu_handler(gb_t* gb,gb_apu_handler_t* handler);
 
 void gb_thread_safe_add_ppu_handler(gb_t* gb,gb_ppu_handler_t* handler);
 void gb_thread_safe_remove_ppu_handler(gb_t* gb,gb_ppu_handler_t* handler);
@@ -133,8 +133,8 @@ void gb_delete(gb_t* gb);
 #define gb_save_rtc(gb,path) gb_cartridge_save_rtc(&(gb)->cartridge,path)
 #define gb_load_rtc(gb,path) gb_cartridge_load_rtc(&(gb)->cartridge,path)
 
-#define gb_set_apu_callback(gb,callback,data) gb_apu_set_callback(&(gb)->apu,callback,data)
-#define gb_remove_apu_callback(gb) gb_apu_remove_callback(&(gb)->apu)
+#define gb_add_apu_handler(gb,handler) gb_apu_add_handler(&(gb)->apu,handler)
+#define gb_remove_apu_handler(gb,handler) gb_apu_remove_handler(&(gb)->apu,handler)
 
 #define gb_add_ppu_handler(gb,handler) gb_ppu_add_handler(&(gb)->ppu,handler)
 #define gb_remove_ppu_handler(gb,handler) gb_ppu_remove_handler(&(gb)->ppu,handler)

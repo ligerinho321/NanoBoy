@@ -125,15 +125,15 @@ void gb_thread_safe_remove_joypad_callback(gb_t* gb){
 }
 
 
-void gb_thread_safe_set_apu_callback(gb_t* gb,gb_apu_callback_t callback,void* data){
+void gb_thread_safe_add_apu_handler(gb_t* gb,gb_apu_handler_t* handler){
     gb_thread_stop(gb);
-    gb_apu_set_callback(&gb->apu,callback,data);
+    gb_add_apu_handler(gb,handler);
     gb_thread_start(gb);
 }
 
-void gb_thread_safe_remove_apu_callback(gb_t* gb){
+void gb_thread_safe_remove_apu_handler(gb_t* gb,gb_apu_handler_t* handler){
     gb_thread_stop(gb);
-    gb_apu_remove_callback(&gb->apu);
+    gb_remove_apu_handler(gb,handler);
     gb_thread_start(gb);
 }
 

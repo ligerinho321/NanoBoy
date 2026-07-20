@@ -35,6 +35,8 @@ private:
 
     static void file_save_callback(void* userdata,std::filesystem::path path);
     
+    const char* get_print_file_name() const noexcept;
+
     void update();
 
 public:

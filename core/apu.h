@@ -7,8 +7,6 @@
 extern "C" {
 #endif
 
-typedef void (*gb_apu_callback_t)(void* data);
-
 typedef struct _gb_apu_t gb_apu_t;
 
 typedef struct _gb_apu_panning_t {
@@ -153,8 +151,7 @@ typedef struct _gb_apu_t {
     uint64_t last_clock_cycle;
     uint64_t cycles;
 
-    gb_apu_callback_t callback;
-    void* callback_data;
+    gb_apu_handler_t* handlers;
 
     gb_memory_handler_t square1_register_handler;
     gb_memory_handler_t square2_register_handler;
@@ -168,8 +165,8 @@ typedef struct _gb_apu_t {
 
 void gb_apu_init(gb_apu_t* apu,gb_t* gb);
 
-void gb_apu_set_callback(gb_apu_t* apu,gb_apu_callback_t callback,void* data);
-void gb_apu_remove_callback(gb_apu_t* apu);
+void gb_apu_add_handler(gb_apu_t* apu,gb_apu_handler_t* handler);
+void gb_apu_remove_handler(gb_apu_t* apu,gb_apu_handler_t* handler);
 
 void gb_apu_update_rates(gb_apu_t* apu);
 
