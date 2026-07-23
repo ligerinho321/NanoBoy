@@ -2,10 +2,6 @@
 
 #include "../utils.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef struct _gb_cartridge_t gb_cartridge_t;
 
 typedef struct _gb_mmm01_t {
@@ -29,7 +25,12 @@ typedef struct _gb_mmm01_t {
     uint8_t ram_bank_high;
 } gb_mmm01_t;
 
-void gb_mmm01_init(gb_cartridge_t* cartridge,uint8_t flags);
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+bool gb_mmm01_init(gb_cartridge_t* cartridge,uint8_t flags);
 
 void gb_mmm01_write_register0(void* data,uint8_t value,uint16_t address);
 

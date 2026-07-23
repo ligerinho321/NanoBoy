@@ -32,10 +32,11 @@ void gb_cartridge_init(gb_cartridge_t* cartridge,gb_t* gb){
 
 
 bool gb_cartridge_load(gb_cartridge_t* cartridge,const char* path){
+
     FILE* file = fopen(path,"rb");
     if(!file){
         gb_printf_errno(fopen);
-        return false;
+        goto fail;
     }
 
     fseek(file,0,SEEK_END);
@@ -47,6 +48,12 @@ bool gb_cartridge_load(gb_cartridge_t* cartridge,const char* path){
         goto fail;
     }
 
+    cartridge->rom = (uint8_t*)malloc(size);
+    if(!cartridge->rom){
+        gb_printf_errno(malloc);
+        goto fail;
+    }
+
     fread(cartridge->rom,1,size,file);
 
     uint8_t* singlecard_header = cartridge->rom + 0x100;
@@ -55,7 +62,7 @@ bool gb_cartridge_load(gb_cartridge_t* cartridge,const char* path){
     if(gb_cartridge_verify_nintendo_logo(singlecard_header) && gb_cartridge_verify_header_checksum(singlecard_header) && (singlecard_rom_size == size)){
         
         cartridge->header = singlecard_header;
-        
+
         cartridge->rom_size = singlecard_rom_size;
         
         cartridge->rom_bank_mask = (singlecard_rom_size >> 0x0E) - 0x01;
@@ -171,7 +178,7 @@ size_t gb_cartridge_get_rom_size(uint8_t* header){
 }
 
 
-void gb_cartridge_init_ram(gb_cartridge_t* cartridge,bool battery){
+bool gb_cartridge_init_ram(gb_cartridge_t* cartridge,bool battery){
 
     switch(cartridge->header[0x49]){
         //2KB
@@ -201,9 +208,16 @@ void gb_cartridge_init_ram(gb_cartridge_t* cartridge,bool battery){
             break;
     }
 
-    if(cartridge->ram_size){
+    if(cartridge->ram_size > 0x00){
         
-        memset(cartridge->ram,0,cartridge->ram_size);
+        cartridge->ram = (uint8_t*)malloc(cartridge->ram_size);
+
+        if(!cartridge->ram){
+            gb_printf_errno(malloc);
+            return false;
+        }
+
+        memset(cartridge->ram,0x00,cartridge->ram_size);
 
         if(cartridge->ram_size == 0x800){
             cartridge->ram_address_mask = 0x07FF;
@@ -213,7 +227,11 @@ void gb_cartridge_init_ram(gb_cartridge_t* cartridge,bool battery){
         }
         
         cartridge->ram_has_battery = battery;
+
+        return true;
     }
+
+    return false;
 }
 
 bool gb_cartridge_init_mapper(gb_cartridge_t* cartridge){
@@ -222,51 +240,51 @@ bool gb_cartridge_init_mapper(gb_cartridge_t* cartridge){
 
     switch(cartridge->header[0x47]){
         //ROM ONLY
-        case 0x00: gb_no_mbc_init(cartridge,0x00); break;
+        case 0x00: return gb_no_mbc_init(cartridge,0x00);
         //MBC1
-        case 0x01: gb_mbc1_init(cartridge,0x00); break;
+        case 0x01: return gb_mbc1_init(cartridge,0x00);
         //MBC1+RAM
-        case 0x02: gb_mbc1_init(cartridge,gb_cartridge_ram); break;
+        case 0x02: return gb_mbc1_init(cartridge,gb_cartridge_ram);
         //MBC1+RAM+BATTERY
-        case 0x03: gb_mbc1_init(cartridge,gb_cartridge_ram | gb_cartridge_battery); break;
+        case 0x03: return gb_mbc1_init(cartridge,gb_cartridge_ram | gb_cartridge_battery);
         //MBC2
-        case 0x05: gb_mbc2_init(cartridge,0x00); break;
+        case 0x05: return gb_mbc2_init(cartridge,0x00);
         //MBC2+BATTERY
-        case 0x06: gb_mbc2_init(cartridge,gb_cartridge_battery); break;
+        case 0x06: return gb_mbc2_init(cartridge,gb_cartridge_battery);
         //ROM+RAM
-        case 0x08: gb_no_mbc_init(cartridge,gb_cartridge_ram); break;
+        case 0x08: return gb_no_mbc_init(cartridge,gb_cartridge_ram);
         //ROM+RAM+BATTERY
-        case 0x09: gb_no_mbc_init(cartridge,gb_cartridge_ram | gb_cartridge_battery); break;
+        case 0x09: return gb_no_mbc_init(cartridge,gb_cartridge_ram | gb_cartridge_battery);
         //MMM01
-        case 0x0B: gb_mmm01_init(cartridge,0x00); break;
+        case 0x0B: return gb_mmm01_init(cartridge,0x00);
         //MMM01+BATTERY
-        case 0x0C: gb_mmm01_init(cartridge,gb_cartridge_battery); break;
+        case 0x0C: return gb_mmm01_init(cartridge,gb_cartridge_battery);
         //MMM01+RAM+BATTERY
-        case 0x0D: gb_mmm01_init(cartridge,gb_cartridge_ram | gb_cartridge_battery); break;
+        case 0x0D: return gb_mmm01_init(cartridge,gb_cartridge_ram | gb_cartridge_battery);
         //MBC3+TIMER+BATTERY
-        case 0x0F: gb_mbc3_init(cartridge,gb_cartridge_rtc | gb_cartridge_battery); break;
+        case 0x0F: return gb_mbc3_init(cartridge,gb_cartridge_rtc | gb_cartridge_battery);
         //MBC3+TIMER+RAM+BATTERY
-        case 0x10: gb_mbc3_init(cartridge,gb_cartridge_rtc | gb_cartridge_ram | gb_cartridge_battery); break;
+        case 0x10: return gb_mbc3_init(cartridge,gb_cartridge_rtc | gb_cartridge_ram | gb_cartridge_battery);
         //MBC3
-        case 0x11: gb_mbc3_init(cartridge,0x00); break;
+        case 0x11: return gb_mbc3_init(cartridge,0x00);
         //MBC3+RAM
-        case 0x12: gb_mbc3_init(cartridge,gb_cartridge_ram); break;
+        case 0x12: return gb_mbc3_init(cartridge,gb_cartridge_ram);
         //MBC3+RAM+BATTERY
-        case 0x13: gb_mbc3_init(cartridge,gb_cartridge_ram | gb_cartridge_battery); break;
+        case 0x13: return gb_mbc3_init(cartridge,gb_cartridge_ram | gb_cartridge_battery);
         //MBC5
-        case 0x19: gb_mbc5_init(cartridge,0x00); break;
+        case 0x19: return gb_mbc5_init(cartridge,0x00);
         //MBC5+RAM
-        case 0x1A: gb_mbc5_init(cartridge,gb_cartridge_ram); break;
+        case 0x1A: return gb_mbc5_init(cartridge,gb_cartridge_ram);
         //MBC5+RAM+BATTERY
-        case 0x1B: gb_mbc5_init(cartridge,gb_cartridge_ram | gb_cartridge_battery); break;
+        case 0x1B: return gb_mbc5_init(cartridge,gb_cartridge_ram | gb_cartridge_battery);
         //MBC5+RUMBLE
-        case 0x1C: gb_mbc5_init(cartridge,gb_cartridge_rumble); break;
+        case 0x1C: return gb_mbc5_init(cartridge,gb_cartridge_rumble);
         //MBC5+RUMBLE+RAM
-        case 0x1D: gb_mbc5_init(cartridge,gb_cartridge_rumble | gb_cartridge_ram); break;
+        case 0x1D: return gb_mbc5_init(cartridge,gb_cartridge_rumble | gb_cartridge_ram);
         //MBC5+RUMBLE+RAM+BATTERY
-        case 0x1E: gb_mbc5_init(cartridge,gb_cartridge_rumble | gb_cartridge_ram | gb_cartridge_battery); break;
-        //MBC6
-        case 0x20: result = false; break;
+        case 0x1E: return gb_mbc5_init(cartridge,gb_cartridge_rumble | gb_cartridge_ram | gb_cartridge_battery);
+        //MBC6+RAM+BATTERY
+        case 0x20: return gb_mbc6_init(cartridge,gb_cartridge_ram | gb_cartridge_battery);
         //MBC7+SENSOR+RUMBLE+RAM+BATTERY
         case 0x22: result = false; break;
         //POCKET CAMERA
@@ -276,7 +294,7 @@ bool gb_cartridge_init_mapper(gb_cartridge_t* cartridge){
         //HuC3
         case 0xFE: result = false; break;
         //HuC1+RAM+BATTERY
-        case 0xFF: gb_huc1_init(cartridge,gb_cartridge_ram | gb_cartridge_battery); break;
+        case 0xFF: return gb_huc1_init(cartridge,gb_cartridge_ram | gb_cartridge_battery);
         
         default: result = false; break;
     }
@@ -285,7 +303,7 @@ bool gb_cartridge_init_mapper(gb_cartridge_t* cartridge){
 }
 
 
-void gb_no_mbc_init(gb_cartridge_t* cartridge,uint8_t flags){
+bool gb_no_mbc_init(gb_cartridge_t* cartridge,uint8_t flags){
     
     printf("Mapper: NoMBC\n");
 
@@ -294,9 +312,11 @@ void gb_no_mbc_init(gb_cartridge_t* cartridge,uint8_t flags){
     
     if(flags & gb_cartridge_ram){
         
-        gb_cartridge_init_ram(cartridge,flags & gb_cartridge_battery);
+        if(!gb_cartridge_init_ram(cartridge,flags & gb_cartridge_battery)){
+            return false;
+        }
 
-        if(cartridge->ram_size){
+        if(cartridge->ram_size > 0x00){
             
             gb_cartridge_set_ram_bank(cartridge,0x00);
 
@@ -304,6 +324,8 @@ void gb_no_mbc_init(gb_cartridge_t* cartridge,uint8_t flags){
             cartridge->ram_handler.read = gb_cartridge_read_ram;
         }
     }
+
+    return true;
 }
 
 
@@ -338,37 +360,54 @@ void gb_cartridge_map(gb_cartridge_t* cartridge){
 
 
 void gb_cartridge_update_rtc_timer(gb_cartridge_t* cartridge){
-    if(cartridge->rtc_update_timer != NULL){
-        cartridge->rtc_update_timer(cartridge);
+    if(cartridge->mapper.rtc_update_timer != NULL){
+        cartridge->mapper.rtc_update_timer(cartridge);
     }
 }
 
 void gb_cartridge_save_rtc(gb_cartridge_t* cartridge,const char* path){
-    if(cartridge->rtc_save != NULL){
-        cartridge->rtc_save(cartridge,path);
+    if(cartridge->mapper.rtc_save != NULL){
+        cartridge->mapper.rtc_save(cartridge,path);
     }
 }
 
 void gb_cartridge_load_rtc(gb_cartridge_t* cartridge,const char* path){
-    if(cartridge->rtc_load != NULL){
-        cartridge->rtc_load(cartridge,path);
+    if(cartridge->mapper.rtc_load != NULL){
+        cartridge->mapper.rtc_load(cartridge,path);
     }
 }
 
 void gb_cartridge_reset(gb_cartridge_t* cartridge){
-    if(cartridge->reset != NULL){
-        cartridge->reset(cartridge);
+    if(cartridge->mapper.reset != NULL){
+        cartridge->mapper.reset(cartridge);
     }    
 }
 
 
 void gb_cartridge_clear(gb_cartridge_t* cartridge){
+    
+    if(cartridge->rom != NULL){
+        free(cartridge->rom);
+        cartridge->rom = NULL;
+    }
+
     cartridge->rom_size = 0x00;
+    
     cartridge->rom0_handler.write = gb_memory_write_empty;
+    cartridge->rom0_handler.read = gb_cartridge_read_rom0;
+    
     cartridge->rom1_handler.write = gb_memory_write_empty;
+    cartridge->rom1_handler.read = gb_cartridge_read_rom1;
+
     cartridge->rom0_ptr = NULL;
     cartridge->rom1_ptr = NULL;
+    
     cartridge->rom_bank_mask = 0x00;
+
+    if(cartridge->ram != NULL){
+        free(cartridge->ram);
+        cartridge->ram = NULL;
+    }
 
     cartridge->ram_size = 0x00;
     cartridge->ram_handler.write = gb_memory_write_empty;
@@ -378,8 +417,13 @@ void gb_cartridge_clear(gb_cartridge_t* cartridge){
     cartridge->ram_address_mask = 0x00;
     cartridge->ram_has_battery = false;
 
-    cartridge->rtc_update_timer = NULL;
-    cartridge->rtc_save = NULL;
-    cartridge->rtc_load = NULL;
-    cartridge->reset = NULL;
+
+    if(cartridge->mapper.data != NULL){
+        free(cartridge->mapper.data);
+        cartridge->mapper.data = NULL;
+    }
+    cartridge->mapper.rtc_update_timer = NULL;
+    cartridge->mapper.rtc_save = NULL;
+    cartridge->mapper.rtc_load = NULL;
+    cartridge->mapper.reset = NULL;
 }

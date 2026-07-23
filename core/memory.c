@@ -72,6 +72,7 @@ void gb_memory_cpu_write(gb_memory_t* memory,uint8_t value,uint16_t address){
     if(!memory->gb->dma.oam_running || !gb_oam_dma_bus_conflict(&memory->gb->dma,address)){
         handler->write(handler->data,value,address);
     }
+
 }
 
 uint8_t gb_memory_cpu_read(gb_memory_t* memory,uint16_t address){

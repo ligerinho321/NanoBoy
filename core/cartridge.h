@@ -5,6 +5,7 @@
 #include "mappers/mbc2.h"
 #include "mappers/mbc3.h"
 #include "mappers/mbc5.h"
+#include "mappers/mbc6.h"
 #include "mappers/mmm01.h"
 #include "mappers/huc1.h"
 
@@ -33,7 +34,7 @@ typedef struct _gb_cartridge_t {
 
     uint8_t* header;
 
-    uint8_t rom[gb_cartridge_rom_max_size];
+    uint8_t* rom;
     size_t rom_size;
     gb_memory_handler_t rom0_handler;
     gb_memory_handler_t rom1_handler;
@@ -41,7 +42,7 @@ typedef struct _gb_cartridge_t {
     uint8_t* rom1_ptr;
     uint16_t rom_bank_mask;
 
-    uint8_t ram[gb_cartridge_ram_max_size];
+    uint8_t* ram;
     size_t ram_size;
     gb_memory_handler_t ram_handler;
     uint8_t* ram_ptr;
@@ -49,19 +50,13 @@ typedef struct _gb_cartridge_t {
     uint16_t ram_address_mask;
     bool ram_has_battery;
 
-    union{
-        gb_mbc1_t mbc1;
-        gb_mbc2_t mbc2;
-        gb_mbc3_t mbc3;
-        gb_mbc5_t mbc5;
-        gb_mmm01_t mmm01;
-        gb_huc1_t huc1;
-    };
-
-    void (*rtc_update_timer)(struct _gb_cartridge_t*);
-    void (*rtc_save)(struct _gb_cartridge_t*,const char*);
-    void (*rtc_load)(struct _gb_cartridge_t*,const char*);
-    void (*reset)(struct _gb_cartridge_t*);
+    struct{
+        void* data;
+        void (*rtc_update_timer)(struct _gb_cartridge_t*);
+        void (*rtc_save)(struct _gb_cartridge_t*,const char*);
+        void (*rtc_load)(struct _gb_cartridge_t*,const char*);
+        void (*reset)(struct _gb_cartridge_t*);
+    } mapper;
 } gb_cartridge_t;
 
 void gb_cartridge_init(gb_cartridge_t* cartridge,gb_t* gb);
@@ -76,10 +71,10 @@ bool gb_cartridge_verify_header_checksum(uint8_t* header);
 
 size_t gb_cartridge_get_rom_size(uint8_t* header);
 
-void gb_cartridge_init_ram(gb_cartridge_t* cartridge,bool battery);
+bool gb_cartridge_init_ram(gb_cartridge_t* cartridge,bool battery);
 bool gb_cartridge_init_mapper(gb_cartridge_t* cartridge);
 
-void gb_no_mbc_init(gb_cartridge_t* cartridge,uint8_t flags);
+bool gb_no_mbc_init(gb_cartridge_t* cartridge,uint8_t flags);
 
 uint8_t gb_cartridge_read_rom0(void* data,uint16_t address);
 uint8_t gb_cartridge_read_rom1(void* data,uint16_t address);

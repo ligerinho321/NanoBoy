@@ -2,10 +2,6 @@
 
 #include "../utils.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef struct _gb_cartridge_t gb_cartridge_t;
 
 #define gb_mbc3_rtc_clock_rate 32768
@@ -26,8 +22,11 @@ typedef struct _gb_mbc3_t {
     gb_mbc3_rtc_t rtc;
 } gb_mbc3_t;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-void gb_mbc3_init(gb_cartridge_t* cartridge,uint8_t flags);
+bool gb_mbc3_init(gb_cartridge_t* cartridge,uint8_t flags);
 
 void gb_mbc3_update_ram_and_rtc_mapping(gb_cartridge_t* cartridge);
 

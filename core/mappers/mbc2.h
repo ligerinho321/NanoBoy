@@ -2,18 +2,23 @@
 
 #include "../utils.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef struct _gb_cartridge_t gb_cartridge_t;
+
+enum{
+    gb_mbc2_ram_size = 0x200,
+    gb_mbc2_ram_address_mask = 0x1FF
+};
 
 typedef struct _gb_mbc2_t {
     bool ram_enabled;
     uint8_t rom_bank;
 } gb_mbc2_t;
 
-void gb_mbc2_init(gb_cartridge_t* cartridge,uint8_t flags);
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+bool gb_mbc2_init(gb_cartridge_t* cartridge,uint8_t flags);
 
 void gb_mbc2_write_register(void* data,uint8_t value,uint16_t address);
 

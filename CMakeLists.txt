@@ -46,13 +46,17 @@ message("CXX_EXTENSIONS: ${cxx_extensions}")
 target_sources(
     NanoBoy
     PRIVATE
+    
     core/blip_buf/blip_buf.c
+    
     core/mappers/mbc1.c
     core/mappers/mbc2.c
     core/mappers/mbc3.c
     core/mappers/mbc5.c
+    core/mappers/mbc6.c
     core/mappers/mmm01.c
     core/mappers/huc1.c
+
     core/apu.c
     core/boot.c
     core/cartridge.c

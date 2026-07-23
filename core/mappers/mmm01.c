@@ -1,21 +1,35 @@
 #include "mmm01.h"
 #include "../gb.h"
 
-void gb_mmm01_init(gb_cartridge_t* cartridge,uint8_t flags){
+bool gb_mmm01_init(gb_cartridge_t* cartridge,uint8_t flags){
     printf("Mapper: MMM01\n");  
+
+    gb_mmm01_t* mmm01 = (gb_mmm01_t*)malloc(sizeof(gb_mmm01_t));
+
+    if(!mmm01){
+        gb_printf_errno(malloc);
+        return false;
+    }
+
+    memset(mmm01,0x00,sizeof(gb_mmm01_t));
+
+    cartridge->mapper.data = mmm01;
+    cartridge->mapper.reset = gb_mmm01_reset;
 
     cartridge->rom0_handler.write = gb_mmm01_write_register0;
     cartridge->rom1_handler.write = gb_mmm01_write_register1;
 
     if(flags & gb_cartridge_ram){
-        gb_cartridge_init_ram(cartridge,flags & gb_cartridge_battery);
+        if(!gb_cartridge_init_ram(cartridge,flags & gb_cartridge_battery)){
+            return false;
+        }
     }
 
-    cartridge->reset = gb_mmm01_reset;  
+    return true;
 }
 
 static void gb_mmm01_update_mapping(gb_cartridge_t* cartridge){
-    gb_mmm01_t* mmm01 = &cartridge->mmm01;
+    gb_mmm01_t* mmm01 = (gb_mmm01_t*)cartridge->mapper.data;
 
     if(mmm01->mapping_enabled){
 
@@ -84,7 +98,7 @@ static void gb_mmm01_update_mapping(gb_cartridge_t* cartridge){
 
 void gb_mmm01_write_register0(void* data,uint8_t value,uint16_t address){
     gb_cartridge_t* cartridge = (gb_cartridge_t*)data;
-    gb_mmm01_t* mmm01 = &cartridge->mmm01;
+    gb_mmm01_t* mmm01 = (gb_mmm01_t*)cartridge->mapper.data;
 
     //0x0000-0x1FFF
     if(address < 0x2000){
@@ -124,7 +138,7 @@ void gb_mmm01_write_register0(void* data,uint8_t value,uint16_t address){
 
 void gb_mmm01_write_register1(void* data,uint8_t value,uint16_t address){
     gb_cartridge_t* cartridge = (gb_cartridge_t*)data;
-    gb_mmm01_t* mmm01 = &cartridge->mmm01;
+    gb_mmm01_t* mmm01 = (gb_mmm01_t*)cartridge->mapper.data;
 
     //0x4000-0x5FFF
     if(address < 0x6000){
@@ -160,7 +174,7 @@ void gb_mmm01_write_register1(void* data,uint8_t value,uint16_t address){
 
 void gb_mmm01_reset(gb_cartridge_t* cartridge){
 
-    gb_mmm01_t* mmm01 = &cartridge->mmm01;
+    gb_mmm01_t* mmm01 = (gb_mmm01_t*)cartridge->mapper.data;
 
     mmm01->ram_enabled = false;
 
