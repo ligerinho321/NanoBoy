@@ -29,7 +29,7 @@ bool gb_mbc2_init(gb_cartridge_t* cartridge,uint8_t flags){
     }
 
     cartridge->ram_size = gb_mbc2_ram_size;
-    cartridge->ram_bank_mask = 0x00;
+    cartridge->ram_bank_mask = gb_mbc2_ram_bank_mask;
     cartridge->ram_address_mask = gb_mbc2_ram_address_mask;
     cartridge->ram_has_battery = flags & gb_cartridge_battery;
     

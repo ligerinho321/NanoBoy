@@ -236,8 +236,6 @@ bool gb_cartridge_init_ram(gb_cartridge_t* cartridge,bool battery){
 
 bool gb_cartridge_init_mapper(gb_cartridge_t* cartridge){
 
-    bool result = true;
-
     switch(cartridge->header[0x47]){
         //ROM ONLY
         case 0x00: return gb_no_mbc_init(cartridge,0x00);
@@ -285,21 +283,19 @@ bool gb_cartridge_init_mapper(gb_cartridge_t* cartridge){
         case 0x1E: return gb_mbc5_init(cartridge,gb_cartridge_rumble | gb_cartridge_ram | gb_cartridge_battery);
         //MBC6+RAM+BATTERY
         case 0x20: return gb_mbc6_init(cartridge,gb_cartridge_ram | gb_cartridge_battery);
-        //MBC7+SENSOR+RUMBLE+RAM+BATTERY
-        case 0x22: result = false; break;
+        //MBC7+SENSOR+BATTERY
+        case 0x22: return gb_mbc7_init(cartridge,gb_cartridge_sensor | gb_cartridge_battery);
         //POCKET CAMERA
-        case 0xFC: result = false; break;
+        case 0xFC: break;
         //BANDAI TAMA5
-        case 0xFD: result = false; break;
+        case 0xFD: break;
         //HuC3
-        case 0xFE: result = false; break;
+        case 0xFE: break;
         //HuC1+RAM+BATTERY
         case 0xFF: return gb_huc1_init(cartridge,gb_cartridge_ram | gb_cartridge_battery);
-        
-        default: result = false; break;
     }
 
-    return result;
+    return false;
 }
 
 

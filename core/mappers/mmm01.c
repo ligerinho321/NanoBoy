@@ -16,8 +16,8 @@ bool gb_mmm01_init(gb_cartridge_t* cartridge,uint8_t flags){
     cartridge->mapper.data = mmm01;
     cartridge->mapper.reset = gb_mmm01_reset;
 
-    cartridge->rom0_handler.write = gb_mmm01_write_register0;
-    cartridge->rom1_handler.write = gb_mmm01_write_register1;
+    cartridge->rom0_handler.write = gb_mmm01_write_register_0;
+    cartridge->rom1_handler.write = gb_mmm01_write_register_1;
 
     if(flags & gb_cartridge_ram){
         if(!gb_cartridge_init_ram(cartridge,flags & gb_cartridge_battery)){
@@ -96,7 +96,7 @@ static void gb_mmm01_update_mapping(gb_cartridge_t* cartridge){
     }
 }
 
-void gb_mmm01_write_register0(void* data,uint8_t value,uint16_t address){
+void gb_mmm01_write_register_0(void* data,uint8_t value,uint16_t address){
     gb_cartridge_t* cartridge = (gb_cartridge_t*)data;
     gb_mmm01_t* mmm01 = (gb_mmm01_t*)cartridge->mapper.data;
 
@@ -136,7 +136,7 @@ void gb_mmm01_write_register0(void* data,uint8_t value,uint16_t address){
     gb_mmm01_update_mapping(cartridge);
 }
 
-void gb_mmm01_write_register1(void* data,uint8_t value,uint16_t address){
+void gb_mmm01_write_register_1(void* data,uint8_t value,uint16_t address){
     gb_cartridge_t* cartridge = (gb_cartridge_t*)data;
     gb_mmm01_t* mmm01 = (gb_mmm01_t*)cartridge->mapper.data;
 

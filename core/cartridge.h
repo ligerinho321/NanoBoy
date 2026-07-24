@@ -6,6 +6,7 @@
 #include "mappers/mbc3.h"
 #include "mappers/mbc5.h"
 #include "mappers/mbc6.h"
+#include "mappers/mbc7.h"
 #include "mappers/mmm01.h"
 #include "mappers/huc1.h"
 

@@ -17,8 +17,8 @@ extern "C" {
 
 bool gb_huc1_init(gb_cartridge_t* cartridge,uint8_t flags);
 
-void gb_huc1_write_register0(void* data,uint8_t value,uint16_t address);
-void gb_huc1_write_register1(void* data,uint8_t value,uint16_t address);
+void gb_huc1_write_register_0(void* data,uint8_t value,uint16_t address);
+void gb_huc1_write_register_1(void* data,uint8_t value,uint16_t address);
 
 void gb_huc1_write_ir_register(void* data,uint8_t value,uint16_t address);
 uint8_t gb_huc1_read_ir_register(void* data,uint16_t address);

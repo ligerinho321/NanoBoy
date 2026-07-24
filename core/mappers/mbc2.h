@@ -6,6 +6,7 @@ typedef struct _gb_cartridge_t gb_cartridge_t;
 
 enum{
     gb_mbc2_ram_size = 0x200,
+    gb_mbc2_ram_bank_mask = 0x00,
     gb_mbc2_ram_address_mask = 0x1FF
 };
 

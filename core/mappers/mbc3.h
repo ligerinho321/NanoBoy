@@ -30,12 +30,10 @@ bool gb_mbc3_init(gb_cartridge_t* cartridge,uint8_t flags);
 
 void gb_mbc3_update_ram_and_rtc_mapping(gb_cartridge_t* cartridge);
 
-void gb_mbc3_write_register0(void* data,uint8_t value,uint16_t address);
-
-void gb_mbc3_write_register1(void* data,uint8_t value,uint16_t address);
+void gb_mbc3_write_register_0(void* data,uint8_t value,uint16_t address);
+void gb_mbc3_write_register_1(void* data,uint8_t value,uint16_t address);
 
 void gb_mbc3_rtc_write_register(void* data,uint8_t value,uint16_t address);
-
 uint8_t gb_mbc3_rtc_read_register(void* data,uint16_t address);
 
 void gb_mbc3_rtc_update_timer(gb_cartridge_t* cartridge);

@@ -13,8 +13,6 @@ bool gb_mbc6_init(gb_cartridge_t* cartridge,uint8_t flags){
     }
     
     memset(mbc6,0x00,sizeof(gb_mbc6_t));
-    memset(mbc6->flash_data,0xFF,sizeof(mbc6->flash_data));
-    memset(mbc6->flash_map_data,0xFF,sizeof(mbc6->flash_map_data));
 
     mbc6->rom_bank_mask = (cartridge->rom_size / 0x2000) - 0x01;
     mbc6->ram_bank_mask = 0x00;

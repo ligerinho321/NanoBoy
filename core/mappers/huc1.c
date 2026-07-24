@@ -18,8 +18,8 @@ bool gb_huc1_init(gb_cartridge_t* cartridge,uint8_t flags){
 
     gb_cartridge_set_rom0_bank(cartridge,0x00);
 
-    cartridge->rom0_handler.write = gb_huc1_write_register0;
-    cartridge->rom1_handler.write = gb_huc1_write_register1;
+    cartridge->rom0_handler.write = gb_huc1_write_register_0;
+    cartridge->rom1_handler.write = gb_huc1_write_register_1;
 
     if(flags & gb_cartridge_ram){
         if(!gb_cartridge_init_ram(cartridge,flags & gb_cartridge_battery)){
@@ -31,7 +31,7 @@ bool gb_huc1_init(gb_cartridge_t* cartridge,uint8_t flags){
 }
 
 
-void gb_huc1_write_register0(void* data,uint8_t value,uint16_t address){
+void gb_huc1_write_register_0(void* data,uint8_t value,uint16_t address){
     gb_cartridge_t* cartridge = (gb_cartridge_t*)data;
     gb_huc1_t* huc1 = (gb_huc1_t*)cartridge->mapper.data;
 
@@ -56,7 +56,7 @@ void gb_huc1_write_register0(void* data,uint8_t value,uint16_t address){
     }
 }
 
-void gb_huc1_write_register1(void* data,uint8_t value,uint16_t address){
+void gb_huc1_write_register_1(void* data,uint8_t value,uint16_t address){
     gb_cartridge_t* cartridge = (gb_cartridge_t*)data;
     gb_huc1_t* huc1 = (gb_huc1_t*)cartridge->mapper.data;
 
