@@ -47,6 +47,7 @@ void gb_joypad_update(gb_joypad_t* joypad){
     joypad->current_edge = new_edge;
 }
 
+
 void gb_joypad_write_register(void* data,uint8_t value,uint16_t address){
     gb_joypad_t* joypad = (gb_joypad_t*)data;
     joypad->select_buttons = !(value & 0x20);
@@ -81,6 +82,7 @@ uint8_t gb_joypad_read_register(void* data,uint16_t address){
     return value;
 }
 
+
 bool gb_joypad_is_any_button_pressed(gb_joypad_t* joypad){
     bool p = false;
     if(joypad->select_buttons){
@@ -92,9 +94,11 @@ bool gb_joypad_is_any_button_pressed(gb_joypad_t* joypad){
     return p;
 }
 
+
 void gb_joypad_map_registers(gb_joypad_t* joypad){
     gb_memory_map(&joypad->gb->memory,&joypad->register_handler,0xFF00);
 }
+
 
 void gb_joypad_reset(gb_joypad_t* joypad){
     joypad->select_buttons = false;
@@ -111,4 +115,19 @@ void gb_joypad_reset(gb_joypad_t* joypad){
     joypad->key.a = false;
 
     joypad->current_edge = false;
+}
+
+
+void gb_joypad_save_state(gb_joypad_t* joypad,gb_state_t* state){
+    gb_state_write(state,joypad->select_buttons);
+    gb_state_write(state,joypad->select_directions);
+    gb_state_write(state,joypad->key);
+    gb_state_write(state,joypad->current_edge);
+}
+
+void gb_joypad_load_state(gb_joypad_t* joypad,gb_state_t* state){
+    gb_state_read(state,joypad->select_buttons);
+    gb_state_read(state,joypad->select_directions);
+    gb_state_read(state,joypad->key);
+    gb_state_read(state,joypad->current_edge);
 }

@@ -20,7 +20,7 @@ protected:
         std::string name;
         std::filesystem::path path;
         uintmax_t size;
-        std::time_t last_write_time;
+        time_t last_write_time;
         bool is_directory;
 
         directory_entry_t(std::string _name,std::filesystem::path _path,uintmax_t _size,std::time_t _last_write_time):
@@ -35,7 +35,7 @@ protected:
     std::vector<path_part_t> current_path_parts;
     std::vector<directory_entry_t> current_directory_entries;
     
-    std::chrono::steady_clock::time_point last_update;
+    std::chrono::steady_clock::time_point last_update_time;
 
     char name_buffer[256] = {0};
     int name_buffer_length = 0;
@@ -61,10 +61,6 @@ protected:
     void set_current_path(std::filesystem::path path);
 
     std::uintmax_t number_of_entries_in_directory(const std::filesystem::path directory);
-
-    std::time_t get_entry_last_write_time(const std::filesystem::path entry);
-    
-    const char* get_entry_date_formated(const directory_entry_t& entry);
 
     const char* get_current_extension() const noexcept;
 

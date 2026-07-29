@@ -1,10 +1,6 @@
 #pragma once
 
-#include "utils.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "utils/utils.h"
 
 enum{
     gb_printer_palette_colors = 0x04,
@@ -106,6 +102,11 @@ typedef struct _gb_printer_t {
     gb_printer_callback_t callback;
     void* userdata;
 } gb_printer_t;
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 void gb_printer_init(gb_printer_t* printer,gb_t* gb);
 

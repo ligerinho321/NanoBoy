@@ -547,6 +547,11 @@ void cheats_t::render(){
 
     if(!open) return;
 
+    if(!gb->cartridge_inserted){
+        open = false;
+        return;
+    }
+
     if(ImGui::Begin("Cheats",&open)){
 
         if(ImGui::Button("Add")) open_popup(popup_add_cheat_type);

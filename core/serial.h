@@ -1,10 +1,6 @@
 #pragma once
 
-#include "utils.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "utils/utils.h"
 
 typedef bool (*gb_serial_callback_t)(void* data,bool bit);
 
@@ -18,7 +14,6 @@ typedef struct _gb_serial_t {
     bool clock_speed;
     bool internal_clock;
 
-    uint16_t freq;
     int timer;
     
     gb_memory_handler_t register_handler;
@@ -27,6 +22,10 @@ typedef struct _gb_serial_t {
     void* data;
 } gb_serial_t;
 
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 void gb_serial_init(gb_serial_t* serial,gb_t* gb);
 
@@ -41,6 +40,9 @@ uint8_t gb_serial_read_register(void* data,uint16_t address);
 void gb_serial_map_registers(gb_serial_t* serial);
 
 void gb_serial_reset(gb_serial_t* serial);
+
+void gb_serial_save_state(gb_serial_t* serial,gb_state_t* state);
+void gb_serial_load_state(gb_serial_t* serial,gb_state_t* state);
 
 #ifdef __cplusplus
 }

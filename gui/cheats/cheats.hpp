@@ -87,11 +87,11 @@ public:
 
     void render();
 
-    void set_open(bool _open){
+    void set_open(bool _open) noexcept {
         open = _open;
     }
     
-    bool get_open() const {
+    bool get_open() const noexcept {
         return open;
     }
 };

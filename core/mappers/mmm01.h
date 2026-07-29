@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../utils.h"
+#include "../utils/utils.h"
 
 typedef struct _gb_cartridge_t gb_cartridge_t;
 
@@ -33,10 +33,12 @@ extern "C" {
 bool gb_mmm01_init(gb_cartridge_t* cartridge,uint8_t flags);
 
 void gb_mmm01_write_register_0(void* data,uint8_t value,uint16_t address);
-
 void gb_mmm01_write_register_1(void* data,uint8_t value,uint16_t address);
 
 void gb_mmm01_reset(gb_cartridge_t* cartridge);
+
+void gb_mmm01_save_state(gb_cartridge_t* cartridge,gb_state_t* state);
+void gb_mmm01_load_state(gb_cartridge_t* cartridge,gb_state_t* state);
 
 #ifdef __cplusplus
 }

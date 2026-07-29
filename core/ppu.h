@@ -1,10 +1,6 @@
 #pragma once
 
-#include "utils.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "utils/utils.h"
 
 typedef enum _gb_ppu_mode_t {
     gb_ppu_hblank_mode = 0x00,
@@ -31,23 +27,23 @@ typedef enum _gb_object_attribute_mask_t {
 } gb_object_attribute_mask_t;
 
 typedef struct _gb_ppu_lcdc_t {
-    bool tile_enabled;
-    bool object_enabled;
-    bool object_size;
-    bool bg_tilemap_area;
-    bool tiledata_area;
-    bool window_enabled;
-    bool window_tilemap_area;
-    bool lcd_enabled;
+    bool tile_enabled : 1;
+    bool object_enabled : 1;
+    bool object_size : 1;
+    bool bg_tilemap_area : 1;
+    bool tiledata_area : 1;
+    bool window_enabled : 1;
+    bool window_tilemap_area : 1;
+    bool lcd_enabled : 1;
 } gb_ppu_lcdc_t;
 
 typedef struct _gb_ppu_status_t {
-    uint8_t mode;
-    bool lcy_equals_ly;
-    bool hblank_enabled;
-    bool vblank_enabled;
-    bool oam_enabled;
-    bool lyc_enabled;
+    uint8_t mode : 2;
+    bool lcy_equals_ly : 1;
+    bool hblank_enabled : 1;
+    bool vblank_enabled : 1;
+    bool oam_enabled : 1;
+    bool lyc_enabled : 1;
 } gb_ppu_status_t;
 
 typedef struct _gb_bg_fetcher_t {
@@ -71,6 +67,21 @@ typedef struct _gb_object_t {
     uint8_t tile_index;
     uint8_t attribute;
 } gb_object_t;
+
+typedef struct _gb_pixel_fifo_entry_t {
+    uint8_t palette_index;
+    uint8_t color_index;
+    bool priority;
+    uint8_t index;
+} gb_pixel_fifo_entry_t;
+
+typedef struct _gb_pixel_fifo_t {
+    gb_pixel_fifo_entry_t data[0x08];
+    uint8_t front;
+    uint8_t length;
+} gb_pixel_fifo_t;
+
+void gb_pixel_fifo_pop(gb_pixel_fifo_t* fifo);
 
 typedef struct _gb_ppu_t {
     gb_t* gb;
@@ -109,6 +120,17 @@ typedef struct _gb_ppu_t {
     gb_pixel_fifo_t tile_fifo;
     gb_pixel_fifo_t object_fifo;
 
+    bool status_irq_line;
+
+    uint32_t off_cycle;
+
+    uint64_t frame_count;
+    bool first_frame;
+
+    gb_atomic_bool_t screen_index;
+    uint8_t screen[2][gb_screen_length];
+    uint8_t* current_screen;
+
     uint8_t vram[gb_vram_length];
     uint8_t* vram_bank_ptr;
     uint8_t vram_bank;
@@ -121,21 +143,15 @@ typedef struct _gb_ppu_t {
     bool oam_blocked;
     gb_memory_handler_t oam_handler;
 
-    bool status_irq_line;
-
-    uint32_t off_cycle;
-
-    uint64_t frame_count;
-    bool first_frame;
-
-    gb_atomic_bool_t screen_index;
-    uint8_t screen[2][gb_screen_length];
-    uint8_t* pixel_ptr;
-
     gb_memory_handler_t register_handler;
 
     gb_ppu_handler_t* handlers;
 } gb_ppu_t;
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 void gb_ppu_init(gb_ppu_t* ppu,gb_t* gb);
 
@@ -163,6 +179,9 @@ void gb_ppu_map_registers(gb_ppu_t* ppu);
 void gb_ppu_map_oam(gb_ppu_t* ppu);
 
 void gb_ppu_reset(gb_ppu_t* ppu);
+
+void gb_ppu_save_state(gb_ppu_t* ppu,gb_state_t* state);
+void gb_ppu_load_state(gb_ppu_t* ppu,gb_state_t* state);
 
 #ifdef __cplusplus
 }

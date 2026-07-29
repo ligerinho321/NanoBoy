@@ -485,7 +485,7 @@ static inline void gb_cpu_rst(gb_cpu_t* cpu,uint8_t target){
 
 static inline void gb_cpu_halt(gb_cpu_t* cpu){
     if(cpu->ime || !(cpu->gb->interrupt.enable & cpu->gb->interrupt.flag)){
-        cpu->halted = true;
+        cpu->state = gb_cpu_halted_state;
     }
     cpu->halt_fetch = true;
 }
@@ -502,7 +502,7 @@ static inline void gb_cpu_stop(gb_cpu_t* cpu){
             //STOP is a 2byte opcode, HALT mode is entered, DIV is not reset
             gb_cpu_read_byte(cpu,cpu->pc++);
 
-            cpu->halted = true;
+            cpu->state = gb_cpu_halted_state;
             cpu->halt_fetch = true;
         }
     }
@@ -516,7 +516,7 @@ static inline void gb_cpu_stop(gb_cpu_t* cpu){
                 //STOP is a 2byte opcode, HALT mode is entered, DIV is reset, CPU speed changes
                 gb_cpu_read_byte(cpu,cpu->pc++);
                 
-                cpu->halted = true;
+                cpu->state = gb_cpu_halted_state;
                 cpu->halt_fetch = true;
 
                 gb_switch_speed(gb);
@@ -528,16 +528,15 @@ static inline void gb_cpu_stop(gb_cpu_t* cpu){
         else{
             if(interrupt_pending){
                 //STOP is a 1byte opcode, STOP mode is entered, DIV is reset
-                cpu->stopped = true;
+                cpu->state = gb_cpu_stopped_state;
 
                 gb_timer_set_div(&gb->timer,0);
             }
             else{
                 //STOP is a 2byte opcode, STOP mode is entered, DIV is reset
-
                 gb_cpu_read_byte(cpu,cpu->pc++);
 
-                cpu->stopped = true;
+                cpu->state = gb_cpu_stopped_state;
 
                 gb_timer_set_div(&gb->timer,0);
             }
@@ -1613,59 +1612,84 @@ static inline void gb_cpu_execute_opcode(gb_cpu_t* cpu){
 
 
 void gb_cpu_execute(gb_cpu_t* cpu){
-    if(!cpu->halted){
-        if(cpu->ime && (cpu->gb->interrupt.enable & cpu->gb->interrupt.flag)){
-            cpu->pc--;
-            
-            gb_cpu_cycle(cpu);
-            gb_cpu_cycle(cpu);
+    switch(cpu->state){
+        case gb_cpu_running_state:{
 
-            gb_cpu_write_byte(cpu,cpu->pc >> 0x08,--cpu->sp);
-            
-            uint8_t vector = gb_interrupt_get_vector(&cpu->gb->interrupt);
-            
-            gb_cpu_write_byte(cpu,cpu->pc & 0xFF,--cpu->sp);
+            if(cpu->ime && (cpu->gb->interrupt.enable & cpu->gb->interrupt.flag)){
+                cpu->pc--;
+                
+                gb_cpu_cycle(cpu);
+                gb_cpu_cycle(cpu);
 
-            cpu->pc = vector;
-            
-            cpu->ime = false;
-        }
-        else{
-            if(cpu->ime_pending){
-                cpu->ime_pending = false;
-                cpu->ime = true;
+                gb_cpu_write_byte(cpu,cpu->pc >> 0x08,--cpu->sp);
+                
+                uint8_t vector = gb_interrupt_get_vector(&cpu->gb->interrupt);
+                
+                gb_cpu_write_byte(cpu,cpu->pc & 0xFF,--cpu->sp);
+
+                cpu->pc = vector;
+                
+                cpu->ime = false;
             }
-            gb_cpu_execute_opcode(cpu);
-        }
+            else{
+                if(cpu->ime_pending){
+                    cpu->ime_pending = false;
+                    cpu->ime = true;
+                }
+                gb_cpu_execute_opcode(cpu);
+            }
 
-        cpu->opcode = gb_cpu_read_byte(cpu,cpu->pc);
+            cpu->opcode = gb_cpu_read_byte(cpu,cpu->pc);
 
-        if(!cpu->halt_fetch){
-            cpu->pc++;
-        }
-        else{
-            cpu->halt_fetch = false;
-        }
-    }
-    else{
-        gb_cpu_cycle(cpu);
+            if(!cpu->halt_fetch){
+                cpu->pc++;
+            }
+            else{
+                cpu->halt_fetch = false;
+            }
 
-        if((cpu->gb->interrupt.enable & cpu->gb->interrupt.flag) || (cpu->halt_cycles && --cpu->halt_cycles == 0x00)){
-            cpu->halt_cycles = 0x00;
-            cpu->halted = false;
-            cpu->opcode = gb_memory_cpu_read(&cpu->gb->memory,cpu->pc++);
+            break;
+        }
+        case gb_cpu_halted_state:{
+
+            gb_cpu_cycle(cpu);
+
+            if((cpu->gb->interrupt.enable & cpu->gb->interrupt.flag) || (cpu->halt_cycles && --cpu->halt_cycles == 0x00)){
+                cpu->halt_cycles = 0x00;
+                
+                cpu->state = gb_cpu_running_state;
+
+                cpu->opcode = gb_memory_cpu_read(&cpu->gb->memory,cpu->pc++);
+            }
+
+            break;
+        }
+        case gb_cpu_stopped_state:{
+            
+            gb_cpu_cycle(cpu);
+
+            if(gb_joypad_is_any_button_pressed(&cpu->gb->joypad)){
+                cpu->state = gb_cpu_running_state;
+            }
+
+            break;
+        }
+        default:{
+            gb_printf_error("invalid cpu state");
+            cpu->state = gb_cpu_running_state;
+            break;
         }
     }
 }
 
 
 void gb_cpu_reset(gb_cpu_t* cpu){
+    
+    cpu->state = gb_cpu_running_state;
+
     cpu->opcode = 0x00;
 
-    cpu->halted = false;
     cpu->halt_fetch = false;
-
-    cpu->stopped = false;
 
     cpu->ime_pending = false;
     cpu->ime = false;
@@ -1676,4 +1700,30 @@ void gb_cpu_reset(gb_cpu_t* cpu){
     cpu->hl = 0x00;
     cpu->sp = 0x00;
     cpu->pc = 0x00;
+}
+
+void gb_cpu_save_state(gb_cpu_t* cpu,gb_state_t* state){
+    gb_state_write(state,cpu->state);
+    gb_state_write(state,cpu->opcode);
+    gb_state_write(state,cpu->ime_pending);
+    gb_state_write(state,cpu->ime);
+    gb_state_write(state,cpu->af);
+    gb_state_write(state,cpu->bc);
+    gb_state_write(state,cpu->de);
+    gb_state_write(state,cpu->hl);
+    gb_state_write(state,cpu->sp);
+    gb_state_write(state,cpu->pc);
+}
+
+void gb_cpu_load_state(gb_cpu_t* cpu,gb_state_t* state){
+    gb_state_read(state,cpu->state);
+    gb_state_read(state,cpu->opcode);
+    gb_state_read(state,cpu->ime_pending);
+    gb_state_read(state,cpu->ime);
+    gb_state_read(state,cpu->af);
+    gb_state_read(state,cpu->bc);
+    gb_state_read(state,cpu->de);
+    gb_state_read(state,cpu->hl);
+    gb_state_read(state,cpu->sp);
+    gb_state_read(state,cpu->pc);
 }

@@ -33,31 +33,18 @@ gb_t* gb_new(){
     };
 
     gb_cpu_init(&gb->cpu,gb);
-    
     gb_ppu_init(&gb->ppu,gb);
-    
     gb_apu_init(&gb->apu,gb);
-    
     gb_joypad_init(&gb->joypad,gb);
-    
     gb_interrupt_init(&gb->interrupt,gb);
-    
     gb_timer_init(&gb->timer,gb);
-    
     gb_dma_init(&gb->dma,gb);
-    
     gb_palette_init(&gb->palette,gb);
-    
     gb_serial_init(&gb->serial,gb);
-    
     gb_boot_init(&gb->boot,gb);
-    
     gb_memory_init(&gb->memory,gb);
-    
     gb_cartridge_init(&gb->cartridge,gb);
-    
     gb_printer_init(&gb->printer,gb);
-
     gb_frame_timer_init(&gb->frame_timer);
 
     gb_map(gb);
@@ -253,9 +240,10 @@ void gb_execute_frame(gb_t* gb){
     if(!gb->cartridge_inserted || gb->multi_thread || gb->paused) return;
 
     uint64_t frame = gb->ppu.frame_count;
+    gb_cpu_t* cpu = &gb->cpu;
 
     while(frame == gb->ppu.frame_count){
-        gb_cpu_execute(&gb->cpu);
+        gb_cpu_execute(cpu);
     }
 
     gb_frame_timer_clock(&gb->frame_timer);
@@ -266,14 +254,14 @@ static void gb_execute(gb_t* gb){
     gb_ppu_t* ppu = &gb->ppu;
     gb_cpu_t* cpu = &gb->cpu;
     gb_frame_timer_t* frame_timer = &gb->frame_timer;
-    uint64_t frame;
+    uint64_t frame = 0;
     
     while(gb_atomic_load_explicit(&gb->thread_running,gb_memory_order_relaxed)){
         
         frame = ppu->frame_count;
 
         while(frame == ppu->frame_count){
-            gb_cpu_execute(cpu);
+            gb_cpu_execute(cpu);  
         }
         
         gb_frame_timer_clock(frame_timer);
@@ -340,8 +328,6 @@ void gb_switch_speed(gb_t* gb){
 
     gb->speed_switch_needed = false;
     gb->double_speed = !gb->double_speed;
-
-    gb->timer.apu_div_bit = gb->double_speed ? 0x2000 : 0x1000;
 }
 
 
@@ -464,30 +450,71 @@ void gb_reset(gb_t* gb){
     gb->cycle = (uint64_t)-1;
 
     gb_cpu_reset(&gb->cpu);
-    
     gb_ppu_reset(&gb->ppu);
-    
     gb_apu_reset(&gb->apu,true);
-    
     gb_joypad_reset(&gb->joypad);
-    
     gb_interrupt_reset(&gb->interrupt);
-    
     gb_timer_reset(&gb->timer);
-    
     gb_dma_reset(&gb->dma);
-    
     gb_palette_reset(&gb->palette);
-    
     gb_serial_reset(&gb->serial);
-    
     gb_boot_map(&gb->boot);
-
     gb_memory_reset(&gb->memory);
-
     gb_cartridge_reset(&gb->cartridge);
-
     gb_printer_reset(&gb->printer);
+}
+
+
+void gb_save_state(gb_t* gb,gb_state_t* state){
+    gb_state_write(state,gb->type);
+    gb_state_write(state,gb->cgb_mode);
+    gb_state_write(state,gb->double_speed);
+    gb_state_write(state,gb->speed_switch_needed);
+    gb_state_write(state,gb->obj_priority_mode);
+    gb_state_write(state,gb->cycle);
+
+    gb_cpu_save_state(&gb->cpu,state);
+    gb_ppu_save_state(&gb->ppu,state);
+    gb_apu_save_state(&gb->apu,state);
+    gb_joypad_save_state(&gb->joypad,state);
+    gb_interrupt_save_state(&gb->interrupt,state);
+    gb_timer_save_state(&gb->timer,state);
+    gb_dma_save_state(&gb->dma,state);
+    gb_palette_save_state(&gb->palette,state);
+    gb_serial_save_state(&gb->serial,state);
+    gb_boot_save_state(&gb->boot,state);
+    gb_memory_save_state(&gb->memory,state);
+    gb_cartridge_save_state(&gb->cartridge,state);
+}
+
+void gb_load_state(gb_t* gb,gb_state_t* state){
+    gb_state_read(state,gb->type);
+
+    if(gb->type == gb_cgb){
+        gb_map_cgb_registers(gb);
+    }
+    else{
+        gb_unmap_cgb_registers(gb);
+    }
+
+    gb_state_read(state,gb->cgb_mode);
+    gb_state_read(state,gb->double_speed);
+    gb_state_read(state,gb->speed_switch_needed);
+    gb_state_read(state,gb->obj_priority_mode);
+    gb_state_read(state,gb->cycle);
+
+    gb_cpu_load_state(&gb->cpu,state);
+    gb_ppu_load_state(&gb->ppu,state);
+    gb_apu_load_state(&gb->apu,state);
+    gb_joypad_load_state(&gb->joypad,state);
+    gb_interrupt_load_state(&gb->interrupt,state);
+    gb_timer_load_state(&gb->timer,state);
+    gb_dma_load_state(&gb->dma,state);
+    gb_palette_load_state(&gb->palette,state);
+    gb_serial_load_state(&gb->serial,state);
+    gb_boot_load_state(&gb->boot,state);
+    gb_memory_load_state(&gb->memory,state);
+    gb_cartridge_load_state(&gb->cartridge,state);
 }
 
 

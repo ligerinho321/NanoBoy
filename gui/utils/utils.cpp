@@ -54,6 +54,28 @@ void obj_palette_t::clear(){
 }
 
 
+time_t get_file_last_write_time(std::filesystem::path file){
+
+    std::chrono::time_point sys_time_point = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
+        std::filesystem::last_write_time(file) - 
+        std::filesystem::file_time_type::clock::now() + 
+        std::chrono::system_clock::now()
+    );
+
+    return std::chrono::system_clock::to_time_t(sys_time_point);
+}
+
+const char* get_time_formated(time_t time){
+    static char buffer[32] = {0};
+
+    tm* local_time = localtime(&time);
+    
+    std::strftime(buffer,sizeof(buffer),"%d/%m/%Y %H:%M",local_time);
+
+    return buffer;
+}
+
+
 void clear_texture(SDL_Texture* texture,int height){
     void* pixels = nullptr;
     int pitch = 0;

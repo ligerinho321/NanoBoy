@@ -1,10 +1,12 @@
 #pragma once
 
-#include "utils.h"
+#include "utils/utils.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+typedef enum _gb_cpu_state_t {
+    gb_cpu_running_state,
+    gb_cpu_halted_state,
+    gb_cpu_stopped_state,
+} gb_cpu_state;
 
 typedef enum _gb_cpu_flag_t {
     gb_cpu_carry_flag = 0x10,       // C
@@ -16,13 +18,12 @@ typedef enum _gb_cpu_flag_t {
 typedef struct _gb_cpu_t {
     gb_t* gb;
     
+    uint8_t state;
+
     uint8_t opcode;
     
-    bool halted;
     bool halt_fetch;
     uint32_t halt_cycles;
-
-    bool stopped;
 
     bool ime_pending;
     bool ime;
@@ -50,11 +51,19 @@ typedef struct _gb_cpu_t {
     uint16_t pc;
 } gb_cpu_t;
 
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void gb_cpu_init(gb_cpu_t* cpu,gb_t* gb);
 
 void gb_cpu_execute(gb_cpu_t* cpu);
 
 void gb_cpu_reset(gb_cpu_t* cpu);
+
+void gb_cpu_save_state(gb_cpu_t* cpu,gb_state_t* state);
+void gb_cpu_load_state(gb_cpu_t* cpu,gb_state_t* state);
 
 #ifdef __cplusplus
 }

@@ -109,6 +109,32 @@ void tilemap_viewer_t::update_tilemap_texture(uint8_t map_index){
 }
 
 
+void tilemap_viewer_t::event(){
+    if(!ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows)) return;
+
+    if(ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Equal) && tilemap_scale < tilemap_max_scale){
+        ++tilemap_scale;
+        update_tilemap_size();
+    }
+    else if(ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Minus) && tilemap_scale > tilemap_min_scale){
+        --tilemap_scale;
+        update_tilemap_size();
+    }
+
+    ImGuiIO& io = ImGui::GetIO();
+    if(io.KeyCtrl){
+        if(io.MouseWheel > 0.0f && tilemap_scale < tilemap_max_scale){
+            ++tilemap_scale;
+            update_tilemap_size();
+        }
+        else if(io.MouseWheel < 0.0f && tilemap_scale > tilemap_min_scale){
+            --tilemap_scale;
+            update_tilemap_size();
+        }
+    }
+}
+
+
 void tilemap_viewer_t::render_grid(ImVec2 tilemap_start){
 
     ImDrawList* draw_list = ImGui::GetWindowDrawList();
@@ -442,6 +468,10 @@ void tilemap_viewer_t::render(){
     
     if(!open) return;
 
+    if(!gb->cartridge_inserted){
+        set_open(false);
+    }
+
     bool _open = open;
 
     if(ImGui::Begin("Tilemap Viewer",&_open)){
@@ -493,33 +523,11 @@ void tilemap_viewer_t::render(){
             ImGui::EndTable();
         }
 
-        if(ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows)){
-
-            if(ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Equal) && tilemap_scale < tilemap_max_scale){
-                ++tilemap_scale;
-                update_tilemap_size();
-            }
-            else if(ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Minus) && tilemap_scale > tilemap_min_scale){
-                --tilemap_scale;
-                update_tilemap_size();
-            }
-
-            ImGuiIO& io = ImGui::GetIO();
-            if(io.KeyCtrl){
-                if(io.MouseWheel > 0.0f && tilemap_scale < tilemap_max_scale){
-                    ++tilemap_scale;
-                    update_tilemap_size();
-                }
-                else if(io.MouseWheel < 0.0f && tilemap_scale > tilemap_min_scale){
-                    --tilemap_scale;
-                    update_tilemap_size();
-                }
-            }
-        }
+        event();
     }
     ImGui::End();
 
-    set_open<true>(_open);
+    set_open(_open);
 }
 
 
@@ -532,4 +540,18 @@ void tilemap_viewer_t::clear(){
     scy = 0;
     bg_palette.clear();
     memset(vram,0,sizeof(vram));
+}
+
+
+void tilemap_viewer_t::set_open(bool _open) noexcept {
+    if(open == _open) return;
+    
+    open = _open;
+
+    if(open){
+        gb_thread_safe_add_ppu_handler(gb,&callback_handler);
+    }
+    else{
+        gb_thread_safe_remove_ppu_handler(gb,&callback_handler);
+    }
 }

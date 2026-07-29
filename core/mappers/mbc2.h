@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../utils.h"
+#include "../utils/utils.h"
 
 typedef struct _gb_cartridge_t gb_cartridge_t;
 
@@ -27,6 +27,9 @@ void gb_mbc2_write_ram(void* data,uint8_t value,uint16_t address);
 uint8_t gb_mbc2_read_ram(void* data,uint16_t address);
 
 void gb_mbc2_reset(gb_cartridge_t* cartridge);
+
+void gb_mbc2_save_state(gb_cartridge_t* cartridge,gb_state_t* state);
+void gb_mbc2_load_state(gb_cartridge_t* cartridge,gb_state_t* state);
 
 #ifdef __cplusplus
 }

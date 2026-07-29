@@ -128,6 +128,8 @@ void gb_apu_update_rates(gb_apu_t* apu){
 
 void gb_apu_update_output(gb_apu_t* apu){
     
+    int clock_time = apu->frame_cycles - 1;
+
     int square1_output = gb_apu_square_output(&apu->square1);
     int square2_output = gb_apu_square_output(&apu->square2);
     int wave_output = gb_apu_wave_output(&apu->wave);
@@ -151,33 +153,33 @@ void gb_apu_update_output(gb_apu_t* apu){
 
 
     if(left_output != apu->mixer_frame.last_left_output){
-        blip_add_delta(apu->mixer_frame.blip_left,apu->frame_cycle,left_output - apu->mixer_frame.last_left_output);
+        blip_add_delta(apu->mixer_frame.blip_left,clock_time,left_output - apu->mixer_frame.last_left_output);
         apu->mixer_frame.last_left_output = left_output;
     }
 
     if(right_output != apu->mixer_frame.last_right_output){
-        blip_add_delta(apu->mixer_frame.blip_right,apu->frame_cycle,right_output - apu->mixer_frame.last_right_output);
+        blip_add_delta(apu->mixer_frame.blip_right,clock_time,right_output - apu->mixer_frame.last_right_output);
         apu->mixer_frame.last_right_output = right_output;
     }
 
     if(apu->handlers != NULL){
         if(square1_output != apu->square1_frame.last_output){
-            blip_add_delta(apu->square1_frame.blip,apu->frame_cycle,square1_output - apu->square1_frame.last_output);
+            blip_add_delta(apu->square1_frame.blip,clock_time,square1_output - apu->square1_frame.last_output);
             apu->square1_frame.last_output = square1_output;
         }
 
         if(square2_output != apu->square2_frame.last_output){
-            blip_add_delta(apu->square2_frame.blip,apu->frame_cycle,square2_output - apu->square2_frame.last_output);
+            blip_add_delta(apu->square2_frame.blip,clock_time,square2_output - apu->square2_frame.last_output);
             apu->square2_frame.last_output = square2_output;
         }
 
         if(wave_output != apu->wave_frame.last_output){
-            blip_add_delta(apu->wave_frame.blip,apu->frame_cycle,wave_output - apu->wave_frame.last_output);
+            blip_add_delta(apu->wave_frame.blip,clock_time,wave_output - apu->wave_frame.last_output);
             apu->wave_frame.last_output = wave_output;
         }
 
         if(noise_output != apu->noise_frame.last_output){
-            blip_add_delta(apu->noise_frame.blip,apu->frame_cycle,noise_output - apu->noise_frame.last_output);
+            blip_add_delta(apu->noise_frame.blip,clock_time,noise_output - apu->noise_frame.last_output);
             apu->noise_frame.last_output = noise_output;
         }
     }
@@ -264,9 +266,9 @@ void gb_apu_mixer_frame_reset(gb_apu_mixer_frame_t* mixer_frame){
 
 
 void gb_apu_frame_end(gb_apu_t* apu){
-    if(apu->frame_cycle + 1 != gb_frame_cycles) return;
+    if(apu->frame_cycles < gb_frame_cycles) return;
 
-    apu->frame_cycle = -1;
+    apu->frame_cycles = 0;
 
     gb_apu_mixer_frame_end(&apu->mixer_frame);
 
@@ -301,43 +303,18 @@ void gb_apu_frame_end(gb_apu_t* apu){
 }
 
 
-static inline uint16_t gb_apu_sweep_get_new_frequency(gb_apu_sweep_t* sweep){
-    uint16_t delta = sweep->shadow_frequency >> sweep->shift;
-    return sweep->negate ? sweep->shadow_frequency - delta : sweep->shadow_frequency + delta;
-}
-
-static inline void gb_apu_length_counter_extra_clock(gb_apu_t* apu,gb_apu_length_counter_t* length_counter,uint8_t value,uint16_t length,bool* channel_enabled){
-
-    bool new_length_counter_enabled = value & 0x40;
-
-    if(((apu->frame_sequencer & 0x01) || apu->skip_first_frame_sequence_event) && !length_counter->enabled && new_length_counter_enabled){
-        if(length_counter->counter > 0x00 && --length_counter->counter == 0x00){
-            if(!(value & 0x80)){
-                *channel_enabled = false;
-            }
-            else{
-                length_counter->counter = length;
-            }
-        }
-    }
-
-    length_counter->enabled = new_length_counter_enabled;
-}
-
-
-
 void gb_apu_run(gb_apu_t* apu){
 
-    uint32_t cycles_to_run = apu->cycles - apu->last_clock_cycle;
+    uint64_t cycles_to_run = apu->cycles - apu->last_clock_cycle;
     apu->last_clock_cycle = apu->cycles;
 
     while(cycles_to_run > 0){
 
         gb_apu_frame_end(apu);
 
-        uint32_t cycles = cycles_to_run;
+        uint64_t cycles = cycles_to_run;
 
-        uint32_t frame_cycles_remaining = gb_frame_cycles - (apu->frame_cycle + 1);
+        uint32_t frame_cycles_remaining = gb_frame_cycles - apu->frame_cycles;
 
         if(frame_cycles_remaining < cycles){
             cycles = frame_cycles_remaining;
@@ -364,85 +341,13 @@ void gb_apu_run(gb_apu_t* apu){
             gb_apu_noise_clock(&apu->noise,cycles);
         }
 
-        apu->frame_cycle += cycles;
+        apu->frame_cycles += cycles;
         gb_apu_update_output(apu);
 
         cycles_to_run -= cycles;
     }
 }
 
-
-static inline void gb_apu_sweep_clock(gb_apu_square_t* square){
-    
-    gb_apu_sweep_t* sweep = &square->sweep;
-
-    if(!sweep->enabled || --sweep->timer > 0x00) return;
-
-    if(sweep->period){
-        sweep->timer = sweep->period;
-    }
-    else{
-        sweep->timer = 0x08;
-        return;
-    }
-
-    uint16_t new_frequency = gb_apu_sweep_get_new_frequency(sweep);
-
-    sweep->calc_negate = sweep->negate;
-    
-    if(new_frequency > 0x7FF){
-        square->enabled = false;
-        return;
-    }
-
-    if(sweep->shift > 0x00){
-        sweep->shadow_frequency = new_frequency;
-        square->frequency = new_frequency;
-
-        new_frequency = gb_apu_sweep_get_new_frequency(sweep);
-
-        if(new_frequency > 0x7FF){
-            square->enabled = false;
-        }
-    }
-}
-
-static inline void gb_apu_envelope_clock(gb_apu_envelope_t* envelope){
-    if(--envelope->timer > 0x00) return;
-
-    if(envelope->period){
-        envelope->timer = envelope->period;
-    }
-    else{
-        envelope->timer = 0x08;
-        return;
-    }
-
-    if(!envelope->automatic_change) return;
-
-    if(envelope->add_mode){
-        if(envelope->current_volume < 0x0F){
-            ++envelope->current_volume;
-        }
-        else{
-            envelope->automatic_change = false;
-        }
-    }
-    else{
-        if(envelope->current_volume > 0x00){
-            --envelope->current_volume;
-        }
-        else{
-            envelope->automatic_change = false;
-        }
-    }
-}
-
-static inline void gb_apu_length_counter_clock(gb_apu_length_counter_t* length_counter,bool* channel_enabled){
-    if(length_counter->enabled && length_counter->counter && --length_counter->counter == 0x00){
-        *channel_enabled = false;
-    }
-}
 
 void gb_apu_frame_sequencer_clock(gb_apu_t* apu){
     
@@ -587,6 +492,152 @@ uint8_t gb_apu_read_register(void* data,uint16_t address){
     }
 
     return value;
+}
+
+
+static inline uint16_t gb_apu_sweep_get_new_frequency(gb_apu_sweep_t* sweep){
+    uint16_t delta = sweep->shadow_frequency >> sweep->shift;
+    return sweep->negate ? sweep->shadow_frequency - delta : sweep->shadow_frequency + delta;
+}
+
+void gb_apu_sweep_clock(gb_apu_square_t* square){
+    
+    gb_apu_sweep_t* sweep = &square->sweep;
+
+    if(!sweep->enabled || --sweep->timer > 0x00) return;
+
+    if(sweep->period){
+        sweep->timer = sweep->period;
+    }
+    else{
+        sweep->timer = 0x08;
+        return;
+    }
+
+    uint16_t new_frequency = gb_apu_sweep_get_new_frequency(sweep);
+
+    sweep->calc_negate = sweep->negate;
+    
+    if(new_frequency > 0x7FF){
+        square->enabled = false;
+        return;
+    }
+
+    if(sweep->shift > 0x00){
+        sweep->shadow_frequency = new_frequency;
+        square->frequency = new_frequency;
+
+        new_frequency = gb_apu_sweep_get_new_frequency(sweep);
+
+        if(new_frequency > 0x7FF){
+            square->enabled = false;
+        }
+    }
+}
+
+void gb_apu_sweep_save_state(gb_apu_sweep_t* sweep,gb_state_t* state){
+    gb_state_write(state,sweep->enabled);
+    gb_state_write(state,sweep->period);
+    gb_state_write(state,sweep->timer);
+    gb_state_write(state,sweep->negate);
+    gb_state_write(state,sweep->calc_negate);
+    gb_state_write(state,sweep->shift);
+    gb_state_write(state,sweep->shadow_frequency);
+}
+
+void gb_apu_sweep_load_state(gb_apu_sweep_t* sweep,gb_state_t* state){
+    gb_state_read(state,sweep->enabled);
+    gb_state_read(state,sweep->period);
+    gb_state_read(state,sweep->timer);
+    gb_state_read(state,sweep->negate);
+    gb_state_read(state,sweep->calc_negate);
+    gb_state_read(state,sweep->shift);
+    gb_state_read(state,sweep->shadow_frequency);
+}
+
+
+void gb_apu_envelope_clock(gb_apu_envelope_t* envelope){
+    if(--envelope->timer > 0x00) return;
+
+    if(envelope->period){
+        envelope->timer = envelope->period;
+    }
+    else{
+        envelope->timer = 0x08;
+        return;
+    }
+
+    if(!envelope->automatic_change) return;
+
+    if(envelope->add_mode){
+        if(envelope->current_volume < 0x0F){
+            ++envelope->current_volume;
+        }
+        else{
+            envelope->automatic_change = false;
+        }
+    }
+    else{
+        if(envelope->current_volume > 0x00){
+            --envelope->current_volume;
+        }
+        else{
+            envelope->automatic_change = false;
+        }
+    }
+}
+
+void gb_apu_envelope_save_state(gb_apu_envelope_t* envelope,gb_state_t* state){
+    gb_state_write(state,envelope->initial_volume);
+    gb_state_write(state,envelope->current_volume);
+    gb_state_write(state,envelope->add_mode);
+    gb_state_write(state,envelope->period);
+    gb_state_write(state,envelope->timer);
+    gb_state_write(state,envelope->automatic_change);
+}
+
+void gb_apu_envelope_load_state(gb_apu_envelope_t* envelope,gb_state_t* state){
+    gb_state_read(state,envelope->initial_volume);
+    gb_state_read(state,envelope->current_volume);
+    gb_state_read(state,envelope->add_mode);
+    gb_state_read(state,envelope->period);
+    gb_state_read(state,envelope->timer);
+    gb_state_read(state,envelope->automatic_change);
+}
+
+
+void gb_apu_length_counter_extra_clock(gb_apu_t* apu,gb_apu_length_counter_t* length_counter,uint8_t value,uint16_t length,bool* channel_enabled){
+
+    bool new_length_counter_enabled = value & 0x40;
+
+    if(((apu->frame_sequencer & 0x01) || apu->skip_first_frame_sequence_event) && !length_counter->enabled && new_length_counter_enabled){
+        if(length_counter->counter > 0x00 && --length_counter->counter == 0x00){
+            if(!(value & 0x80)){
+                *channel_enabled = false;
+            }
+            else{
+                length_counter->counter = length;
+            }
+        }
+    }
+
+    length_counter->enabled = new_length_counter_enabled;
+}
+
+void gb_apu_length_counter_clock(gb_apu_length_counter_t* length_counter,bool* channel_enabled){
+    if(length_counter->enabled && length_counter->counter && --length_counter->counter == 0x00){
+        *channel_enabled = false;
+    }
+}
+
+void gb_apu_length_counter_save_state(gb_apu_length_counter_t* length_counter,gb_state_t* state){
+    gb_state_write(state,length_counter->enabled);
+    gb_state_write(state,length_counter->counter);
+}
+
+void gb_apu_length_counter_load_state(gb_apu_length_counter_t* length_counter,gb_state_t* state){
+    gb_state_read(state,length_counter->enabled);
+    gb_state_read(state,length_counter->counter);
 }
 
 
@@ -788,6 +839,34 @@ void gb_apu_square_reset(gb_apu_square_t* square,bool hardware){
     square->output = 0x00;
 }
 
+void gb_apu_square_save_state(gb_apu_square_t* square,gb_state_t* state){
+    gb_state_write(state,square->enabled);
+    if(square->has_sweep){
+        gb_apu_sweep_save_state(&square->sweep,state);
+    }
+    gb_apu_envelope_save_state(&square->envelope,state);
+    gb_apu_length_counter_save_state(&square->length_counter,state);
+    gb_state_write(state,square->duty);
+    gb_state_write(state,square->duty_pos);
+    gb_state_write(state,square->frequency);
+    gb_state_write(state,square->timer);
+    gb_state_write(state,square->output);
+}
+
+void gb_apu_square_load_state(gb_apu_square_t* square,gb_state_t* state){
+    gb_state_read(state,square->enabled);
+    if(square->has_sweep){
+        gb_apu_sweep_load_state(&square->sweep,state);
+    }
+    gb_apu_envelope_load_state(&square->envelope,state);
+    gb_apu_length_counter_load_state(&square->length_counter,state);
+    gb_state_read(state,square->duty);
+    gb_state_read(state,square->duty_pos);
+    gb_state_read(state,square->frequency);
+    gb_state_read(state,square->timer);
+    gb_state_read(state,square->output);
+}
+
 
 void gb_apu_wave_clock(gb_apu_wave_t* wave,int timer){
 
@@ -984,6 +1063,32 @@ void gb_apu_wave_reset(gb_apu_wave_t* wave,bool hardware){
     wave->output = 0x00;
 }
 
+void gb_apu_wave_save_state(gb_apu_wave_t* wave,gb_state_t* state){
+    gb_state_write(state,wave->enabled);
+    gb_state_write(state,wave->dac_enabled);
+    gb_apu_length_counter_save_state(&wave->length_counter,state);
+    gb_state_write(state,wave->volume_code);
+    gb_state_write(state,wave->frequency);
+    gb_state_write(state,wave->timer);
+    gb_state_write(state,wave->sample_buffer);
+    gb_state_write(state,wave->ram_pos);
+    gb_state_write_ex(state,wave->ram,sizeof(wave->ram));
+    gb_state_write(state,wave->output);
+}
+
+void gb_apu_wave_load_state(gb_apu_wave_t* wave,gb_state_t* state){
+    gb_state_read(state,wave->enabled);
+    gb_state_read(state,wave->dac_enabled);
+    gb_apu_length_counter_load_state(&wave->length_counter,state);
+    gb_state_read(state,wave->volume_code);
+    gb_state_read(state,wave->frequency);
+    gb_state_read(state,wave->timer);
+    gb_state_read(state,wave->sample_buffer);
+    gb_state_read(state,wave->ram_pos);
+    gb_state_read_ex(state,wave->ram,sizeof(wave->ram));
+    gb_state_read(state,wave->output);
+}
+
 
 void gb_apu_noise_clock(gb_apu_noise_t* noise,int timer){
 
@@ -1157,6 +1262,30 @@ void gb_apu_noise_reset(gb_apu_noise_t* noise,bool hardware){
     noise->output = 0x00;
 }
 
+void gb_apu_noise_save_state(gb_apu_noise_t* noise,gb_state_t* state){
+    gb_state_write(state,noise->enabled);
+    gb_apu_envelope_save_state(&noise->envelope,state);
+    gb_apu_length_counter_save_state(&noise->length_counter,state);
+    gb_state_write(state,noise->clock_shift);
+    gb_state_write(state,noise->width_mode);
+    gb_state_write(state,noise->divisor_code);
+    gb_state_write(state,noise->lfsr);
+    gb_state_write(state,noise->timer);
+    gb_state_write(state,noise->output);
+}
+
+void gb_apu_noise_load_state(gb_apu_noise_t* noise,gb_state_t* state){
+    gb_state_read(state,noise->enabled);
+    gb_apu_envelope_load_state(&noise->envelope,state);
+    gb_apu_length_counter_load_state(&noise->length_counter,state);
+    gb_state_read(state,noise->clock_shift);
+    gb_state_read(state,noise->width_mode);
+    gb_state_read(state,noise->divisor_code);
+    gb_state_read(state,noise->lfsr);
+    gb_state_read(state,noise->timer);
+    gb_state_read(state,noise->output);
+}
+
 
 uint8_t gb_apu_read_pcm12_register(void* data,uint16_t address){
     gb_apu_t* apu = (gb_apu_t*)data;
@@ -1209,10 +1338,9 @@ void gb_apu_reset(gb_apu_t* apu,bool hardware){
         gb_apu_channel_frame_reset(&apu->square2_frame);
         gb_apu_channel_frame_reset(&apu->wave_frame);
         gb_apu_channel_frame_reset(&apu->noise_frame);
-
         gb_apu_mixer_frame_reset(&apu->mixer_frame);
 
-        apu->frame_cycle = -1;
+        apu->frame_cycles = 0;
 
         gb_ring_buffer_clear(&apu->ring_buffer);
 
@@ -1261,4 +1389,62 @@ void gb_apu_free(gb_apu_t* apu){
     blip_delete(apu->mixer_frame.blip_right);
 
     gb_ring_buffer_free(&apu->ring_buffer);
+}
+
+
+void gb_apu_save_state(gb_apu_t* apu,gb_state_t* state){
+    gb_apu_square_save_state(&apu->square1,state);
+    gb_apu_square_save_state(&apu->square2,state);
+    gb_apu_wave_save_state(&apu->wave,state);
+    gb_apu_noise_save_state(&apu->noise,state);
+
+    gb_state_write(state,apu->square1_panning);
+    gb_state_write(state,apu->square2_panning);
+    gb_state_write(state,apu->wave_panning);
+    gb_state_write(state,apu->noise_panning);
+    gb_state_write(state,apu->vin_panning);
+
+    gb_state_write(state,apu->volume);
+
+    gb_state_write(state,apu->enabled);
+
+    gb_state_write(state,apu->frame_sequencer);
+    gb_state_write(state,apu->skip_first_frame_sequence_event);
+
+    gb_state_write(state,apu->last_clock_cycle);
+    gb_state_write(state,apu->cycles);
+}
+
+void gb_apu_load_state(gb_apu_t* apu,gb_state_t* state){
+
+    gb_apu_square_load_state(&apu->square1,state);
+    gb_apu_square_load_state(&apu->square2,state);
+    gb_apu_wave_load_state(&apu->wave,state);
+    gb_apu_noise_load_state(&apu->noise,state);
+
+    gb_state_read(state,apu->square1_panning);
+    gb_state_read(state,apu->square2_panning);
+    gb_state_read(state,apu->wave_panning);
+    gb_state_read(state,apu->noise_panning);
+    gb_state_read(state,apu->vin_panning);
+
+    gb_state_read(state,apu->volume);
+
+    gb_state_read(state,apu->enabled);
+
+    gb_state_read(state,apu->frame_sequencer);
+    gb_state_read(state,apu->skip_first_frame_sequence_event);
+
+    gb_state_read(state,apu->last_clock_cycle);
+    gb_state_read(state,apu->cycles);
+
+    gb_apu_channel_frame_reset(&apu->square1_frame);
+    gb_apu_channel_frame_reset(&apu->square2_frame);
+    gb_apu_channel_frame_reset(&apu->wave_frame);
+    gb_apu_channel_frame_reset(&apu->noise_frame);
+    gb_apu_mixer_frame_reset(&apu->mixer_frame);
+    
+    apu->frame_cycles = 0;
+
+    gb_ring_buffer_clear(&apu->ring_buffer);
 }

@@ -1,10 +1,6 @@
 #pragma once
 
-#include "utils.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "utils/utils.h"
 
 typedef enum _gb_interrupt_flag_t {
     gb_interrupt_vblank_flag = 0x01,
@@ -32,6 +28,11 @@ typedef struct _gb_interrupt_t {
     gb_memory_handler_t flag_register_handler;
 } gb_interrupt_t;
 
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void gb_interrupt_init(gb_interrupt_t* interrupt,gb_t* gb);
 
 void gb_interrupt_write_flag_register(void* data,uint8_t value,uint16_t address);
@@ -45,6 +46,9 @@ uint8_t gb_interrupt_get_vector(gb_interrupt_t* interrupt);
 void gb_interrupt_map_registers(gb_interrupt_t* interrupt);
 
 void gb_interrupt_reset(gb_interrupt_t* interrupt);
+
+void gb_interrupt_save_state(gb_interrupt_t* interrupt,gb_state_t* state);
+void gb_interrupt_load_state(gb_interrupt_t* interrupt,gb_state_t* state);
 
 #ifdef __cplusplus
 }

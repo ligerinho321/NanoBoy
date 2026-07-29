@@ -23,11 +23,9 @@ object_viewer_t::object_viewer_t(gb_t* gb,SDL_Renderer *renderer):gb(gb),obj_pal
 
     update_bg_metrics();
 
-    objects.reserve(gb_oam_objects);
-    objects_sorted.reserve(gb_oam_objects);
-
-    for(int i = 0; i < gb_oam_objects; ++i){
-        objects_sorted.push_back(&objects.emplace_back(i,renderer));
+    for(int i = 0; i < objects_sorted.size(); ++i){
+        objects[i].init(i,renderer);
+        objects_sorted[i] = &objects[i];
     }
 }
 
@@ -472,6 +470,10 @@ void object_viewer_t::render_oam_screen(){
 void object_viewer_t::render(){
     if(!open) return;
 
+    if(!gb->cartridge_inserted){
+        set_open(false);
+    }
+
     bool _open = open;
 
     if(ImGui::Begin("Object Viewer",&_open)){
@@ -544,7 +546,7 @@ void object_viewer_t::render(){
     }
     ImGui::End();
 
-    set_open<true>(_open);
+    set_open(_open);
 }
 
 
@@ -564,5 +566,19 @@ void object_viewer_t::clear(){
 
     for(auto& object : objects){
         object.clear();
+    }
+}
+
+
+void object_viewer_t::set_open(bool _open) noexcept {
+    if(open == _open) return;
+    
+    open = _open;
+
+    if(open){
+        gb_thread_safe_add_ppu_handler(gb,&callback_handler);
+    }
+    else{
+        gb_thread_safe_remove_ppu_handler(gb,&callback_handler);
     }
 }

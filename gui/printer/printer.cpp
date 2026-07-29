@@ -147,6 +147,10 @@ void printer_t::render(){
 
     if(!open) return;
 
+    if(!gb->cartridge_inserted){
+        set_open(false);
+    }
+
     bool _open = open;
 
     if(ImGui::Begin("Printer",&_open)){
@@ -214,5 +218,25 @@ void printer_t::render(){
     }
     ImGui::End();
 
-    set_open<true>(_open);
+    set_open(_open);
+}
+
+
+void printer_t::set_open(bool _open) noexcept {
+    if(open == _open) return;
+
+    open = _open;
+
+    if(open){
+        gb_thread_safe_connect_printer(gb,gb_printer_callback,this);
+    }
+    else{
+        gb_thread_safe_disconnect_printer(gb);
+
+        texture_height = 0;
+
+        buffer.clear();
+
+        update_texture.store(false,std::memory_order_relaxed);
+    }
 }

@@ -5,6 +5,7 @@
 #include <gui/utils/utils.hpp>
 
 #include <gui/file_dialog/file_selector_dialog.hpp>
+#include <gui/savestate/savestate.hpp>
 
 #include <gui/cheats/cheats.hpp>
 #include <gui/printer/printer.hpp>
@@ -27,26 +28,17 @@ private:
     std::string rom_name;
 
     std::string get_rom_save_path() const {
-        std::filesystem::path path = saves_path / rom_name;
-        path.replace_extension(".s");
+        std::filesystem::path path = saves_path / (rom_name + ".s");
         return path.u8string();
     }
 
     std::string get_rom_rtc_path() const {
-        std::filesystem::path path = saves_path / rom_name;
-        path.replace_extension(".rtc");
-        return path.u8string();
-    }
-
-    std::string get_rom_savestate_path() const {
-        std::filesystem::path path = savestates_path / rom_name;
-        path.replace_extension(".ss");
+        std::filesystem::path path = saves_path / (rom_name + ".rtc");
         return path.u8string();
     }
 
     std::string get_rom_cheat_path() const {
-        std::filesystem::path path = cheats_path / rom_name;
-        path.replace_extension(".json");
+        std::filesystem::path path = cheats_path / (rom_name + ".json");
         return path.u8string();
     }
 
@@ -74,6 +66,7 @@ public:
     SDL_AudioDeviceID audio_device = 0;
     
     file_selector_t* file_selector = nullptr;
+    savestate_t* savestate = nullptr;
     
     screen_t* screen = nullptr;
     

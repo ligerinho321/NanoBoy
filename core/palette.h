@@ -1,10 +1,6 @@
 #pragma once
 
-#include "utils.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "utils/utils.h"
 
 enum{
     gb_dmg_bg_palettes = 1,
@@ -20,6 +16,12 @@ enum{
     gb_cgb_bytes_per_color = 2,
     gb_cgb_cram_length = gb_cgb_colors * gb_cgb_bytes_per_color,
 };
+
+typedef struct gb_rgb_t {
+    uint8_t r;
+    uint8_t g;
+    uint8_t b;
+} gb_rgb_t;
 
 typedef struct _gb_palette_t {
     gb_t* gb;
@@ -42,32 +44,6 @@ typedef struct _gb_palette_t {
 
 extern const gb_rgb_t dmg_colors[gb_dmg_colors];
 
-void gb_palette_init(gb_palette_t* palette,gb_t* gb);
-
-gb_rgb_t gb_palette_get_dmg_bgp_color(gb_palette_t* palette,uint8_t palette_index);
-gb_rgb_t gb_palette_get_dmg_obp_color(gb_palette_t* palette,uint8_t palette_index,uint8_t color_index);
-
-gb_rgb_t gb_palette_get_cgb_bgp_color(gb_palette_t* palette,uint8_t palette_index,uint8_t color_index);
-gb_rgb_t gb_palette_get_cgb_obp_color(gb_palette_t* palette,uint8_t palette_index,uint8_t color_index);
-
-gb_rgb_t gb_palette_get_cgb_dmg_bgp_color(gb_palette_t* palette,uint8_t palette_index);
-gb_rgb_t gb_palette_get_cgb_dmg_obp_color(gb_palette_t* palette,uint8_t palette_index,uint8_t color_index);
-
-gb_rgb_t gb_palette_rgb555_to_rgb888(uint16_t color);
-
-void gb_palette_write_dmg_register(void* data,uint8_t value,uint16_t address);
-uint8_t gb_palette_read_dmg_register(void* data,uint16_t address);
-
-void gb_palette_write_cgb_register(void* data,uint8_t value,uint16_t address);
-uint8_t gb_palette_read_cgb_register(void* data,uint16_t address);
-
-void gb_palette_map_dmg_registers(gb_palette_t* palette);
-
-void gb_palette_map_cgb_registers(gb_palette_t* palette);
-void gb_palette_unmap_cgb_registers(gb_palette_t* palette);
-
-void gb_palette_reset(gb_palette_t* palette);
-
 
 #define gb_palette_get_dmg_bgp_color(palette,palette_index)\
     dmg_colors[((palette)->bgp >> (((palette_index) & 0x03) << 0x01)) & 0x03]
@@ -89,6 +65,30 @@ void gb_palette_reset(gb_palette_t* palette);
 #define gb_palette_get_cgb_dmg_obp_color(palette,palette_index,color_index)\
     (palette)->obj_cram_converted[(((palette_index) & 0x01) << 0x02) | (((palette)->obp[(palette_index) & 0x01] >> (((color_index) & 0x03) << 0x01)) & 0x03)]
 
+    
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+void gb_palette_init(gb_palette_t* palette,gb_t* gb);
+
+gb_rgb_t gb_palette_rgb555_to_rgb888(uint16_t color);
+
+void gb_palette_write_dmg_register(void* data,uint8_t value,uint16_t address);
+uint8_t gb_palette_read_dmg_register(void* data,uint16_t address);
+
+void gb_palette_write_cgb_register(void* data,uint8_t value,uint16_t address);
+uint8_t gb_palette_read_cgb_register(void* data,uint16_t address);
+
+void gb_palette_map_dmg_registers(gb_palette_t* palette);
+
+void gb_palette_map_cgb_registers(gb_palette_t* palette);
+void gb_palette_unmap_cgb_registers(gb_palette_t* palette);
+
+void gb_palette_reset(gb_palette_t* palette);
+
+void gb_palette_save_state(gb_palette_t* palette,gb_state_t* state);
+void gb_palette_load_state(gb_palette_t* palette,gb_state_t* state);
 
 #ifdef __cplusplus
 }

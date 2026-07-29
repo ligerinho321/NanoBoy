@@ -153,12 +153,7 @@ enum {
 };
 
 typedef struct _gb_t gb_t;
-
-typedef struct gb_rgb_t {
-    uint8_t r;
-    uint8_t g;
-    uint8_t b;
-} gb_rgb_t;
+typedef struct _gb_state_t gb_state_t;
 
 typedef struct _gb_apu_handler_t {
     void (*callback)(void*);
@@ -189,44 +184,6 @@ typedef struct _gb_memory_handler_t {
 } gb_memory_handler_t;
 
 
-typedef struct _gb_pixel_fifo_entry_t {
-    uint8_t palette_index;
-    uint8_t color_index;
-    bool priority;
-    uint8_t index;
-} gb_pixel_fifo_entry_t;
-
-typedef struct _gb_pixel_fifo_t {
-    gb_pixel_fifo_entry_t data[0x08];
-    uint8_t front;
-    uint8_t length;
-} gb_pixel_fifo_t;
-
-void gb_pixel_fifo_pop(gb_pixel_fifo_t* fifo);
-
-
-typedef struct _gb_ring_buffer_t {
-    uint8_t *data;
-    size_t size;
-    gb_atomic_size_t write;
-    gb_atomic_size_t read;
-} gb_ring_buffer_t;
-
-void gb_ring_buffer_init(gb_ring_buffer_t* rb,size_t size);
-
-size_t gb_ring_buffer_writeable(gb_ring_buffer_t* rb);
-
-size_t gb_ring_buffer_readable(gb_ring_buffer_t* rb);
-
-size_t gb_ring_buffer_write(gb_ring_buffer_t* rb,const uint8_t* src,size_t len);
-
-size_t gb_ring_buffer_read(gb_ring_buffer_t* rb,uint8_t* dst,size_t len);
-
-void gb_ring_buffer_clear(gb_ring_buffer_t* rb);
-
-void gb_ring_buffer_free(gb_ring_buffer_t* rb);
-
-
 typedef struct _gb_frame_timer_t {
     uint32_t frame_count;
     uint32_t cycles;
@@ -253,6 +210,9 @@ float gb_frame_timer_get_fps(gb_frame_timer_t* frame_timer);
 
 bool gb_save_file(const char* path,void* data,size_t len);
 bool gb_load_file(const char* path,void** data,size_t* len);
+
+
+uint32_t crc32(const uint8_t* buffer,uint32_t len);
 
 #ifdef __cplusplus
 }

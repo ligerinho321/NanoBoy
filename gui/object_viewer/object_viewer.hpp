@@ -40,21 +40,18 @@ private:
         bool vertical_flip = false;
         bool priority = false;
 
-        object_t(uint8_t _index,SDL_Renderer* renderer){
+        object_t() = default;
+
+        ~object_t(){
+            if(texture != nullptr){
+                SDL_DestroyTexture(texture);
+            }
+        }
+        
+        void init(uint8_t _index,SDL_Renderer* renderer){
             texture = SDL_CreateTexture(renderer,obj_texture_format,texture_access,gb_object_width,gb_object_max_height);
             SDL_SetTextureBlendMode(texture,SDL_BLENDMODE_BLEND);
             index = _index;
-        }
-
-        object_t(object_t&& v) noexcept {
-            memcpy(this,&v,sizeof(object_t));
-            v.texture = nullptr;
-        }
-
-        object_t(const object_t& v) = delete;
-
-        ~object_t(){
-            SDL_DestroyTexture(texture);
         }
 
         void clear(){
@@ -107,8 +104,8 @@ private:
     uint8_t oam[gb_oam_length] = {0};
     uint8_t vram[gb_vram_length] = {0};
 
-    std::vector<object_t> objects;
-    std::vector<object_t*> objects_sorted;
+    std::array<object_t,gb_oam_objects> objects;
+    std::array<object_t*,gb_oam_objects> objects_sorted;
     object_t* oam_table_object_hovered = nullptr;
 
     gb_ppu_handler_t callback_handler = {callback,this,gb_vblank_scanline,0,nullptr};
@@ -144,31 +141,9 @@ public:
 
     void clear();
 
-    template<bool thread_safe>
-    void set_open(bool _open){
-        if(open == _open) return;
-        
-        open = _open;
+    void set_open(bool _open) noexcept;
 
-        if(open){
-            if constexpr (thread_safe){
-                gb_thread_safe_add_ppu_handler(gb,&callback_handler);
-            }
-            else{
-                gb_add_ppu_handler(gb,&callback_handler);
-            }
-        }
-        else{
-            if constexpr (thread_safe){
-                gb_thread_safe_remove_ppu_handler(gb,&callback_handler);
-            }
-            else{
-                gb_remove_ppu_handler(gb,&callback_handler);
-            }
-        }
-    }
-
-    bool get_open() const {
+    bool get_open() const noexcept {
         return open;
     }
 };

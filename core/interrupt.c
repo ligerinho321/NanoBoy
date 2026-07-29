@@ -75,3 +75,14 @@ void gb_interrupt_reset(gb_interrupt_t* interrupt){
     interrupt->enable = 0x00;
     interrupt->flag = 0x00;
 }
+
+
+void gb_interrupt_save_state(gb_interrupt_t* interrupt,gb_state_t* state){
+    gb_state_write(state,interrupt->enable);
+    gb_state_write(state,interrupt->flag);
+}
+
+void gb_interrupt_load_state(gb_interrupt_t* interrupt,gb_state_t* state){
+    gb_state_read(state,interrupt->enable);
+    gb_state_read(state,interrupt->flag);
+}

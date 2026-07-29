@@ -114,7 +114,7 @@ void wave_form_t::file_save_callback(void* userdata,std::filesystem::path path){
 
     fclose(file);
 
-    wave_form->clear_recording(true);
+    wave_form->clear_recording();
 }
 
 float wave_form_t::get_sample_callback(void* data,int idx){
@@ -123,8 +123,8 @@ float wave_form_t::get_sample_callback(void* data,int idx){
 }
 
 
-void wave_form_t::clear_recording(bool thread_safe){
-
+void wave_form_t::clear_recording() noexcept {
+    
     recording = false;
     paused = false;
 
@@ -137,28 +137,18 @@ void wave_form_t::clear_recording(bool thread_safe){
     hours.store(0,std::memory_order_relaxed);
 }
 
-void wave_form_t::pause_recording(bool _paused,bool thread_safe){
+void wave_form_t::pause_recording(bool _paused) noexcept {
     if(!recording || paused == _paused) return;
 
     paused = _paused;
 
     if(paused){
-        if(thread_safe){
-            gb_thread_safe_remove_apu_handler(gb,&recording_handler);
-        }
-        else{
-            gb_remove_apu_handler(gb,&recording_handler);
-        }
+        gb_thread_safe_remove_apu_handler(gb,&recording_handler);
 
         last_time = time(NULL);
     }
     else{
-        if(thread_safe){
-            gb_thread_safe_add_apu_handler(gb,&recording_handler);
-        }
-        else{
-            gb_add_apu_handler(gb,&recording_handler);
-        }
+        gb_thread_safe_add_apu_handler(gb,&recording_handler);
     }
 }
 
@@ -225,7 +215,7 @@ void wave_form_t::render_popup_modal(){
 
     if(ImGui::Button(discard)){
         popup_modal_open = false;
-        set_open(false,true,true);
+        set_open(false,true);
     }
 
     ImGui::SameLine();
@@ -239,6 +229,10 @@ void wave_form_t::render_popup_modal(){
 
 void wave_form_t::render(){
     if(!open) return;
+
+    if(!gb->cartridge_inserted){
+        set_open(false,true);
+    }
 
     bool _open = open;
 
@@ -257,7 +251,7 @@ void wave_form_t::render(){
         ImGui::BeginDisabled(!recording);
 
         if(ImGui::Button(paused ? "Resume" : "Pause")){
-            pause_recording(!paused,true);
+            pause_recording(!paused);
         }
 
         ImGui::EndDisabled();
@@ -267,7 +261,7 @@ void wave_form_t::render(){
         if(ImGui::Button(recording ? "Stop" : "Start")){
 
             if(recording){
-                pause_recording(true,true);
+                pause_recording(true);
 
                 file_save.copy_to_name_buffer(get_recording_file_name());
 
@@ -287,7 +281,7 @@ void wave_form_t::render(){
         ImGui::BeginDisabled((recording && !paused) || !output_size.load(std::memory_order_relaxed));
 
         if(ImGui::Button("Discard")){
-            clear_recording(true);
+            clear_recording();
         }
 
         ImGui::EndDisabled();
@@ -413,27 +407,36 @@ void wave_form_t::render(){
     ImGui::End();
 
     if(!_open){
-        set_open(false,false,true);
+        set_open(false,false);
     }
 }
 
 
-void wave_form_t::set_open(bool _open,bool force_discarding,bool thread_safe){
+void wave_form_t::clear(){
+    gb_remove_apu_handler(gb,&channel_handler);
+
+    square1.count = 0;
+    square2.count = 0;
+    wave.count = 0;
+    noise.count = 0;
+
+    gb_remove_apu_handler(gb,&recording_handler);
+    
+    clear_recording();
+}
+
+
+void wave_form_t::set_open(bool _open,bool force_discarding) noexcept {
 
     if(open == _open) return;
     
     if(_open){
         open = true;
 
-        if(thread_safe){
-            gb_thread_safe_add_apu_handler(gb,&channel_handler);
-        }
-        else{
-            gb_add_apu_handler(gb,&channel_handler);
-        }
+        gb_thread_safe_add_apu_handler(gb,&channel_handler);
     }
     else{
-        pause_recording(true,thread_safe);
+        pause_recording(true);
 
         if(recording && !force_discarding){
             request_open_popup_modal = true;
@@ -441,14 +444,9 @@ void wave_form_t::set_open(bool _open,bool force_discarding,bool thread_safe){
         else{
             open = false;
 
-            clear_recording(thread_safe);
+            gb_thread_safe_remove_apu_handler(gb,&channel_handler);
 
-            if(thread_safe){
-                gb_thread_safe_remove_apu_handler(gb,&channel_handler);
-            }
-            else{
-                gb_remove_apu_handler(gb,&channel_handler);
-            }
+            clear_recording();
         }
     }
 }

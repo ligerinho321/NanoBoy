@@ -25,6 +25,8 @@ bool gb_mbc3_init(gb_cartridge_t* cartridge,uint8_t flags){
     }
 
     cartridge->mapper.reset = gb_mbc3_reset;
+    cartridge->mapper.save_state = gb_mbc3_save_state;
+    cartridge->mapper.load_state = gb_mbc3_load_state;
 
     gb_cartridge_set_rom0_bank(cartridge,0x00);
 
@@ -41,17 +43,17 @@ bool gb_mbc3_init(gb_cartridge_t* cartridge,uint8_t flags){
 }
 
 
-void gb_mbc3_update_ram_and_rtc_mapping(gb_cartridge_t* cartridge){
+void gb_mbc3_update_ram_or_rtc_mapping(gb_cartridge_t* cartridge){
 
     gb_mbc3_t* mbc3 = (gb_mbc3_t*)cartridge->mapper.data;
 
-    if(!mbc3->ram_and_rtc_enabled) goto unmap;
+    if(!mbc3->ram_or_rtc_enabled) goto unmap;
 
-    if(mbc3->ram_and_rtc_bank <= 0x07){
+    if(mbc3->ram_or_rtc_bank <= 0x07){
 
         if(cartridge->ram_size > 0x00){
             
-            gb_cartridge_set_ram_bank(cartridge,mbc3->ram_and_rtc_bank);
+            gb_cartridge_set_ram_bank(cartridge,mbc3->ram_or_rtc_bank);
 
             cartridge->ram_handler.write = gb_cartridge_write_ram;
             cartridge->ram_handler.read = gb_cartridge_read_ram;
@@ -60,7 +62,7 @@ void gb_mbc3_update_ram_and_rtc_mapping(gb_cartridge_t* cartridge){
             goto unmap;
         }
     }
-    else if(mbc3->ram_and_rtc_bank <= 0x0C){
+    else if(mbc3->ram_or_rtc_bank <= 0x0C){
 
         if(mbc3->has_rtc){
             
@@ -90,9 +92,9 @@ void gb_mbc3_write_register_0(void* data,uint8_t value,uint16_t address){
     if(address < 0x2000){
         if(!cartridge->ram_size && !mbc3->has_rtc) return;
 
-        mbc3->ram_and_rtc_enabled = (value & 0x0F) == 0x0A;
+        mbc3->ram_or_rtc_enabled = (value & 0x0F) == 0x0A;
 
-        gb_mbc3_update_ram_and_rtc_mapping(cartridge);
+        gb_mbc3_update_ram_or_rtc_mapping(cartridge);
     }
     //0x2000-0x3FFF
     else{
@@ -109,9 +111,9 @@ void gb_mbc3_write_register_1(void* data,uint8_t value,uint16_t address){
     if(address < 0x6000){
         if(!cartridge->ram_size && !mbc3->has_rtc) return;
 
-        mbc3->ram_and_rtc_bank = value & 0x0F;
+        mbc3->ram_or_rtc_bank = value & 0x0F;
 
-        gb_mbc3_update_ram_and_rtc_mapping(cartridge);
+        gb_mbc3_update_ram_or_rtc_mapping(cartridge);
     }
     //0x6000-0x7FFF
     else{
@@ -139,7 +141,7 @@ void gb_mbc3_rtc_write_register(void* data,uint8_t value,uint16_t address){
 
     gb_mbc3_rtc_update_timer(cartridge);
 
-    switch(mbc3->ram_and_rtc_bank){
+    switch(mbc3->ram_or_rtc_bank){
         case 0x08:
             rtc->reg[0x00] = value & 0x3F;
             rtc->cycles = 0;
@@ -171,7 +173,7 @@ uint8_t gb_mbc3_rtc_read_register(void* data,uint16_t address){
 
     uint8_t value = 0xFF;
 
-    switch(mbc3->ram_and_rtc_bank){
+    switch(mbc3->ram_or_rtc_bank){
         case 0x08: value = rtc->latched_reg[0x00]; break;
         case 0x09: value = rtc->latched_reg[0x01]; break;
         case 0x0A: value = rtc->latched_reg[0x02]; break;
@@ -293,15 +295,55 @@ void gb_mbc3_reset(gb_cartridge_t* cartridge){
     mbc3->rom_bank = 0x01;
     gb_cartridge_set_rom1_bank(cartridge,mbc3->rom_bank);
 
-    if((cartridge->ram_size > 0x00) || mbc3->has_rtc){
-        mbc3->ram_and_rtc_enabled = false;
-        mbc3->ram_and_rtc_bank = 0x00;
-        gb_mbc3_update_ram_and_rtc_mapping(cartridge);
+    if(cartridge->ram_size > 0x00 || mbc3->has_rtc){
+        mbc3->ram_or_rtc_enabled = false;
+        mbc3->ram_or_rtc_bank = 0x00;
+        gb_mbc3_update_ram_or_rtc_mapping(cartridge);
     }
 
     if(mbc3->has_rtc){
         memset(mbc3->rtc.latched_reg,0,sizeof(mbc3->rtc.latched_reg));
         mbc3->rtc.latch = false;
         mbc3->rtc.last_update_cycle = 0;
+    }
+}
+
+void gb_mbc3_save_state(gb_cartridge_t* cartridge,gb_state_t* state){
+    gb_mbc3_t* mbc3 = (gb_mbc3_t*)cartridge->mapper.data;
+
+    gb_state_write(state,mbc3->rom_bank);
+
+    if(cartridge->ram_size > 0x00 || mbc3->has_rtc){
+        gb_state_write(state,mbc3->ram_or_rtc_enabled);
+        gb_state_write(state,mbc3->ram_or_rtc_bank);
+    }
+
+    if(mbc3->has_rtc){
+        gb_state_write_ex(state,mbc3->rtc.reg,sizeof(mbc3->rtc.reg));
+        gb_state_write_ex(state,mbc3->rtc.latched_reg,sizeof(mbc3->rtc.latched_reg));
+        gb_state_write(state,mbc3->rtc.latch);
+        gb_state_write(state,mbc3->rtc.cycles);
+        gb_state_write(state,mbc3->rtc.last_update_cycle);
+    }
+}
+
+void gb_mbc3_load_state(gb_cartridge_t* cartridge,gb_state_t* state){
+    gb_mbc3_t* mbc3 = (gb_mbc3_t*)cartridge->mapper.data;
+
+    gb_state_read(state,mbc3->rom_bank);
+    gb_cartridge_set_rom1_bank(cartridge,mbc3->rom_bank);
+
+    if(cartridge->ram_size > 0x00 || mbc3->has_rtc){
+        gb_state_read(state,mbc3->ram_or_rtc_enabled);
+        gb_state_read(state,mbc3->ram_or_rtc_bank);
+        gb_mbc3_update_ram_or_rtc_mapping(cartridge);
+    }
+
+    if(mbc3->has_rtc){
+        gb_state_read_ex(state,mbc3->rtc.reg,sizeof(mbc3->rtc.reg));
+        gb_state_read_ex(state,mbc3->rtc.latched_reg,sizeof(mbc3->rtc.latched_reg));
+        gb_state_read(state,mbc3->rtc.latch);
+        gb_state_read(state,mbc3->rtc.cycles);
+        gb_state_read(state,mbc3->rtc.last_update_cycle);
     }
 }

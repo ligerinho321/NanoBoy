@@ -191,6 +191,10 @@ void palette_viewer_t::render_palette(palette_t& palette,uint8_t* cram){
 void palette_viewer_t::render(){
     if(!open) return;
 
+    if(!gb->cartridge_inserted){
+        set_open(false);
+    }
+
     bool _open = open;
 
     if(ImGui::Begin("Palette Viewer",&_open)){
@@ -232,7 +236,7 @@ void palette_viewer_t::render(){
     }
     ImGui::End();
 
-    set_open<true>(_open);
+    set_open(_open);
 }
 
 
@@ -247,4 +251,15 @@ void palette_viewer_t::clear(){
 }
 
 
+void palette_viewer_t::set_open(bool _open) noexcept {
+    if(open == _open) return;
 
+    open = _open;
+    
+    if(open){
+        gb_thread_safe_add_ppu_handler(gb,&callback_handler);
+    }
+    else{
+        gb_thread_safe_remove_ppu_handler(gb,&callback_handler);
+    }
+}

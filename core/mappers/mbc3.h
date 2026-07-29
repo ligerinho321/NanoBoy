@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../utils.h"
+#include "../utils/utils.h"
 
 typedef struct _gb_cartridge_t gb_cartridge_t;
 
@@ -16,9 +16,12 @@ typedef struct _gb_mbc3_rtc_t {
 
 typedef struct _gb_mbc3_t {
     bool has_rtc;
-    bool ram_and_rtc_enabled;
+
     uint8_t rom_bank;
-    uint8_t ram_and_rtc_bank;
+    
+    bool ram_or_rtc_enabled;
+    uint8_t ram_or_rtc_bank;
+
     gb_mbc3_rtc_t rtc;
 } gb_mbc3_t;
 
@@ -28,7 +31,7 @@ extern "C" {
 
 bool gb_mbc3_init(gb_cartridge_t* cartridge,uint8_t flags);
 
-void gb_mbc3_update_ram_and_rtc_mapping(gb_cartridge_t* cartridge);
+void gb_mbc3_update_ram_or_rtc_mapping(gb_cartridge_t* cartridge);
 
 void gb_mbc3_write_register_0(void* data,uint8_t value,uint16_t address);
 void gb_mbc3_write_register_1(void* data,uint8_t value,uint16_t address);
@@ -41,6 +44,9 @@ void gb_mbc3_rtc_save(gb_cartridge_t* cartridge,const char* path);
 void gb_mbc3_rtc_load(gb_cartridge_t* cartridge,const char* path);
 
 void gb_mbc3_reset(gb_cartridge_t* cartridge);
+
+void gb_mbc3_save_state(gb_cartridge_t* cartridge,gb_state_t* state);
+void gb_mbc3_load_state(gb_cartridge_t* cartridge,gb_state_t* state);
 
 #ifdef __cplusplus
 }

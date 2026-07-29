@@ -50,37 +50,9 @@ public:
 
     void render();
 
-    template<bool thread_safe>
-    void set_open(bool _open){
-        if(open == _open) return;
+    void set_open(bool _open) noexcept;
 
-        open = _open;
-
-        if(open){
-            if constexpr (thread_safe){
-                gb_thread_safe_connect_printer(gb,gb_printer_callback,this);
-            }
-            else{
-                gb_connect_printer(gb,gb_printer_callback,this);
-            }
-        }
-        else{
-            if constexpr (thread_safe){
-                gb_thread_safe_disconnect_printer(gb);
-            }
-            else{
-                gb_disconnect_printer(gb);
-            }
-
-            texture_height = 0;
-
-            buffer.clear();
-
-            update_texture.store(false,std::memory_order_relaxed);
-        }
-    }
-
-    bool get_open() const {
+    bool get_open() const noexcept {
         return open;
     }
 };

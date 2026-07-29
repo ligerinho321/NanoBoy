@@ -43,31 +43,9 @@ public:
 
     void clear();
 
-    template<bool thread_safe>
-    void set_open(bool _open){
-        if(open == _open) return;
+    void set_open(bool _open) noexcept;
 
-        open = _open;
-        
-        if(open){
-            if constexpr (thread_safe){
-                gb_thread_safe_add_ppu_handler(gb,&callback_handler);
-            }
-            else{
-                gb_add_ppu_handler(gb,&callback_handler);
-            }
-        }
-        else{
-            if constexpr (thread_safe){
-                gb_thread_safe_remove_ppu_handler(gb,&callback_handler);
-            }
-            else{
-                gb_remove_ppu_handler(gb,&callback_handler);
-            }
-        }
-    }
-
-    bool get_open() const {
+    bool get_open() const noexcept {
         return open;
     }
 };

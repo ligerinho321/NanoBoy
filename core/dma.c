@@ -19,7 +19,7 @@ void gb_dma_init(gb_dma_t* dma,gb_t* gb){
 
 
 void gb_oam_dma_clock(gb_dma_t* dma){
-    if(dma->oam_state == gb_oam_dma_state_none || dma->gb->cpu.halted) return;
+    if(dma->oam_state == gb_oam_dma_state_none || dma->gb->cpu.state == gb_cpu_halted_state) return;
     
     switch(dma->oam_state){
         case gb_oam_dma_state_delay:{
@@ -29,7 +29,6 @@ void gb_oam_dma_clock(gb_dma_t* dma){
         case gb_oam_dma_state_setup:{
             dma->oam_byte = gb_memory_oam_dma_read(&dma->gb->memory,dma->oam_hi_addr | dma->oam_counter);
             dma->oam_state = gb_oam_dma_state_transfer;
-            dma->oam_running = true;
             break;
         }
         case gb_oam_dma_state_transfer:{
@@ -37,7 +36,6 @@ void gb_oam_dma_clock(gb_dma_t* dma){
 
             if(++dma->oam_counter >= 0xA0){
                 dma->oam_state = gb_oam_dma_state_none;
-                dma->oam_running = false;
             }
             else{
                 dma->oam_byte = gb_memory_oam_dma_read(&dma->gb->memory,dma->oam_hi_addr | dma->oam_counter);
@@ -94,7 +92,7 @@ uint8_t gb_oam_dma_read_register(void* data,uint16_t address){
 
 void gb_vram_hblank_dma(gb_dma_t* dma){
     
-    if(!dma->vram_hblank_running || dma->gb->cpu.halted) return;
+    if(!dma->vram_hblank_running || dma->gb->cpu.state == gb_cpu_halted_state) return;
     
     gb_t* gb = dma->gb;
 
@@ -123,6 +121,38 @@ void gb_vram_hblank_dma(gb_dma_t* dma){
     if((dma->vram_length == 0x7F) || !dma->vram_dst){
         dma->vram_hblank_running = false;
     }
+}
+
+void gb_vram_general_dma(gb_dma_t* dma){
+
+    gb_t* gb = dma->gb;
+    gb_memory_t* memory = &dma->gb->memory;
+
+    gb_machine_cycle(gb);
+
+    uint16_t len = ((dma->vram_length & 0x7F) + 0x01) << 0x04;
+    
+    while(len > 0){
+
+        if(gb->double_speed){
+            gb_machine_cycle(gb);
+        }
+        else{
+            gb_half_machine_cycle(gb);
+        }
+        
+        uint8_t byte = gb_memory_vram_dma_read(memory,dma->vram_src++);
+
+        gb_memory_vram_dma_write(memory,byte,0x8000 | (dma->vram_dst & 0x1FFF));
+
+        --len;
+
+        if(++dma->vram_dst == 0x00){
+            break;
+        }
+    }
+
+    dma->vram_length = ((len >> 0x04) - 0x01) & 0x7F;
 }
 
 
@@ -165,34 +195,7 @@ void gb_vram_dma_write_register(void* data,uint8_t value,uint16_t address){
                     return;
                 }
 
-                gb_t* gb = dma->gb;
-                gb_memory_t* memory = &dma->gb->memory;
-
-                gb_machine_cycle(gb);
-
-                uint16_t len = ((value & 0x7F) + 0x01) << 0x04;
-                
-                while(len > 0){
-
-                    if(gb->double_speed){
-                        gb_machine_cycle(gb);
-                    }
-                    else{
-                        gb_half_machine_cycle(gb);
-                    }
-                    
-                    uint8_t byte = gb_memory_vram_dma_read(memory,dma->vram_src++);
-
-                    gb_memory_vram_dma_write(memory,byte,0x8000 | (dma->vram_dst & 0x1FFF));
-
-                    --len;
-
-                    if(++dma->vram_dst == 0x00){
-                        break;
-                    }
-                }
-
-                dma->vram_length = ((len >> 0x04) - 0x01) & 0x7F;
+                gb_vram_general_dma(dma);
             }
 
             break;
@@ -228,9 +231,7 @@ void gb_vram_dma_unmap_registers(gb_dma_t* dma){
 
 void gb_dma_reset(gb_dma_t* dma){
     dma->oam_state = gb_oam_dma_state_none;
-    dma->oam_running = false;
-
-    dma->oam_src = 0x00;
+    dma->oam_src = 0xFF;
     dma->oam_hi_addr = 0x00;
     dma->oam_counter = 0x00;
     dma->oam_byte = 0x00;
@@ -239,4 +240,31 @@ void gb_dma_reset(gb_dma_t* dma){
     dma->vram_dst = 0x00;
     dma->vram_length = 0xFF;
     dma->vram_hblank_running = 0x00;
+}
+
+
+void gb_dma_save_state(gb_dma_t* dma,gb_state_t* state){
+    gb_state_write(state,dma->oam_state);
+    gb_state_write(state,dma->oam_src);
+    gb_state_write(state,dma->oam_hi_addr);
+    gb_state_write(state,dma->oam_counter);
+    gb_state_write(state,dma->oam_byte);
+
+    gb_state_write(state,dma->vram_src);
+    gb_state_write(state,dma->vram_dst);
+    gb_state_write(state,dma->vram_length);
+    gb_state_write(state,dma->vram_hblank_running);
+}
+
+void gb_dma_load_state(gb_dma_t* dma,gb_state_t* state){
+    gb_state_read(state,dma->oam_state);
+    gb_state_read(state,dma->oam_src);
+    gb_state_read(state,dma->oam_hi_addr);
+    gb_state_read(state,dma->oam_counter);
+    gb_state_read(state,dma->oam_byte);
+
+    gb_state_read(state,dma->vram_src);
+    gb_state_read(state,dma->vram_dst);
+    gb_state_read(state,dma->vram_length);
+    gb_state_read(state,dma->vram_hblank_running);
 }

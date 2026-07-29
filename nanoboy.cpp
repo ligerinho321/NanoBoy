@@ -59,6 +59,8 @@ nanoboy_t::nanoboy_t(){
     file_selector->set_current_extension(1);
     file_selector->set_callback(file_selector_callback,this);
 
+    savestate = new savestate_t(gb,renderer,audio_device);
+
     screen = new screen_t(renderer);
 
     cheats = new cheats_t(gb);
@@ -91,6 +93,7 @@ nanoboy_t::~nanoboy_t(){
     delete printer;
     delete cheats;
     delete screen;
+    delete savestate;
     delete file_selector;
 
     ImGui_ImplSDLRenderer2_Shutdown();
@@ -216,16 +219,7 @@ void nanoboy_t::load_imgui_ini_settings(){
 
 
 void nanoboy_t::insert_cartridge(std::filesystem::path path){
-
-    bool cheats_open = cheats->get_open();
-    bool printer_open = printer->get_open();
-
-    bool tilemap_viewer_open = tilemap_viewer->get_open();
-    bool object_viewer_open = object_viewer->get_open();
-    bool palette_viewer_open = palette_viewer->get_open();
     
-    bool wave_form_open = wave_form->get_open();
-
     remove_cartridge();
 
     if(!gb_insert_cartridge(gb,(const char*)path.u8string().c_str())){
@@ -239,16 +233,9 @@ void nanoboy_t::insert_cartridge(std::filesystem::path path){
 
     gb_load_rtc(gb,get_rom_rtc_path().c_str());
 
-    cheats->load(get_rom_cheat_path().c_str(),false);
-    cheats->set_open(cheats_open);
-    
-    printer->set_open<false>(printer_open);
+    savestate->load(savestates_path,rom_name);
 
-    tilemap_viewer->set_open<false>(tilemap_viewer_open);
-    object_viewer->set_open<false>(object_viewer_open);
-    palette_viewer->set_open<false>(palette_viewer_open);
-    
-    wave_form->set_open(wave_form_open,true,false);
+    cheats->load(get_rom_cheat_path().c_str(),false);
 
     gb_thread_start(gb);
 }
@@ -263,22 +250,15 @@ void nanoboy_t::remove_cartridge(){
     
     gb_save_rtc(gb,get_rom_rtc_path().c_str());
 
+    savestate->unload();
+
     cheats->save(get_rom_cheat_path().c_str());
     cheats->clear(false);
-    cheats->set_open(false);
 
-    printer->set_open<false>(false);
-
-    tilemap_viewer->set_open<false>(false);
     tilemap_viewer->clear();
-
-    object_viewer->set_open<false>(false);
     object_viewer->clear();
-    
-    palette_viewer->set_open<false>(false);
     palette_viewer->clear();
 
-    wave_form->set_open(false,true,false);
     wave_form->clear();
     
     screen->clear();
@@ -349,6 +329,8 @@ void nanoboy_t::event(){
             }
         }
     }
+
+    savestate->event();
 }
 
 
@@ -375,7 +357,13 @@ void nanoboy_t::render_main_menu_bar(){
         if(ImGui::MenuItem("Open File")){
             file_selector->set_open(true);
         }
-        
+
+        ImGui::Separator();
+
+        savestate->render_menu_bar();
+
+        ImGui::Separator();
+
         if(ImGui::MenuItem("Exit")){
             running = false;
         }
@@ -406,7 +394,7 @@ void nanoboy_t::render_main_menu_bar(){
         }
 
         if(ImGui::MenuItem("Printer",nullptr,nullptr,gb->cartridge_inserted)){
-            printer->set_open<true>(true);
+            printer->set_open(true);
         }
 
         if(ImGui::MenuItem("Power off",nullptr,nullptr,gb->cartridge_inserted)){
@@ -488,16 +476,16 @@ void nanoboy_t::render_main_menu_bar(){
 
     if(ImGui::BeginMenu("Debug")){
         if(ImGui::MenuItem("Tilemap Viewer",nullptr,nullptr,gb->cartridge_inserted)){
-            tilemap_viewer->set_open<true>(true);
+            tilemap_viewer->set_open(true);
         }
         if(ImGui::MenuItem("Object Viewer",nullptr,nullptr,gb->cartridge_inserted)){
-            object_viewer->set_open<true>(true);
+            object_viewer->set_open(true);
         }
         if(ImGui::MenuItem("Palette Viewer",nullptr,nullptr,gb->cartridge_inserted)){
-            palette_viewer->set_open<true>(true);
+            palette_viewer->set_open(true);
         }
         if(ImGui::MenuItem("Wave Form",nullptr,nullptr,gb->cartridge_inserted)){
-            wave_form->set_open(true,false,true);
+            wave_form->set_open(true,false);
         }
         ImGui::EndMenu();
     }
@@ -506,6 +494,7 @@ void nanoboy_t::render_main_menu_bar(){
 }
 
 void nanoboy_t::imgui_render(){
+
     ImGui_ImplSDLRenderer2_NewFrame();
     ImGui_ImplSDL2_NewFrame();
     ImGui::NewFrame();
@@ -513,6 +502,8 @@ void nanoboy_t::imgui_render(){
     render_main_menu_bar();
 
     file_selector->render();
+
+    savestate->render();
     
     screen->render();
     

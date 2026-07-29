@@ -115,7 +115,7 @@ static inline void gb_ppu_vblank_scanline(gb_ppu_t* ppu){
 
                 gb_atomic_store_explicit(&ppu->screen_index,!screen_index,gb_memory_order_release);
 
-                ppu->pixel_ptr = ppu->screen[!screen_index];
+                ppu->current_screen = ppu->screen[!screen_index];
 
                 gb_joypad_update(&ppu->gb->joypad);
 
@@ -311,6 +311,21 @@ static inline void gb_ppu_object_fetcher_step(gb_ppu_t* ppu){
 }
 
 
+void gb_pixel_fifo_pop(gb_pixel_fifo_t* fifo){
+    if(fifo->length == 0x00) return;
+
+    gb_pixel_fifo_entry_t* entry = fifo->data + fifo->front;
+    entry->palette_index = 0;
+    entry->color_index = 0;
+    entry->priority = false;
+    entry->index = 0;
+    
+    fifo->front = (fifo->front + 0x01) & 0x07;
+
+    fifo->length--;
+}
+
+
 static inline void gb_ppu_render_pixel(gb_ppu_t* ppu){
 
     if(!ppu->tile_fifo.length || ppu->object_found_index != 0xFF) return;
@@ -353,9 +368,11 @@ static inline void gb_ppu_render_pixel(gb_ppu_t* ppu){
             }
         }
 
-        *ppu->pixel_ptr++ = color.r;
-        *ppu->pixel_ptr++ = color.g;
-        *ppu->pixel_ptr++ = color.b;
+        uint8_t* pixel = ppu->current_screen + ppu->_ly * gb_screen_pitch + ppu->drawn_pixels * gb_screen_bytes_per_pixel;
+        
+        pixel[0] = color.r;
+        pixel[1] = color.g;
+        pixel[2] = color.b;
     }
 
     ppu->drawn_pixels++;
@@ -538,7 +555,7 @@ void gb_ppu_write_register(void* data,uint8_t value,uint16_t address){
                 //Quando a PPU é ligado a linha 0 é mais curta em 5 T-cycles
                 ppu->cycle = 0x04;
 
-                ppu->pixel_ptr = ppu->screen[gb_atomic_load_explicit(&ppu->screen_index,gb_memory_order_relaxed)];
+                ppu->current_screen = ppu->screen[gb_atomic_load_explicit(&ppu->screen_index,gb_memory_order_relaxed)];
 
                 ppu->first_frame = true;
             }
@@ -667,14 +684,14 @@ uint8_t gb_ppu_read_vbk_register(void* data,uint16_t address){
 
 void gb_ppu_write_oam(void* data,uint8_t value,uint16_t address){
     gb_ppu_t* ppu = (gb_ppu_t*)data;
-    if(!ppu->gb->dma.oam_running && !ppu->oam_blocked){
+    if(ppu->gb->dma.oam_state != gb_oam_dma_state_transfer && !ppu->oam_blocked){
         ppu->oam[address & 0xFF] = value;
     }
 }
 
 uint8_t gb_ppu_read_oam(void* data,uint16_t address){
     gb_ppu_t* ppu = (gb_ppu_t*)data;
-    if(!ppu->gb->dma.oam_running && !ppu->oam_blocked){
+    if(ppu->gb->dma.oam_state != gb_oam_dma_state_transfer && !ppu->oam_blocked){
         return ppu->oam[address & 0xFF];
     }
     return 0xFF;
@@ -731,15 +748,6 @@ void gb_ppu_reset(gb_ppu_t* ppu){
     memset(&ppu->tile_fifo,0x00,sizeof(ppu->tile_fifo));
     memset(&ppu->object_fifo,0x00,sizeof(ppu->object_fifo));
 
-    memset(ppu->vram,0x00,sizeof(ppu->vram));
-    ppu->vram_bank_ptr = ppu->vram;
-    ppu->vram_bank = 0x00;
-    ppu->vram_blocked = false;
-
-    memset(ppu->oam,0x00,sizeof(ppu->oam));
-    ppu->oam_address = 0x00;
-    ppu->oam_blocked = false;
-
     ppu->status_irq_line = false;
     
     ppu->off_cycle = 0;
@@ -749,5 +757,124 @@ void gb_ppu_reset(gb_ppu_t* ppu){
 
     gb_atomic_store_explicit(&ppu->screen_index,0,gb_memory_order_relaxed);
     memset(ppu->screen,0xFF,sizeof(ppu->screen));
-    ppu->pixel_ptr = ppu->screen[0];
+    ppu->current_screen = ppu->screen[0];
+
+    memset(ppu->vram,0x00,sizeof(ppu->vram));
+    ppu->vram_bank_ptr = ppu->vram;
+    ppu->vram_bank = 0x00;
+    ppu->vram_blocked = false;
+
+    memset(ppu->oam,0x00,sizeof(ppu->oam));
+    ppu->oam_address = 0x00;
+    ppu->oam_blocked = false;
+}
+
+void gb_ppu_save_state(gb_ppu_t* ppu,gb_state_t* state){
+    gb_state_write(state,ppu->lcdc);
+    gb_state_write(state,ppu->status);
+
+    gb_state_write(state,ppu->scy);
+    gb_state_write(state,ppu->scx);
+
+    gb_state_write(state,ppu->ly);
+    gb_state_write(state,ppu->_ly);
+    gb_state_write(state,ppu->cycle);
+
+    gb_state_write(state,ppu->lyc);
+    gb_state_write(state,ppu->_lyc);
+
+    gb_state_write(state,ppu->wy);
+    gb_state_write(state,ppu->wx);
+    gb_state_write(state,ppu->wy_enabled);
+    gb_state_write(state,ppu->wx_enabled);
+    gb_state_write(state,ppu->window_ly);
+
+    gb_state_write(state,ppu->tile_fetcher);
+    gb_state_write(state,ppu->object_fetcher);
+
+    gb_state_write(state,ppu->object_found_index);
+    gb_state_write(state,ppu->fetch_window);
+    gb_state_write(state,ppu->fetch_column);
+    gb_state_write(state,ppu->drawn_pixels);
+    gb_state_write(state,ppu->fictitious_fetch);
+
+    gb_state_write_ex(state,ppu->object_buffer,sizeof(ppu->object_buffer));
+    gb_state_write(state,ppu->object_buffer_length);
+    
+    gb_state_write(state,ppu->tile_fifo);
+    gb_state_write(state,ppu->object_fifo);
+
+    gb_state_write(state,ppu->status_irq_line);
+
+    gb_state_write(state,ppu->off_cycle);
+    
+    gb_state_write(state,ppu->frame_count);
+    gb_state_write(state,ppu->first_frame);
+
+    gb_state_write(state,ppu->screen_index);
+    gb_state_write_ex(state,ppu->screen,sizeof(ppu->screen));
+
+    gb_state_write_ex(state,ppu->vram,sizeof(ppu->vram));
+    gb_state_write(state,ppu->vram_bank);
+    gb_state_write(state,ppu->vram_blocked);
+
+    gb_state_write_ex(state,ppu->oam,sizeof(ppu->oam));
+    gb_state_write(state,ppu->oam_address);
+    gb_state_write(state,ppu->oam_blocked);
+}
+
+void gb_ppu_load_state(gb_ppu_t* ppu,gb_state_t* state){
+    gb_state_read(state,ppu->lcdc);
+    gb_state_read(state,ppu->status);
+
+    gb_state_read(state,ppu->scy);
+    gb_state_read(state,ppu->scx);
+    
+    gb_state_read(state,ppu->ly);
+    gb_state_read(state,ppu->_ly);
+    gb_state_read(state,ppu->cycle);
+    
+    gb_state_read(state,ppu->lyc);
+    gb_state_read(state,ppu->_lyc);
+    
+    gb_state_read(state,ppu->wy);
+    gb_state_read(state,ppu->wx);
+    gb_state_read(state,ppu->wy_enabled);
+    gb_state_read(state,ppu->wx_enabled);
+    gb_state_read(state,ppu->window_ly);
+
+    gb_state_read(state,ppu->tile_fetcher);
+    gb_state_read(state,ppu->object_fetcher);
+    
+    gb_state_read(state,ppu->object_found_index);
+    gb_state_read(state,ppu->fetch_window);
+    gb_state_read(state,ppu->fetch_column);
+    gb_state_read(state,ppu->drawn_pixels);
+    gb_state_read(state,ppu->fictitious_fetch);
+
+    gb_state_read_ex(state,ppu->object_buffer,sizeof(ppu->object_buffer));
+    gb_state_read(state,ppu->object_buffer_length);
+    
+    gb_state_read(state,ppu->tile_fifo);
+    gb_state_read(state,ppu->object_fifo);
+
+    gb_state_read(state,ppu->status_irq_line);
+
+    gb_state_read(state,ppu->off_cycle);
+    
+    gb_state_read(state,ppu->frame_count);
+    gb_state_read(state,ppu->first_frame);
+    
+    gb_state_read(state,ppu->screen_index);
+    gb_state_read_ex(state,ppu->screen,sizeof(ppu->screen));
+    ppu->current_screen = ppu->screen[gb_atomic_load_explicit(&ppu->screen_index,gb_memory_order_relaxed)];
+
+    gb_state_read_ex(state,ppu->vram,sizeof(ppu->vram));
+    gb_state_read(state,ppu->vram_bank);
+    gb_state_read(state,ppu->vram_blocked);
+    ppu->vram_bank_ptr = ppu->vram + (ppu->vram_bank ? 0x2000 : 0x0000);
+
+    gb_state_read_ex(state,ppu->oam,sizeof(ppu->oam));
+    gb_state_read(state,ppu->oam_address);
+    gb_state_read(state,ppu->oam_blocked);
 }

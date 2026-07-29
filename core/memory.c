@@ -69,7 +69,7 @@ void gb_memory_remove_cheat_code(gb_memory_t* memory,gb_cheat_code_t* code){
 void gb_memory_cpu_write(gb_memory_t* memory,uint8_t value,uint16_t address){
     gb_memory_handler_t* handler = memory->bus[address];
 
-    if(!memory->gb->dma.oam_running || !gb_oam_dma_bus_conflict(&memory->gb->dma,address)){
+    if(memory->gb->dma.oam_state != gb_oam_dma_state_transfer || !gb_oam_dma_bus_conflict(&memory->gb->dma,address)){
         handler->write(handler->data,value,address);
     }
 
@@ -80,7 +80,7 @@ uint8_t gb_memory_cpu_read(gb_memory_t* memory,uint16_t address){
     
     uint8_t value = 0xFF;
 
-    if(!memory->gb->dma.oam_running || !gb_oam_dma_bus_conflict(&memory->gb->dma,address)){
+    if(memory->gb->dma.oam_state != gb_oam_dma_state_transfer || !gb_oam_dma_bus_conflict(&memory->gb->dma,address)){
         
         value = handler->read(handler->data,address);
 
@@ -192,4 +192,20 @@ void gb_memory_reset(gb_memory_t* memory){
     memory->wram_bank_ptr = memory->wram + (memory->wram_bank << 0x0C);
 
     memset(memory->hram,0x00,sizeof(memory->hram));
+}
+
+
+void gb_memory_save_state(gb_memory_t* memory,gb_state_t* state){
+    gb_state_write_ex(state,memory->wram,sizeof(memory->wram));
+    gb_state_write(state,memory->wram_bank);
+
+    gb_state_write_ex(state,memory->hram,sizeof(memory->hram));
+}
+
+void gb_memory_load_state(gb_memory_t* memory,gb_state_t* state){
+    gb_state_read_ex(state,memory->wram,sizeof(memory->wram));
+    gb_state_read(state,memory->wram_bank);
+    memory->wram_bank_ptr = memory->wram + (memory->wram_bank << 0x0C);
+
+    gb_state_read_ex(state,memory->hram,sizeof(memory->hram));
 }

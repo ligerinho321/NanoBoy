@@ -1,6 +1,5 @@
 #pragma once
 
-#include "utils.h"
 #include "cpu.h"
 #include "ppu.h"
 #include "apu.h"
@@ -14,10 +13,7 @@
 #include "memory.h"
 #include "cartridge.h"
 #include "printer.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "savestate.h"
 
 typedef enum _gb_type_t {
     gb_dmg = 0x00,
@@ -26,7 +22,6 @@ typedef enum _gb_type_t {
 
 typedef struct _gb_t {
     gb_type_t type;
-    
     gb_type_t type_pending;
     
     float speed;
@@ -40,10 +35,16 @@ typedef struct _gb_t {
 #else
     pthread_t thread_id;
 #endif
-
     gb_atomic_bool_t thread_running;
     
     bool paused;
+
+    bool cgb_mode;
+    bool double_speed;
+    bool speed_switch_needed;
+    bool obj_priority_mode;
+
+    uint64_t cycle;
     
     gb_cpu_t cpu;
     gb_ppu_t ppu;
@@ -60,17 +61,40 @@ typedef struct _gb_t {
     gb_printer_t printer;
     gb_frame_timer_t frame_timer;
     
-    bool cgb_mode;
-    bool double_speed;
-    bool speed_switch_needed;
-    bool obj_priority_mode;
-
-    uint64_t cycle;
-
     gb_memory_handler_t key0_register_handler;
     gb_memory_handler_t key1_register_handler;
     gb_memory_handler_t opri_register_handler;
 } gb_t;
+
+
+#define gb_save_ram(gb,path) gb_cartridge_save_ram(&(gb)->cartridge,path)
+#define gb_load_ram(gb,path) gb_cartridge_load_ram(&(gb)->cartridge,path)
+
+#define gb_save_rtc(gb,path) gb_cartridge_save_rtc(&(gb)->cartridge,path)
+#define gb_load_rtc(gb,path) gb_cartridge_load_rtc(&(gb)->cartridge,path)
+
+#define gb_add_apu_handler(gb,handler) gb_apu_add_handler(&(gb)->apu,handler)
+#define gb_remove_apu_handler(gb,handler) gb_apu_remove_handler(&(gb)->apu,handler)
+
+#define gb_add_ppu_handler(gb,handler) gb_ppu_add_handler(&(gb)->ppu,handler)
+#define gb_remove_ppu_handler(gb,handler) gb_ppu_remove_handler(&(gb)->ppu,handler)
+
+#define gb_add_cheat_code(gb,code) gb_memory_add_cheat_code(&(gb)->memory,code)
+#define gb_remove_cheat_code(gb,code) gb_memory_remove_cheat_code(&(gb)->memory,code)
+
+#define gb_set_printer_padding_enabled(gb,enabled) gb_printer_set_padding_enabled(&(gb)->printer,enabled)
+#define gb_get_printer_padding_enabled(gb) gb_printer_get_padding_enabled(&(gb)->printer)
+
+#define gb_accelerate_printer(gb) gb_printer_accelerate(&(gb)->printer)
+
+#define gb_get_fps(gb) gb_frame_timer_get_fps(&(gb)->frame_timer)
+
+#define gb_get_render_buffer(gb) gb_ppu_get_render_buffer(&(gb)->ppu)
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 gb_t* gb_new();
 
@@ -125,31 +149,10 @@ void gb_unmap_cgb_registers(gb_t* gb);
 
 void gb_reset(gb_t* gb);
 
+void gb_save_state(gb_t* gb,gb_state_t* state);
+void gb_load_state(gb_t* gb,gb_state_t* state);
+
 void gb_delete(gb_t* gb);
-
-#define gb_save_ram(gb,path) gb_cartridge_save_ram(&(gb)->cartridge,path)
-#define gb_load_ram(gb,path) gb_cartridge_load_ram(&(gb)->cartridge,path)
-
-#define gb_save_rtc(gb,path) gb_cartridge_save_rtc(&(gb)->cartridge,path)
-#define gb_load_rtc(gb,path) gb_cartridge_load_rtc(&(gb)->cartridge,path)
-
-#define gb_add_apu_handler(gb,handler) gb_apu_add_handler(&(gb)->apu,handler)
-#define gb_remove_apu_handler(gb,handler) gb_apu_remove_handler(&(gb)->apu,handler)
-
-#define gb_add_ppu_handler(gb,handler) gb_ppu_add_handler(&(gb)->ppu,handler)
-#define gb_remove_ppu_handler(gb,handler) gb_ppu_remove_handler(&(gb)->ppu,handler)
-
-#define gb_add_cheat_code(gb,code) gb_memory_add_cheat_code(&(gb)->memory,code)
-#define gb_remove_cheat_code(gb,code) gb_memory_remove_cheat_code(&(gb)->memory,code)
-
-#define gb_set_printer_padding_enabled(gb,enabled) gb_printer_set_padding_enabled(&(gb)->printer,enabled)
-#define gb_get_printer_padding_enabled(gb) gb_printer_get_padding_enabled(&(gb)->printer)
-
-#define gb_accelerate_printer(gb) gb_printer_accelerate(&(gb)->printer)
-
-#define gb_get_fps(gb) gb_frame_timer_get_fps(&(gb)->frame_timer)
-
-#define gb_get_render_buffer(gb) gb_ppu_get_render_buffer(&(gb)->ppu)
 
 #ifdef __cplusplus
 }

@@ -54,6 +54,8 @@ private:
 
     void update_tilemap_texture(uint8_t map_index);
 
+    void event();
+    
     void render_grid(ImVec2 tilemap_start);
     void render_scroll_overlay(ImVec2 tilemap_start,ImVec2 tilemap_end);
     void render_tile_tooltip(bool tilemap,uint8_t col,uint8_t row);
@@ -74,31 +76,9 @@ public:
 
     void clear();
 
-    template<bool thread_safe>
-    void set_open(bool _open){
-        if(open == _open) return;
-        
-        open = _open;
+    void set_open(bool _open) noexcept;
 
-        if(open){
-            if constexpr (thread_safe){
-                gb_thread_safe_add_ppu_handler(gb,&callback_handler);
-            }
-            else{
-                gb_add_ppu_handler(gb,&callback_handler);
-            }
-        }
-        else{
-            if constexpr (thread_safe){
-                gb_thread_safe_remove_ppu_handler(gb,&callback_handler);
-            }
-            else{
-                gb_remove_ppu_handler(gb,&callback_handler);
-            }
-        }
-    }
-
-    bool get_open() const {
+    bool get_open() const noexcept {
         return open;
     }
 };

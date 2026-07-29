@@ -1,10 +1,6 @@
 #pragma once
 
-#include "utils.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "utils/utils.h"
 
 typedef enum _gb_oam_dma_state_t {
     gb_oam_dma_state_none,
@@ -17,7 +13,6 @@ typedef struct _gb_dma_t {
     gb_t* gb;
 
     uint8_t oam_state;
-    bool oam_running;
     uint8_t oam_src;
     uint16_t oam_hi_addr;
     uint8_t oam_counter;
@@ -32,6 +27,9 @@ typedef struct _gb_dma_t {
     gb_memory_handler_t vram_register_handler;
 } gb_dma_t;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 void gb_dma_init(gb_dma_t* dma,gb_t* gb);
 
@@ -43,6 +41,7 @@ void gb_oam_dma_write_register(void* data,uint8_t value,uint16_t address);
 uint8_t gb_oam_dma_read_register(void* data,uint16_t address);
 
 void gb_vram_hblank_dma(gb_dma_t* dma);
+void gb_vram_general_dma(gb_dma_t* dma);
 
 void gb_vram_dma_write_register(void* data,uint8_t value,uint16_t address);
 uint8_t gb_vram_dma_read_register(void* data,uint16_t address);
@@ -53,6 +52,9 @@ void gb_vram_dma_map_registers(gb_dma_t* dma);
 void gb_vram_dma_unmap_registers(gb_dma_t* dma);
 
 void gb_dma_reset(gb_dma_t* dma);
+
+void gb_dma_save_state(gb_dma_t* dma,gb_state_t* state);
+void gb_dma_load_state(gb_dma_t* dma,gb_state_t* state);
 
 #ifdef __cplusplus
 }

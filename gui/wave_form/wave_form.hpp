@@ -42,8 +42,8 @@ private:
     static void file_save_callback(void* userdata,std::filesystem::path);
     static float get_sample_callback(void* data,int idx);
 
-    void clear_recording(bool thread_safe);
-    void pause_recording(bool _paused,bool thread_safe);
+    void clear_recording() noexcept;
+    void pause_recording(bool _paused) noexcept;
 
     const char* get_recording_file_name() const noexcept;
 
@@ -59,16 +59,11 @@ public:
 
     void render();
 
-    void clear(){
-        square1.count = 0;
-        square2.count = 0;
-        wave.count = 0;
-        noise.count = 0;
-    }
+    void clear();
+    
+    void set_open(bool _open,bool force_discarding) noexcept;
 
-    void set_open(bool _open,bool force_discarding,bool thread_safe);
-
-    bool get_open() const {
+    bool get_open() const noexcept {
         return open;
     }
 };

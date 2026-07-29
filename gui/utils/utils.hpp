@@ -14,6 +14,7 @@
 #include <chrono>
 #include <filesystem>
 #include <vector>
+#include <array>
 #include <algorithm>
 #include <string>
 #include <regex>
@@ -182,5 +183,10 @@ inline void render_hertz_text(size_t hertz){
         ImGui::Text("%lu Hz",hertz);
     }
 }
+
+
+time_t get_file_last_write_time(std::filesystem::path file);
+
+const char* get_time_formated(time_t time);
 
 void clear_texture(SDL_Texture* texture,int height);

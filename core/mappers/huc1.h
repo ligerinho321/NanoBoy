@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../utils.h"
+#include "../utils/utils.h"
 
 typedef struct _gb_cartridge_t gb_cartridge_t;
 
@@ -24,6 +24,9 @@ void gb_huc1_write_ir_register(void* data,uint8_t value,uint16_t address);
 uint8_t gb_huc1_read_ir_register(void* data,uint16_t address);
 
 void gb_huc1_reset(gb_cartridge_t* cartridge);
+
+void gb_huc1_save_state(gb_cartridge_t* cartridge,gb_state_t* state);
+void gb_huc1_load_state(gb_cartridge_t* cartridge,gb_state_t* state);
 
 #ifdef __cplusplus
 }

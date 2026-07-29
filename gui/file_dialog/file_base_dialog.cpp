@@ -54,27 +54,6 @@ std::uintmax_t file_base_dialog_t::number_of_entries_in_directory(const std::fil
     return n;
 }
 
-std::time_t file_base_dialog_t::get_entry_last_write_time(const std::filesystem::path entry){
-
-    std::chrono::time_point sys_time_point = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
-        std::filesystem::last_write_time(entry) - 
-        std::filesystem::file_time_type::clock::now() + 
-        std::chrono::system_clock::now()
-    );
-
-    return std::chrono::system_clock::to_time_t(sys_time_point);
-}
-
-const char* file_base_dialog_t::get_entry_date_formated(const directory_entry_t& entry){
-    static char buffer[32] = {0};
-
-    tm* local_timer = std::localtime(&entry.last_write_time);
-    
-    std::strftime(buffer,sizeof(buffer),"%d/%m/%Y %H:%M",local_timer);
-
-    return buffer;
-}
-
 
 const char* file_base_dialog_t::get_current_extension() const noexcept {
     const char* extension_ptr = nullptr;
@@ -132,7 +111,7 @@ void file_base_dialog_t::load_current_directory_entries(){
                 "[DIR] " + entry_path.filename().u8string(),
                 entry_path,
                 number_of_entries_in_directory(entry_path),
-                get_entry_last_write_time(entry_path)
+                get_file_last_write_time(entry_path)
             );
         }
         else if(std::filesystem::is_regular_file(entry_path) && is_current_extension(entry_path.extension().u8string())){
@@ -141,18 +120,21 @@ void file_base_dialog_t::load_current_directory_entries(){
                 "[FILE] " + entry_path.filename().u8string(),
                 entry_path,
                 std::filesystem::file_size(entry_path),
-                get_entry_last_write_time(entry_path)
+                get_file_last_write_time(entry_path)
             );
         }
 
     }
 
-    last_update = std::chrono::steady_clock::now();
+    last_update_time = std::chrono::steady_clock::now();
 }
 
 
 void file_base_dialog_t::update_directory_entries(){
-    if(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - last_update).count() >= 2){
+
+    std::chrono::nanoseconds elapsed = std::chrono::steady_clock::now() - last_update_time;
+
+    if(std::chrono::duration_cast<std::chrono::seconds>(elapsed).count() >= 1){
         load_current_directory_entries();
         sort_current_directory_entries();
     }
@@ -238,7 +220,7 @@ void file_base_dialog_t::render_directory(){
                 ImGui::Text("%lu itens",entry.size);
 
                 ImGui::TableNextColumn();
-                ImGui::Text("%s",get_entry_date_formated(entry));
+                ImGui::Text("%s",get_time_formated(entry.last_write_time));
             }
             else{
                 
@@ -256,7 +238,7 @@ void file_base_dialog_t::render_directory(){
 
                 ImGui::TableNextColumn();
 
-                ImGui::Text("%s",get_entry_date_formated(entry));
+                ImGui::Text("%s",get_time_formated(entry.last_write_time));
             }
         }
     }

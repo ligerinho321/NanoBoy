@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.25)
 project(NanoBoy LANGUAGES C CXX)
 
 find_package(SDL2 REQUIRED)
+find_package(zstd REQUIRED)
 
 message("CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
 message("CMAKE_C_COMPILER: ${CMAKE_C_COMPILER}")
@@ -47,8 +48,6 @@ target_sources(
     NanoBoy
     PRIVATE
     
-    core/blip_buf/blip_buf.c
-    
     core/mappers/mbc1.c
     core/mappers/mbc2.c
     core/mappers/mbc3.c
@@ -57,6 +56,10 @@ target_sources(
     core/mappers/mbc7.c
     core/mappers/mmm01.c
     core/mappers/huc1.c
+
+    core/utils/blip_buf.c
+    core/utils/ring_buffer.c
+    core/utils/utils.c
 
     core/apu.c
     core/boot.c
@@ -69,10 +72,10 @@ target_sources(
     core/memory.c
     core/palette.c
     core/ppu.c
-    core/printer.c  
+    core/printer.c
+    core/savestate.c
     core/serial.c
     core/timer.c
-    core/utils.c
 )
 
 target_sources(
@@ -98,6 +101,7 @@ target_sources(
     gui/object_viewer/object_viewer.cpp
     gui/palette_viewer/palette_viewer.cpp
     gui/printer/printer.cpp
+    gui/savestate/savestate.cpp
     gui/screen/screen.cpp
     gui/tilemap_viewer/tilemap_viewer.cpp
     gui/utils/utils.cpp
@@ -124,6 +128,8 @@ if(WIN32)
 endif()
 
 target_link_libraries(NanoBoy PRIVATE SDL2::SDL2)
+
+target_link_libraries(NanoBoy PRIVATE zstd::libzstd_shared)
 
 
 set(CMAKE_C_FLAGS_RELEASE "-O2 -DNDEBUG")

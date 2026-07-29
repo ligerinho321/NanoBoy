@@ -1,6 +1,8 @@
 #include "timer.h"
 #include "gb.h"
 
+static const uint16_t div_bit[4] = {0x200,0x08,0x20,0x80};
+
 void gb_timer_init(gb_timer_t* timer,gb_t* gb){
     timer->gb = gb;
     
@@ -22,13 +24,17 @@ static inline void gb_timer_tima_reload(gb_timer_t* timer){
 
 void gb_timer_set_div(gb_timer_t* timer,uint16_t new_div){
 
-    if(timer->enabled && (timer->div & timer->div_bit) && !(new_div & timer->div_bit)){
+    uint16_t timer_div_bit = div_bit[timer->clock_select];
+
+    if(timer->enabled && (timer->div & timer_div_bit) && !(new_div & timer_div_bit)){
         if(++timer->tima == 0x00){
             timer->tima_reload_request = true;
         }
     }
 
-    if((timer->div & timer->apu_div_bit) && !(new_div & timer->apu_div_bit)){
+    uint16_t apu_div_bit = timer->gb->double_speed ? 0x2000 : 0x1000;
+
+    if((timer->div & apu_div_bit) && !(new_div & apu_div_bit)){
         gb_apu_frame_sequencer_clock(&timer->gb->apu);
     }
 
@@ -74,26 +80,20 @@ void gb_timer_write_register(void* data,uint8_t value,uint16_t address){
         }
         //TAC
         case 0xFF07:{
+            uint16_t old_div_bit = div_bit[timer->clock_select];
+            bool old_enabled = timer->enabled;
+
             timer->clock_select = value & 0x03;
-            
-            bool new_enabled = value & 0x04;
-            uint16_t new_div_bit = 0x00;
+            timer->enabled = value & 0x04;
 
-            switch(timer->clock_select){
-                case 0x00: new_div_bit = 0x200; break;
-                case 0x01: new_div_bit = 0x08; break;
-                case 0x02: new_div_bit = 0x20; break;
-                case 0x03: new_div_bit = 0x80; break;
-            }
+            uint16_t new_div_bit = div_bit[timer->clock_select];
+            bool new_enabled = timer->enabled;
 
-            if((timer->enabled && (timer->div & timer->div_bit)) && !(new_enabled && (timer->div & new_div_bit))){
+            if((old_enabled && (timer->div & old_div_bit)) && !(new_enabled && (timer->div & new_div_bit))){
                 if(++timer->tima == 0x00){
                     gb_timer_tima_reload(timer);
                 }
             }
-
-            timer->enabled = new_enabled;
-            timer->div_bit = new_div_bit;
 
             break;
         }
@@ -129,10 +129,28 @@ void gb_timer_reset(gb_timer_t* timer){
     timer->div = 0x00;
     timer->tima = 0x00;
     timer->tma = 0x00;
-    timer->enabled = false;
     timer->clock_select = 0x00;
-    timer->div_bit = 0x200;
+    timer->enabled = false;
     timer->tima_reload_request = false;
     timer->tima_reloaded = false;
-    timer->apu_div_bit = 0x1000;
+}
+
+void gb_timer_save_state(gb_timer_t* timer,gb_state_t* state){
+    gb_state_write(state,timer->div);
+    gb_state_write(state,timer->tima);
+    gb_state_write(state,timer->tma);
+    gb_state_write(state,timer->clock_select);
+    gb_state_write(state,timer->enabled);
+    gb_state_write(state,timer->tima_reload_request);
+    gb_state_write(state,timer->tima_reload_request);
+}
+
+void gb_timer_load_state(gb_timer_t* timer,gb_state_t* state){
+    gb_state_read(state,timer->div);
+    gb_state_read(state,timer->tima);
+    gb_state_read(state,timer->tma);
+    gb_state_read(state,timer->clock_select);
+    gb_state_read(state,timer->enabled);
+    gb_state_read(state,timer->tima_reload_request);
+    gb_state_read(state,timer->tima_reload_request);
 }

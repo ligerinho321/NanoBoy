@@ -33,7 +33,7 @@ void gb_serial_clock(gb_serial_t* serial){
 
         if(serial->timer > 0x00) return;
 
-        serial->timer = serial->freq;
+        serial->timer = serial->clock_speed ? 16 : 512;
 
         bool send_bit = serial->sb & 0x80;
 
@@ -78,9 +78,7 @@ void gb_serial_write_register(void* data,uint8_t value,uint16_t address){
             double  set    8     524288  65536
             */
 
-            serial->freq = serial->clock_speed ? 16 : 512;
-
-            serial->timer = serial->freq;
+            serial->timer = serial->clock_speed ? 16 : 512;
             
             serial->bits_received = 0x00;
 
@@ -121,6 +119,28 @@ void gb_serial_reset(gb_serial_t* serial){
     serial->clock_speed = false;
     serial->internal_clock = false;
 
-    serial->freq = 0x00;
     serial->timer = 0x00;
+}
+
+
+void gb_serial_save_state(gb_serial_t* serial,gb_state_t* state){
+    gb_state_write(state,serial->sb);
+    gb_state_write(state,serial->bits_received);
+
+    gb_state_write(state,serial->transfer_enabled);
+    gb_state_write(state,serial->clock_speed);
+    gb_state_write(state,serial->internal_clock);
+
+    gb_state_write(state,serial->timer);
+}
+
+void gb_serial_load_state(gb_serial_t* serial,gb_state_t* state){
+    gb_state_read(state,serial->sb);
+    gb_state_read(state,serial->bits_received);
+
+    gb_state_read(state,serial->transfer_enabled);
+    gb_state_read(state,serial->clock_speed);
+    gb_state_read(state,serial->internal_clock);
+
+    gb_state_read(state,serial->timer);
 }

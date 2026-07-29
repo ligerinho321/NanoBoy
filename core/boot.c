@@ -167,6 +167,7 @@ uint8_t cgb_boot_rom[2304] = {
     0x12,0xB0,0x79,0xB8,0xAD,0x16,0x17,0x07,0xBA,0x05,0x7C,0x13,0x00,0x00,0x00,0x00,
 };
 
+
 void gb_boot_init(gb_boot_t* boot,gb_t* gb){
     boot->gb = gb;
 
@@ -182,6 +183,7 @@ void gb_boot_init(gb_boot_t* boot,gb_t* gb){
         boot
     };
 }
+
 
 void gb_boot_map(gb_boot_t* boot){
 
@@ -199,41 +201,45 @@ void gb_boot_map(gb_boot_t* boot){
 
     gb_memory_map(memory,&boot->bank_register_handler,0xFF50);
 
-    boot->rom_mapped = true;
+    boot->mapped = true;
 }
+
+void gb_boot_unmap(gb_boot_t* boot){
+    gb_memory_t* memory = &boot->gb->memory;
+
+    gb_memory_map_in_range(memory,&boot->gb->cartridge.rom0_handler,0x0000,0x00FF);
+    
+    if(boot->gb->type == gb_cgb){
+
+        gb_memory_map_in_range(memory,&boot->gb->cartridge.rom0_handler,0x0200,0x08FF);
+
+        //KEY0
+        gb_memory_unmap(memory,0xFF4C);
+
+        if(!boot->gb->cgb_mode){
+            gb_unmap_cgb_registers(boot->gb);
+        }
+    }
+
+    //BANK
+    gb_memory_unmap(memory,0xFF50);
+
+    boot->mapped = false;
+}
+
 
 void gb_boot_write_bank_register(void* data,uint8_t value,uint16_t address){
     gb_boot_t* boot = (gb_boot_t*)data;
-    
     if(value & 0x01){
-
-        gb_memory_t* memory = &boot->gb->memory;
-
-        gb_memory_map_in_range(memory,&boot->gb->cartridge.rom0_handler,0x0000,0x00FF);
-        
-        if(boot->gb->type == gb_cgb){
-
-            gb_memory_map_in_range(memory,&boot->gb->cartridge.rom0_handler,0x0200,0x08FF);
-
-            //KEY0
-            gb_memory_unmap(memory,0xFF4C);
-
-            if(!boot->gb->cgb_mode){
-                gb_unmap_cgb_registers(boot->gb);
-            }
-        }
-
-        //BANK
-        gb_memory_unmap(memory,0xFF50);
-
-        boot->rom_mapped = false;
+        gb_boot_unmap(boot);
     }
 }
 
 uint8_t gb_boot_read_bank_register(void* data,uint16_t address){
     gb_boot_t* boot = (gb_boot_t*)data;
-    return 0xFE | !boot->rom_mapped;
+    return 0xFE | !boot->mapped;
 }
+
 
 // 0x0000-0x00FF
 uint8_t gb_boot_read_dmg_rom(void* data,uint16_t address){
@@ -243,4 +249,23 @@ uint8_t gb_boot_read_dmg_rom(void* data,uint16_t address){
 // 0x0000-0x00FF, 0x0200-0x08FF
 uint8_t gb_boot_read_cgb_rom(void* data,uint16_t address){
     return cgb_boot_rom[address];
+}
+
+
+void gb_boot_save_state(gb_boot_t* boot,gb_state_t* state){
+    gb_state_write(state,boot->mapped);
+}
+
+void gb_boot_load_state(gb_boot_t* boot,gb_state_t* state){
+
+    bool new_mapped = false;
+
+    gb_state_read(state,new_mapped);
+
+    if(!boot->mapped && new_mapped){
+        gb_boot_map(boot);
+    }
+    else if(boot->mapped && !new_mapped){
+        gb_boot_unmap(boot);
+    }
 }

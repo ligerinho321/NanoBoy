@@ -155,14 +155,40 @@ void gb_palette_reset(gb_palette_t* palette){
     palette->obp[0] = 0x00;
     palette->obp[1] = 0x00;
 
-    if(palette->gb->type == gb_cgb){
-        palette->bcps = 0x00;
-        palette->ocps = 0x00;
+    palette->bcps = 0x00;
+    palette->ocps = 0x00;
 
-        memset(palette->bg_cram,0x00,sizeof(palette->bg_cram));
-        memset(palette->obj_cram,0x00,sizeof(palette->obj_cram));
+    memset(palette->bg_cram,0x00,sizeof(palette->bg_cram));
+    memset(palette->obj_cram,0x00,sizeof(palette->obj_cram));
 
-        memset(palette->bg_cram_converted,0x00,sizeof(palette->bg_cram_converted));
-        memset(palette->obj_cram_converted,0x00,sizeof(palette->obj_cram_converted));
-    }
+    memset(palette->bg_cram_converted,0x00,sizeof(palette->bg_cram_converted));
+    memset(palette->obj_cram_converted,0x00,sizeof(palette->obj_cram_converted));
+}
+
+void gb_palette_save_state(gb_palette_t* palette,gb_state_t* state){
+    gb_state_write(state,palette->bgp);
+    gb_state_write(state,palette->obp);
+    
+    gb_state_write(state,palette->bcps);
+    gb_state_write(state,palette->ocps);
+
+    gb_state_write(state,palette->bg_cram);
+    gb_state_write(state,palette->obj_cram);
+
+    gb_state_write(state,palette->bg_cram_converted);
+    gb_state_write(state,palette->obj_cram_converted);
+}
+
+void gb_palette_load_state(gb_palette_t* palette,gb_state_t* state){
+    gb_state_read(state,palette->bgp);
+    gb_state_read(state,palette->obp);
+    
+    gb_state_read(state,palette->bcps);
+    gb_state_read(state,palette->ocps);
+
+    gb_state_read(state,palette->bg_cram);
+    gb_state_read(state,palette->obj_cram);
+
+    gb_state_read(state,palette->bg_cram_converted);
+    gb_state_read(state,palette->obj_cram_converted);
 }

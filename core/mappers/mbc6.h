@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../utils.h"
+#include "../utils/utils.h"
 
 typedef struct _gb_cartridge_t gb_cartridge_t;
 

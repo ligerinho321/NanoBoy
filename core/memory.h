@@ -1,10 +1,6 @@
 #pragma once
 
-#include "utils.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "utils/utils.h"
 
 typedef struct _gb_memory_t {
     gb_t *gb;
@@ -42,6 +38,10 @@ typedef struct _gb_memory_t {
     gb_memory_map_in_range(m,&(m)->empty_handler,s,e)
 
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void gb_memory_init(gb_memory_t* memory,gb_t* gb);
 
 void gb_memory_write_empty(void* data,uint8_t value,uint16_t address);
@@ -72,6 +72,9 @@ void gb_memory_write_wbk_register(void* data,uint8_t value,uint16_t address);
 uint8_t gb_memory_read_wbk_register(void* data,uint16_t address);
 
 void gb_memory_reset(gb_memory_t* memory);
+
+void gb_memory_save_state(gb_memory_t* memory,gb_state_t* state);
+void gb_memory_load_state(gb_memory_t* memory,gb_state_t* state);
 
 #ifdef __cplusplus
 }

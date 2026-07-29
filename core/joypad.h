@@ -1,21 +1,17 @@
 #pragma once
 
-#include "utils.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "utils/utils.h"
 
 typedef struct gb_joypad_key_t {
-    bool down;
-    bool up;
-    bool left;
-    bool right;
+    bool down : 1;
+    bool up : 1;
+    bool left : 1;
+    bool right : 1;
 
-    bool start;
-    bool select;
-    bool b;
-    bool a;
+    bool start : 1;
+    bool select : 1;
+    bool b : 1;
+    bool a : 1;
 } gb_joypad_key_t;
 
 typedef void (*gb_joypad_callback_t)(void* data,gb_joypad_key_t* key);
@@ -36,6 +32,11 @@ typedef struct _gb_joypad_t {
     gb_memory_handler_t register_handler;
 } gb_joypad_t;
 
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void gb_joypad_init(gb_joypad_t* joypad,gb_t* gb);
 
 void gb_joypad_set_callback(gb_joypad_t* joypad,gb_joypad_callback_t callback,void* data);
@@ -52,6 +53,9 @@ bool gb_joypad_is_any_button_pressed(gb_joypad_t* joypad);
 void gb_joypad_map_registers(gb_joypad_t* joypad);
 
 void gb_joypad_reset(gb_joypad_t* joypad);
+
+void gb_joypad_save_state(gb_joypad_t* joypad,gb_state_t* state);
+void gb_joypad_load_state(gb_joypad_t* joypad,gb_state_t* state);
 
 #ifdef __cplusplus
 }

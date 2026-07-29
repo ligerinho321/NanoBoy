@@ -90,6 +90,8 @@ bool gb_cartridge_load(gb_cartridge_t* cartridge,const char* path){
         goto fail;
     }
 
+    cartridge->rom_crc32 = crc32(cartridge->rom,cartridge->rom_size);
+    
     fclose(file);
     return true;
 
@@ -380,6 +382,25 @@ void gb_cartridge_reset(gb_cartridge_t* cartridge){
 }
 
 
+void gb_cartridge_save_state(gb_cartridge_t* cartridge,gb_state_t* state){
+    if(cartridge->ram_size > 0){
+        gb_state_write_ex(state,cartridge->ram,cartridge->ram_size);
+    }
+    if(cartridge->mapper.save_state != NULL){
+        cartridge->mapper.save_state(cartridge,state);
+    }
+}
+
+void gb_cartridge_load_state(gb_cartridge_t* cartridge,gb_state_t* state){
+    if(cartridge->ram_size > 0){
+        gb_state_read_ex(state,cartridge->ram,cartridge->ram_size);
+    }
+    if(cartridge->mapper.load_state != NULL){
+        cartridge->mapper.load_state(cartridge,state);
+    }
+}
+
+
 void gb_cartridge_clear(gb_cartridge_t* cartridge){
     
     if(cartridge->rom != NULL){
@@ -388,6 +409,8 @@ void gb_cartridge_clear(gb_cartridge_t* cartridge){
     }
 
     cartridge->rom_size = 0x00;
+
+    cartridge->rom_crc32 = 0x00;
     
     cartridge->rom0_handler.write = gb_memory_write_empty;
     cartridge->rom0_handler.read = gb_cartridge_read_rom0;
