@@ -10,8 +10,6 @@ class savestate_t {
 private:
     enum{
         number_of_slots = 10,
-        thumbnail_width = gb_screen_width,
-        thumbnail_height = gb_screen_height
     };
 
     struct slot_t {
@@ -25,11 +23,11 @@ private:
         time_t last_write_time = (time_t)-1;
 
         uint64_t timestamp = 0;
-        SDL_Texture* thumbnail = nullptr;
+        SDL_Texture* screenshot = nullptr;
 
         ~slot_t(){
-            if(thumbnail != nullptr){
-                SDL_DestroyTexture(thumbnail);
+            if(screenshot != nullptr){
+                SDL_DestroyTexture(screenshot);
             }
         }
     };
@@ -45,7 +43,7 @@ private:
 
     std::array<slot_t,savestate_t::number_of_slots> slots;
 
-    ImVec2 thumbnail_size{savestate_t::thumbnail_width,savestate_t::thumbnail_height};
+    ImVec2 screenshot_size{gb_screen_width,gb_screen_height};
     ImVec2 button_size{0.0f,0.0f};
 
     std::chrono::steady_clock::time_point last_update_time;

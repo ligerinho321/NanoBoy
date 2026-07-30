@@ -28,6 +28,15 @@ typedef enum _gb_mbc6_flash_command_t {
 } gb_mbc6_flash_command_t;
 
 typedef struct _gb_mbc6_t {
+    uint8_t* rom_or_flash_0_ptr;
+    uint8_t* rom_or_flash_1_ptr;
+
+    uint8_t* ram_0_ptr;
+    uint8_t* ram_1_ptr;
+    
+    uint16_t rom_bank_mask;
+    uint8_t ram_bank_mask;
+
     bool ram_enabled;
     
     bool flash_enabled;
@@ -47,15 +56,6 @@ typedef struct _gb_mbc6_t {
 
     uint8_t ram_bank_0;
     uint8_t ram_bank_1;
-
-    uint16_t rom_bank_mask;
-    uint8_t ram_bank_mask;
-
-    uint8_t* rom_or_flash_0_ptr;
-    uint8_t* rom_or_flash_1_ptr;
-
-    uint8_t* ram_0_ptr;
-    uint8_t* ram_1_ptr;
 
     uint8_t flash_data[gb_mbc6_flash_data_size];
     
@@ -80,6 +80,9 @@ void gb_mbc6_write_ram(void* data,uint8_t value,uint16_t address);
 uint8_t gb_mbc6_read_ram(void* data,uint16_t address);
 
 void gb_mbc6_reset(gb_cartridge_t* cartridge);
+
+void gb_mbc6_save_state(gb_cartridge_t* cartridge,gb_state_t* state);
+void gb_mbc6_load_state(gb_cartridge_t* cartridge,gb_state_t* state);
 
 #ifdef __cplusplus
 }

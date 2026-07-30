@@ -48,8 +48,6 @@ typedef struct _gb_mbc7_t {
     bool latch;
     uint16_t latched_accel_x;
     uint16_t latched_accel_y;
-    uint16_t accel_x;
-    uint16_t accel_y;
 
     gb_eeprom93lc56_t eeprom;
 } gb_mbc7_t;
@@ -68,10 +66,16 @@ uint8_t gb_mbc7_read_register_2(void* data,uint16_t address);
 
 void gb_mbc7_reset(gb_cartridge_t* cartridge);
 
+void gb_mbc7_save_state(gb_cartridge_t* cartridge,gb_state_t* state);
+void gb_mbc7_load_state(gb_cartridge_t* cartridge,gb_state_t* state);
 
 void gb_eeprom93lc56_write(gb_eeprom93lc56_t* eeprom,uint8_t value);
 uint8_t gb_eeprom93lc56_read(gb_eeprom93lc56_t* eeprom);
+
 void gb_eeprom93lc56_reset(gb_eeprom93lc56_t* eeprom);
+
+void gb_eeprom93lc56_save_state(gb_eeprom93lc56_t* eeprom,gb_state_t* state);
+void gb_eeprom93lc56_load_state(gb_eeprom93lc56_t* eeprom,gb_state_t* state);
 
 #ifdef __cplusplus
 }

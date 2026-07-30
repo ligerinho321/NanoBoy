@@ -413,8 +413,6 @@ void wave_form_t::render(){
 
 
 void wave_form_t::clear(){
-    gb_remove_apu_handler(gb,&channel_handler);
-
     square1.count = 0;
     square2.count = 0;
     wave.count = 0;

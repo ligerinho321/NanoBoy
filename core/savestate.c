@@ -15,7 +15,7 @@ bool gb_savestate_serialize(gb_t* gb,const char* filename){
     }
 
     uint8_t* state_cbuff = NULL;
-    uint8_t* thumb_cbuff = NULL;
+    uint8_t* screen_cbuff = NULL;
 
     gb_state_t state = {0};
     gb_save_state(gb,&state);
@@ -43,43 +43,43 @@ bool gb_savestate_serialize(gb_t* gb,const char* filename){
     state_header.decompressed_crc32 = crc32(state.data,state.length);
     state_header.compressed_size = state_compress_result;
 
-    size_t thumb_cbuff_size = ZSTD_compressBound(gb_screen_length);
+    size_t screen_cbuff_size = ZSTD_compressBound(gb_screen_length);
 
-    thumb_cbuff = (uint8_t*)malloc(thumb_cbuff_size);
+    screen_cbuff = (uint8_t*)malloc(screen_cbuff_size);
 
-    if(!thumb_cbuff){
+    if(!screen_cbuff){
         gb_printf_errno(malloc);
         goto fail;
     }
 
-    size_t thumb_compress_result = ZSTD_compress(thumb_cbuff,thumb_cbuff_size,gb_get_render_buffer(gb),gb_screen_length,gb_savestate_zstd_compress_level);
+    size_t screen_compress_result = ZSTD_compress(screen_cbuff,screen_cbuff_size,gb_get_render_buffer(gb),gb_screen_length,gb_savestate_zstd_compress_level);
 
-    if(ZSTD_isError(thumb_compress_result)){
+    if(ZSTD_isError(screen_compress_result)){
         gb_printf_error("ZSTD_compress failed");
         goto fail;
     }
 
-    gb_thumbnail_header_t thumb_header = {0};
-    memcpy(thumb_header.magic,gb_thumbnail_header_magic,4);
-    thumb_header.compressed_size = thumb_compress_result;
+    gb_screenshot_header_t screen_header = {0};
+    memcpy(screen_header.magic,gb_screenshot_header_magic,4);
+    screen_header.compressed_size = screen_compress_result;
 
     gb_savestate_header_t header = {0};
     memcpy(header.magic,gb_savestate_header_magic,4);
     header.rom_crc32 = gb->cartridge.rom_crc32;
     header.timestamp = time(NULL);
-    header.state_offset = sizeof(gb_savestate_header_t) + sizeof(gb_thumbnail_header_t) + thumb_header.compressed_size;
+    header.state_offset = sizeof(gb_savestate_header_t) + sizeof(gb_screenshot_header_t) + screen_header.compressed_size;
 
     fwrite(&header,sizeof(gb_savestate_header_t),1,file);
     
-    fwrite(&thumb_header,sizeof(gb_thumbnail_header_t),1,file);
-    fwrite(thumb_cbuff,1,thumb_header.compressed_size,file);
+    fwrite(&screen_header,sizeof(gb_screenshot_header_t),1,file);
+    fwrite(screen_cbuff,1,screen_header.compressed_size,file);
     
     fwrite(&state_header,sizeof(gb_state_header_t),1,file);
     fwrite(state_cbuff,1,state_header.compressed_size,file);
 
     free(state.data);
     free(state_cbuff);
-    free(thumb_cbuff);
+    free(screen_cbuff);
     
     fclose(file);
     
@@ -88,7 +88,7 @@ bool gb_savestate_serialize(gb_t* gb,const char* filename){
     fail:
     if(state.data != NULL) free(state.data);
     if(state_cbuff != NULL) free(state_cbuff);
-    if(thumb_cbuff != NULL) free(thumb_cbuff);
+    if(screen_cbuff != NULL) free(screen_cbuff);
     
     fclose(file);
 
@@ -112,11 +112,12 @@ bool gb_savestate_deserialize(gb_t* gb,const char* filename){
 
     if(size < sizeof(gb_savestate_header_t)) goto fail;
 
+
     gb_savestate_header_t header = {0};
 
     fread(&header,sizeof(gb_savestate_header_t),1,file);
 
-    if(memcmp(header.magic,"SAST",4)) goto fail;
+    if(memcmp(header.magic,gb_savestate_header_magic,4)) goto fail;
     
     if(header.rom_crc32 != gb->cartridge.rom_crc32) goto fail;
 
@@ -128,7 +129,7 @@ bool gb_savestate_deserialize(gb_t* gb,const char* filename){
 
     fread(&state_header,sizeof(gb_state_header_t),1,file);
 
-    if(memcmp(state_header.magic,"STAT",4)) goto fail;
+    if(memcmp(state_header.magic,gb_state_header_magic,4)) goto fail;
 
     if(size < header.state_offset + sizeof(gb_state_header_t) + state_header.compressed_size) goto fail;
 
@@ -205,7 +206,7 @@ bool gb_savestate_thread_safe_deserialize(gb_t* gb,const char* filename){
 
 bool gb_savestate_get_info(const char* filename,gb_savestate_info_t* info){
     
-    static char thumb_dbuff[gb_screen_length] = {0};
+    static char screen_dbuff[gb_screen_length] = {0};
 
     FILE* file = fopen(filename,"rb");
 
@@ -218,48 +219,60 @@ bool gb_savestate_get_info(const char* filename,gb_savestate_info_t* info){
     size_t size = ftell(file);
     fseek(file,0,SEEK_SET);
 
-    uint8_t* thumb_cbuff = NULL;
+    uint8_t* screen_cbuff = NULL;
 
-    if(size < sizeof(gb_savestate_header_t) + sizeof(gb_thumbnail_header_t)) goto fail;
+    if(size < sizeof(gb_savestate_header_t) + sizeof(gb_screenshot_header_t)) goto fail;
+
 
     gb_savestate_header_t header = {0};
 
     fread(&header,sizeof(gb_savestate_header_t),1,file);
 
-    gb_thumbnail_header_t thumb_header = {0};
+    if(memcmp(header.magic,gb_savestate_header_magic,4)) goto fail;
 
-    fread(&thumb_header,sizeof(gb_thumbnail_header_t),1,file);
 
-    if(size < ftell(file) + thumb_header.compressed_size) goto fail;
+    gb_screenshot_header_t screen_header = {0};
+    
+    fread(&screen_header,sizeof(gb_screenshot_header_t),1,file);
 
-    thumb_cbuff = (uint8_t*)malloc(thumb_header.compressed_size);
+    if(memcmp(screen_header.magic,gb_screenshot_header_magic,4)) goto fail;
 
-    if(!thumb_cbuff){
+
+    if(size < ftell(file) + screen_header.compressed_size) goto fail;
+
+
+    screen_cbuff = (uint8_t*)malloc(screen_header.compressed_size);
+
+    if(!screen_cbuff){
         gb_printf_errno(malloc);
         goto fail;
     }
 
-    fread(thumb_cbuff,1,thumb_header.compressed_size,file);
+    fread(screen_cbuff,1,screen_header.compressed_size,file);
 
-    size_t thumb_decompress_size = ZSTD_getFrameContentSize(thumb_cbuff,thumb_header.compressed_size);
 
-    if(thumb_decompress_size != sizeof(thumb_dbuff)) goto fail;
+    size_t screen_decompress_size = ZSTD_getFrameContentSize(screen_cbuff,screen_header.compressed_size);
 
-    size_t thumb_decompress_result = ZSTD_decompress(thumb_dbuff,sizeof(thumb_dbuff),thumb_cbuff,thumb_header.compressed_size);
+    if(screen_decompress_size != sizeof(screen_dbuff)) goto fail;
 
-    if(thumb_decompress_result != sizeof(thumb_dbuff)) goto fail;
+    size_t screen_decompress_result = ZSTD_decompress(screen_dbuff,sizeof(screen_dbuff),screen_cbuff,screen_header.compressed_size);
 
+    if(screen_decompress_result != sizeof(screen_dbuff)) goto fail;
+
+
+    info->rom_crc32 = header.rom_crc32;
     info->timestamp = header.timestamp;
-    info->thumbnail = thumb_dbuff;
+    info->screenshot = screen_dbuff;
+    info->screenshot_length = sizeof(screen_dbuff);
 
-    free(thumb_cbuff);
+    free(screen_cbuff);
     
     fclose(file);
 
     return true;
 
     fail:
-    if(thumb_cbuff != NULL) free(thumb_cbuff);
+    if(screen_cbuff != NULL) free(screen_cbuff);
 
     fclose(file);
     

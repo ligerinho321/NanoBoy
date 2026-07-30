@@ -6,7 +6,7 @@ savestate_t::savestate_t(gb_t* gb,SDL_Renderer* renderer,SDL_AudioDeviceID audio
         slots[i].name = "Slot #" + std::to_string(i + 1);
         slots[i].shortcut_save = "Shift+F" + std::to_string(i + 1);
         slots[i].shortcut_load = "F" + std::to_string(i + 1);
-        slots[i].thumbnail = SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGB24,SDL_TEXTUREACCESS_STREAMING,gb_screen_width,gb_screen_height);
+        slots[i].screenshot = SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGB24,SDL_TEXTUREACCESS_STREAMING,gb_screen_width,gb_screen_height);
     }
 
     ImGuiStyle& style = ImGui::GetStyle();
@@ -45,7 +45,7 @@ void savestate_t::unload(){
         slot.exists = false;
         slot.last_write_time = (time_t)-1;
         slot.timestamp = 0;
-        clear_texture(slot.thumbnail,gb_screen_height);
+        clear_texture(slot.screenshot,gb_screen_height);
     }
 }
 
@@ -89,7 +89,7 @@ void savestate_t::update_slots(){
         if(slot.exists && !exists){
             slot.last_write_time = (size_t)-1;
             slot.timestamp = 0;
-            clear_texture(slot.thumbnail,gb_screen_height);
+            clear_texture(slot.screenshot,gb_screen_height);
         }
 
         slot.exists = exists;
@@ -111,14 +111,14 @@ void savestate_t::update_slots(){
         uint8_t* pixels = nullptr;
         int pitch = 0;
         
-        if(SDL_LockTexture(slot.thumbnail,nullptr,(void**)&pixels,&pitch) < 0){
+        if(SDL_LockTexture(slot.screenshot,nullptr,(void**)&pixels,&pitch) < 0){
             printf("SDL_LockTexture: %s\n",SDL_GetError());
             continue;
         }
 
-        memcpy(pixels,info.thumbnail,gb_screen_length);
+        memcpy(pixels,info.screenshot,info.screenshot_length);
 
-        SDL_UnlockTexture(slot.thumbnail);
+        SDL_UnlockTexture(slot.screenshot);
     }
 
     last_update_time = std::chrono::steady_clock::now();
@@ -165,9 +165,9 @@ void savestate_t::render_menu_bar(){
 
             ImGui::PushID(i);
 
-            const char* label = slots[i].exists ? get_time_formated(slots[i].last_write_time) : "Empty";
+            std::string label = std::to_string(i + 1) + ". " + (slots[i].exists ? get_time_formated(slots[i].last_write_time) : "empty");
             
-            if(ImGui::MenuItem(label,slots[i].shortcut_save.c_str())){
+            if(ImGui::MenuItem(label.c_str(),slots[i].shortcut_save.c_str())){
                 save_slot(slots[i]);
             }
 
@@ -183,9 +183,9 @@ void savestate_t::render_menu_bar(){
 
             ImGui::PushID(i);
 
-            const char* label = slots[i].exists ? get_time_formated(slots[i].last_write_time) : "Empty";
+            std::string label = std::to_string(i + 1) + ". " + (slots[i].exists ?  get_time_formated(slots[i].last_write_time) : "empty");
             
-            if(ImGui::MenuItem(label,slots[i].shortcut_load.c_str(),nullptr,slots[i].exists)){
+            if(ImGui::MenuItem(label.c_str(),slots[i].shortcut_load.c_str(),nullptr,slots[i].exists)){
                 load_slot(slots[i]);
             }
 
@@ -211,24 +211,19 @@ void savestate_t::render(){
 
     if(ImGui::Begin("Save State Menu",&open)){
 
-        ImVec2 table_size(
-            ImGui::GetContentRegionAvail().x,
-            0.0f
-        );
+        if(ImGui::BeginTable("SlotsTable",3,ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersInnerH)){
 
-        if(ImGui::BeginTable("SlotsTable",3,ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersInnerH,table_size)){
-
-            ImGui::TableSetupColumn("Thumbnail",ImGuiTableColumnFlags_WidthFixed);
+            ImGui::TableSetupColumn("Screenshot",ImGuiTableColumnFlags_WidthFixed);
             ImGui::TableSetupColumn("Information",ImGuiTableColumnFlags_WidthStretch);
             ImGui::TableSetupColumn("Control",ImGuiTableColumnFlags_WidthFixed);
 
             for(int i = 0; i < savestate_t::number_of_slots; ++i){
 
-                ImGui::TableNextRow(ImGuiTableRowFlags_None);
+                ImGui::TableNextRow();
 
                 ImGui::TableNextColumn();
                 
-                ImGui::Image((ImTextureRef)slots[i].thumbnail,thumbnail_size);
+                ImGui::Image((ImTextureRef)slots[i].screenshot,screenshot_size);
                 
                 ImGui::TableNextColumn();
 

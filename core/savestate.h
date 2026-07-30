@@ -4,8 +4,8 @@
 
 typedef struct _gb_t gb_t;
 
-#define gb_savestate_header_magic "SAST"
-#define gb_thumbnail_header_magic "THUM"
+#define gb_savestate_header_magic "SAVE"
+#define gb_screenshot_header_magic "SCRE"
 #define gb_state_header_magic "STAT"
 
 typedef struct _gb_savestate_header_t {
@@ -15,10 +15,10 @@ typedef struct _gb_savestate_header_t {
     uint32_t state_offset;
 } gb_savestate_header_t;
 
-typedef struct _gb_thumbnail_header_t {
+typedef struct _gb_screenshot_header_t {
     char magic[4];
     uint32_t compressed_size;
-} gb_thumbnail_header_t;
+} gb_screenshot_header_t;
 
 typedef struct _gb_state_header_t {
     char magic[4];
@@ -34,8 +34,10 @@ typedef struct _gb_state_t {
 } gb_state_t;
 
 typedef struct _gb_savestate_info_t {
+    uint32_t rom_crc32;
     uint64_t timestamp;
-    const uint8_t* thumbnail;
+    const uint8_t* screenshot;
+    size_t screenshot_length;
 } gb_savestate_info_t;
 
 #define gb_state_write(state,src) gb_state_write_ex(state,&src,sizeof(src))
