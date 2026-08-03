@@ -103,6 +103,7 @@ target_sources(
     gui/printer/printer.cpp
     gui/savestate/savestate.cpp
     gui/screen/screen.cpp
+    gui/input/input.cpp
     gui/tilemap_viewer/tilemap_viewer.cpp
     gui/utils/utils.cpp
     gui/wave_form/wave_form.cpp

@@ -199,11 +199,10 @@ void palette_viewer_t::render(){
 
     if(ImGui::Begin("Palette Viewer",&_open)){
 
-        if(ImGui::BeginTable("PaletteTable",3)){
+        if(ImGui::BeginTable("PaletteTable",2)){
 
-            ImGui::TableSetupColumn("BackgroundColumn",ImGuiTableColumnFlags_WidthStretch);
-            ImGui::TableSetupColumn("ObjectColumn",ImGuiTableColumnFlags_WidthStretch);
-            ImGui::TableSetupColumn("ControlColumn",ImGuiTableColumnFlags_WidthFixed);
+            ImGui::TableSetupColumn("BackgroundColumn",ImGuiTableColumnFlags_WidthFixed);
+            ImGui::TableSetupColumn("ObjectColumn",ImGuiTableColumnFlags_WidthFixed);
 
             ImGui::TableNextRow();
 
@@ -215,23 +214,21 @@ void palette_viewer_t::render(){
             ImGui::TextUnformatted("Object");
             render_palette(obj_palette,obj_cram);
 
-            ImGui::TableNextColumn();
-
-            ImGui::SetNextItemWidth(input_scalar_width);
-            if(ImGui::InputScalar("Refresh on scanline",ImGuiDataType_U8,&callback_handler.scanline,&input_scalar_step,&input_scalar_step_fast)){
-                if(callback_handler.scanline >= gb_scanlines){
-                    callback_handler.scanline = gb_scanlines - 1;
-                }
-            }
-
-            ImGui::SetNextItemWidth(input_scalar_width);
-            if(ImGui::InputScalar("Refresh on cycle",ImGuiDataType_U16,&callback_handler.cycle,&input_scalar_step,&input_scalar_step_fast)){
-                if(callback_handler.cycle >= gb_scanline_cycles){
-                    callback_handler.cycle = gb_scanline_cycles - 1;
-                }
-            }
-
             ImGui::EndTable();
+        }
+
+        ImGui::SetNextItemWidth(input_scalar_width);
+        if(ImGui::InputScalar("Refresh on scanline",ImGuiDataType_U8,&callback_handler.scanline,&input_scalar_step,&input_scalar_step_fast)){
+            if(callback_handler.scanline >= gb_scanlines){
+                callback_handler.scanline = gb_scanlines - 1;
+            }
+        }
+
+        ImGui::SetNextItemWidth(input_scalar_width);
+        if(ImGui::InputScalar("Refresh on cycle",ImGuiDataType_U16,&callback_handler.cycle,&input_scalar_step,&input_scalar_step_fast)){
+            if(callback_handler.cycle >= gb_scanline_cycles){
+                callback_handler.cycle = gb_scanline_cycles - 1;
+            }
         }
     }
     ImGui::End();

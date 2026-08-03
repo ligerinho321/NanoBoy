@@ -2,7 +2,19 @@
 
 #include "utils/utils.h"
 
-typedef struct gb_joypad_key_t {
+typedef enum _gb_joypad_button_t {
+    gb_button_down,
+    gb_button_up,
+    gb_button_left,
+    gb_button_right,
+    gb_button_start,
+    gb_button_select,
+    gb_button_b,
+    gb_button_a,
+    gb_button_count
+} gb_joypad_button_t;
+
+typedef struct gb_joypad_state_t {
     bool down : 1;
     bool up : 1;
     bool left : 1;
@@ -12,9 +24,9 @@ typedef struct gb_joypad_key_t {
     bool select : 1;
     bool b : 1;
     bool a : 1;
-} gb_joypad_key_t;
+} gb_joypad_state_t;
 
-typedef void (*gb_joypad_callback_t)(void* data,gb_joypad_key_t* key);
+typedef void (*gb_joypad_callback_t)(void* data,gb_joypad_state_t* state);
 
 typedef struct _gb_joypad_t {
     gb_t* gb;
@@ -22,7 +34,7 @@ typedef struct _gb_joypad_t {
     bool select_buttons;
     bool select_directions;
 
-    gb_joypad_key_t key;
+    gb_joypad_state_t state;
 
     bool current_edge;
 
@@ -38,6 +50,8 @@ extern "C" {
 #endif
 
 void gb_joypad_init(gb_joypad_t* joypad,gb_t* gb);
+
+const char* gb_joypad_get_button_name(int button);
 
 void gb_joypad_set_callback(gb_joypad_t* joypad,gb_joypad_callback_t callback,void* data);
 void gb_joypad_remove_callback(gb_joypad_t* joypad);

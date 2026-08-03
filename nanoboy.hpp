@@ -2,19 +2,16 @@
 
 #include <core/gb.h>
 
-#include <gui/utils/utils.hpp>
-
-#include <gui/file_dialog/file_selector_dialog.hpp>
-#include <gui/savestate/savestate.hpp>
-
 #include <gui/cheats/cheats.hpp>
-#include <gui/printer/printer.hpp>
-
+#include <gui/file_dialog/file_selector_dialog.hpp>
 #include <gui/object_viewer/object_viewer.hpp>
 #include <gui/palette_viewer/palette_viewer.hpp>
+#include <gui/printer/printer.hpp>
+#include <gui/savestate/savestate.hpp>
 #include <gui/screen/screen.hpp>
+#include <gui/input/input.hpp>
 #include <gui/tilemap_viewer/tilemap_viewer.hpp>
-
+#include <gui/utils/utils.hpp>
 #include <gui/wave_form/wave_form.hpp>
 
 class nanoboy_t {
@@ -47,12 +44,32 @@ private:
         return path.u8string();
     }
 
+    std::string get_settings_path() const {
+        std::filesystem::path path = main_folder_path / "settings.json";
+        return path.u8string();
+    };
+
     void init_directories();
     void init_sdl();
     void init_imgui();
 
+    void save_window_settings(cJSON* settings_object);
+    void load_window_settings(cJSON* settings_object);
+
+    void save_settings();
+    void load_settings();
+    
     void save_imgui_ini_settings();
     void load_imgui_ini_settings();
+
+    void pause_audio_device(bool on){
+        if(on){
+            SDL_PauseAudioDevice(audio_device,true);
+        }
+        else if(!gb->paused){
+            SDL_PauseAudioDevice(audio_device,false);
+        }
+    }
 
     void event();
 
@@ -64,10 +81,12 @@ public:
     SDL_Window* window = nullptr;
     SDL_Renderer* renderer = nullptr;
     SDL_AudioDeviceID audio_device = 0;
+
+    input_t* input = nullptr;
     
     file_selector_t* file_selector = nullptr;
     savestate_t* savestate = nullptr;
-    
+
     screen_t* screen = nullptr;
     
     cheats_t* cheats = nullptr;

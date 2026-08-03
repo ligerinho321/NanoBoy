@@ -143,6 +143,8 @@ void printer_t::update(){
 }
 
 
+
+
 void printer_t::render(){
 
     if(!open) return;

@@ -1340,14 +1340,14 @@ void gb_apu_reset(gb_apu_t* apu,bool hardware){
         gb_apu_channel_frame_reset(&apu->noise_frame);
         gb_apu_mixer_frame_reset(&apu->mixer_frame);
 
-        apu->frame_cycles = 0;
-
         gb_ring_buffer_clear(&apu->ring_buffer);
 
+        apu->skip_first_frame_sequence_event = false;
+        
         apu->last_clock_cycle = 0;
         apu->cycles = 0;
 
-        apu->skip_first_frame_sequence_event = false;
+        apu->frame_cycles = 0;
     }
 
     gb_apu_square_reset(&apu->square1,hardware);
@@ -1413,6 +1413,8 @@ void gb_apu_save_state(gb_apu_t* apu,gb_state_t* state){
 
     gb_state_write(state,apu->last_clock_cycle);
     gb_state_write(state,apu->cycles);
+
+    gb_state_write(state,apu->frame_cycles);
 }
 
 void gb_apu_load_state(gb_apu_t* apu,gb_state_t* state){
@@ -1438,13 +1440,13 @@ void gb_apu_load_state(gb_apu_t* apu,gb_state_t* state){
     gb_state_read(state,apu->last_clock_cycle);
     gb_state_read(state,apu->cycles);
 
+    gb_state_read(state,apu->frame_cycles);
+
     gb_apu_channel_frame_reset(&apu->square1_frame);
     gb_apu_channel_frame_reset(&apu->square2_frame);
     gb_apu_channel_frame_reset(&apu->wave_frame);
     gb_apu_channel_frame_reset(&apu->noise_frame);
     gb_apu_mixer_frame_reset(&apu->mixer_frame);
-    
-    apu->frame_cycles = 0;
 
     gb_ring_buffer_clear(&apu->ring_buffer);
 }

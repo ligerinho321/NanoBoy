@@ -27,8 +27,10 @@ extern "C" {
 
 #endif
 
+
 typedef float gb_atomic_float_t;
 typedef size_t gb_atomic_size_t;
+typedef uint64_t gb_atomic_uint64_t;
 typedef bool gb_atomic_bool_t;
 
 #define gb_memory_order_relaxed __ATOMIC_RELAXED
@@ -48,6 +50,12 @@ typedef bool gb_atomic_bool_t;
     __typeof__(*_ptr_tmp) _tmp_value = value;\
     __atomic_store(_ptr_tmp,&_tmp_value,memory_order);\
 })
+
+
+#define gb_atomic_fetch_add_explicit(ptr,value,memory_order)\
+    __atomic_fetch_add(ptr,value,memory_order)
+
+
 
 #define gb_min(x,y)({\
     gb_auto _x_tmp = x;\

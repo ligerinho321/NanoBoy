@@ -15,6 +15,7 @@
 #include <filesystem>
 #include <vector>
 #include <array>
+#include <list>
 #include <algorithm>
 #include <string>
 #include <regex>

@@ -1,18 +1,21 @@
 #include <nanoboy.hpp>
 
-static void joypad_callback(void* data,gb_joypad_key_t* key){
-    const uint8_t* keyboard = SDL_GetKeyboardState(NULL);
+static void joypad_callback(void* data,gb_joypad_state_t* state){
 
-    if(ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow)) return;
+    nanoboy_t* nanoboy = (nanoboy_t*)data;
 
-    key->down = keyboard[SDL_SCANCODE_S];
-    key->up = keyboard[SDL_SCANCODE_W];
-    key->left = keyboard[SDL_SCANCODE_A];
-    key->right = keyboard[SDL_SCANCODE_D];
-    key->start = keyboard[SDL_SCANCODE_P];
-    key->select = keyboard[SDL_SCANCODE_O];
-    key->a = keyboard[SDL_SCANCODE_L];
-    key->b = keyboard[SDL_SCANCODE_K];
+    if(ImGui::GetIO().WantCaptureKeyboard && !nanoboy->screen->focused()) return;
+
+    input_t* input = nanoboy->input;
+
+    state->down = input->button_pressed(gb_button_down);
+    state->up = input->button_pressed(gb_button_up);
+    state->left = input->button_pressed(gb_button_left);
+    state->right = input->button_pressed(gb_button_right);
+    state->start = input->button_pressed(gb_button_start);
+    state->select = input->button_pressed(gb_button_select);
+    state->a = input->button_pressed(gb_button_a);
+    state->b = input->button_pressed(gb_button_b);
 }
 
 static void audio_callback(void* userdata,uint8_t* data,int len){
@@ -24,9 +27,6 @@ static void audio_callback(void* userdata,uint8_t* data,int len){
 
     if(readable > 0){
         gb_ring_buffer_read(&apu->ring_buffer,data,readable);
-    }
-    else{
-        memset(data,0,len);
     }
 }
 
@@ -48,20 +48,31 @@ static void file_selector_callback(void* userdata,std::filesystem::path path){
 nanoboy_t::nanoboy_t(){
     
     gb = gb_new();
-    gb_thread_safe_set_joypad_callback(gb,joypad_callback,nullptr);
+    gb_thread_safe_set_joypad_callback(gb,joypad_callback,this);
 
     init_directories();
     init_sdl();
     init_imgui();
+
+    int window_min_width = gb_screen_width;
+    int window_min_height = gb_screen_height + ImGui::GetFrameHeight();
+
+    SDL_SetWindowMinimumSize(window,window_min_width,window_min_height);
+
+    SDL_SetWindowSize(window,window_min_width,window_min_height);
+
+    SDL_SetWindowPosition(window,SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED);
+
+    input = new input_t();
 
     file_selector = new file_selector_t();
     file_selector->set_extensions(file_selector_filters,file_selector_filters_count);
     file_selector->set_current_extension(1);
     file_selector->set_callback(file_selector_callback,this);
 
-    savestate = new savestate_t(gb,renderer,audio_device);
+    savestate = new savestate_t(gb,renderer);
 
-    screen = new screen_t(renderer);
+    screen = new screen_t(gb,window,renderer);
 
     cheats = new cheats_t(gb);
 
@@ -75,17 +86,18 @@ nanoboy_t::nanoboy_t(){
 
     wave_form = new wave_form_t(gb);
 
-    screen->set_embedded_scale(window,4);
-
-    SDL_SetWindowPosition(window,SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED);
-
     running = true;
+
+    load_settings();
 }
 
 nanoboy_t::~nanoboy_t(){
 
     remove_cartridge();
-    
+
+    save_settings();
+    save_imgui_ini_settings();
+
     delete wave_form;
     delete palette_viewer;
     delete object_viewer;
@@ -95,11 +107,10 @@ nanoboy_t::~nanoboy_t(){
     delete screen;
     delete savestate;
     delete file_selector;
+    delete input;
 
     ImGui_ImplSDLRenderer2_Shutdown();
     ImGui_ImplSDL2_Shutdown();
-
-    save_imgui_ini_settings();
 
     ImGui::DestroyContext();
 
@@ -151,10 +162,11 @@ void nanoboy_t::init_directories(){
 }
 
 void nanoboy_t::init_sdl(){
+
     SDL_Init(SDL_INIT_EVERYTHING);
 
     window = SDL_CreateWindow("NanoBoy",0,0,0,0,SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
-    
+
     renderer = SDL_CreateRenderer(window,-1,SDL_RENDERER_ACCELERATED);
 
     SDL_AudioSpec audio_spec = {0};
@@ -166,8 +178,6 @@ void nanoboy_t::init_sdl(){
     audio_spec.userdata = &gb->apu;
 
     audio_device = SDL_OpenAudioDevice(nullptr,0,&audio_spec,nullptr,0);
-
-    SDL_PauseAudioDevice(audio_device,0);
 }
 
 void nanoboy_t::init_imgui(){
@@ -176,7 +186,7 @@ void nanoboy_t::init_imgui(){
 
     ImGuiIO& io = ImGui::GetIO();
 
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_NavEnableGamepad;
+    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_NavEnableGamepad;
 
     io.IniFilename = nullptr;
     io.LogFilename = nullptr;
@@ -192,6 +202,130 @@ void nanoboy_t::init_imgui(){
     ImGui_ImplSDL2_NewFrame();
     ImGui::NewFrame();
     ImGui::Render();
+}
+
+
+void nanoboy_t::save_window_settings(cJSON* settings_object){
+    
+    int width,height;
+    SDL_GetWindowSize(window,&width,&height);
+
+    int x,y;
+    SDL_GetWindowPosition(window,&x,&y);
+
+    cJSON* window_object = cJSON_CreateObject();
+    cJSON_AddItemToObjectCS(settings_object,"Window",window_object);
+
+    cJSON* x_number = cJSON_CreateNumber(x);
+    cJSON_AddItemToObjectCS(window_object,"X",x_number);
+
+    cJSON* y_number = cJSON_CreateNumber(y);
+    cJSON_AddItemToObjectCS(window_object,"Y",y_number);
+
+    cJSON* width_number = cJSON_CreateNumber(width);
+    cJSON_AddItemToObjectCS(window_object,"Width",width_number);
+
+    cJSON* height_number = cJSON_CreateNumber(height);
+    cJSON_AddItemToObjectCS(window_object,"Height",height_number);
+
+    cJSON* fullscreen_bool = cJSON_CreateBool(SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN_DESKTOP);
+    cJSON_AddItemToObjectCS(window_object,"Fullscreen",fullscreen_bool);
+}
+
+void nanoboy_t::load_window_settings(cJSON* settings_object){
+
+    int x,y,w,h;
+    SDL_GetWindowPosition(window,&x,&y);
+    SDL_GetWindowSize(window,&w,&h);
+
+    bool fullscreen = false;
+
+    cJSON* window_object = cJSON_GetObjectItemCaseSensitive(settings_object,"Window");
+    
+    if(!window_object || !cJSON_IsObject(window_object)) return;
+
+    cJSON* x_number = cJSON_GetObjectItemCaseSensitive(window_object,"X");
+
+    if(x_number && cJSON_IsNumber(x_number)){
+        x = (int)cJSON_GetNumberValue(x_number);
+    }
+
+    cJSON* y_number = cJSON_GetObjectItemCaseSensitive(window_object,"Y");
+
+    if(y_number && cJSON_IsNumber(y_number)){
+        y = (int)cJSON_GetNumberValue(y_number);
+    }
+
+    cJSON* w_number = cJSON_GetObjectItemCaseSensitive(window_object,"Width");
+
+    if(w_number && cJSON_IsNumber(w_number)){
+        w = (int)cJSON_GetNumberValue(w_number);
+    }
+
+    cJSON* h_number = cJSON_GetObjectItemCaseSensitive(window_object,"Height");
+
+    if(h_number && cJSON_IsNumber(h_number)){
+        h = (int)cJSON_GetNumberValue(h_number);
+    }
+
+    cJSON* fullscreen_bool = cJSON_GetObjectItemCaseSensitive(window_object,"Fullscreen");
+
+    if(fullscreen_bool && cJSON_IsBool(fullscreen_bool)){
+        fullscreen = cJSON_IsTrue(fullscreen_bool);
+    }
+
+    SDL_SetWindowSize(window,w,h);
+    SDL_SetWindowPosition(window,x,y);
+    SDL_SetWindowFullscreen(window,fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
+}
+
+
+void nanoboy_t::save_settings(){
+
+    cJSON* settings_object = cJSON_CreateObject();
+
+    if(!settings_object){
+        gb_printf_error("cJSON_CreateObject failed");
+        return;
+    }
+
+    save_window_settings(settings_object);
+
+    screen->save(settings_object);
+    input->save(settings_object);
+
+    char* settings_string = cJSON_Print(settings_object);
+
+    gb_save_file(get_settings_path().c_str(),settings_string,strlen(settings_string));
+
+    free(settings_string);
+    
+    cJSON_Delete(settings_object);
+}
+
+void nanoboy_t::load_settings(){
+    char* data = nullptr;
+    size_t len = 0;
+
+    if(!gb_load_file(get_settings_path().c_str(),(void**)&data,&len)){
+        return;
+    }
+
+    cJSON* settings_object = cJSON_ParseWithLength(data,len);
+
+    if(!settings_object){
+        gb_printf_error("cJSON_ParserWidthLength failed");
+        goto end;
+    }
+
+    load_window_settings(settings_object);
+
+    screen->load(settings_object);
+    input->load(settings_object);
+
+    end:
+    free(data);
+    cJSON_Delete(settings_object);
 }
 
 
@@ -238,6 +372,8 @@ void nanoboy_t::insert_cartridge(std::filesystem::path path){
     cheats->load(get_rom_cheat_path().c_str(),false);
 
     gb_thread_start(gb);
+
+    pause_audio_device(false);
 }
 
 void nanoboy_t::remove_cartridge(){
@@ -245,6 +381,8 @@ void nanoboy_t::remove_cartridge(){
     if(!gb->cartridge_inserted) return;
 
     gb_thread_stop(gb);
+
+    pause_audio_device(true);
 
     gb_save_ram(gb,get_rom_save_path().c_str());
     
@@ -274,20 +412,18 @@ void nanoboy_t::remove_cartridge(){
 
 void nanoboy_t::event(){
     SDL_Event event{0};
-
+    
     while(SDL_PollEvent(&event)){
         
         ImGui_ImplSDL2_ProcessEvent(&event);
 
+        input->event_settings(event);
+        savestate->event(event);
+        screen->event(event);
+
         switch(event.type){
             case SDL_QUIT:{
                 running = false;
-                break;
-            }
-            case SDL_WINDOWEVENT:{
-                if(event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED){
-                    screen->update_embedded_size(window);
-                }
                 break;
             }
             case SDL_KEYDOWN:{
@@ -300,6 +436,7 @@ void nanoboy_t::event(){
                     else{
                         if(event.key.keysym.scancode == SDL_SCANCODE_ESCAPE){
                             gb_thread_safe_set_paused(gb,!gb->paused);
+                            pause_audio_device(gb->paused);
                         }
                         else if(event.key.keysym.scancode == SDL_SCANCODE_EQUALS){
                             gb_thread_safe_set_speed(gb,gb->speed + gb_speed_step);
@@ -309,28 +446,10 @@ void nanoboy_t::event(){
                         }
                     }
                 }
-                if(SDL_GetModState() & KMOD_ALT){
-                    if(event.key.keysym.scancode >= SDL_SCANCODE_1 && event.key.keysym.scancode <= SDL_SCANCODE_9){
-                        int scale = (event.key.keysym.scancode - SDL_SCANCODE_1) + 1;
-                        screen->set_embedded_scale(window,scale);
-                    }
-                }
-                else{
-                    if(event.key.keysym.scancode == SDL_SCANCODE_F11){
-                        if(SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN){
-                            SDL_SetWindowFullscreen(window,0);
-                        }
-                        else{
-                            SDL_SetWindowFullscreen(window,SDL_WINDOW_FULLSCREEN);
-                        }
-                    }
-                }
                 break;
             }
         }
     }
-
-    savestate->event();
 }
 
 
@@ -339,17 +458,16 @@ void nanoboy_t::gb_run(){
 
     gb_execute_frame(gb);
 
-    uint8_t* pixels = NULL;
-    int pitch = 0;
-    SDL_LockTexture(screen->texture,NULL,(void**)&pixels,&pitch);
-
-    memcpy(pixels,gb_get_render_buffer(gb),gb_screen_length);
-
-    SDL_UnlockTexture(screen->texture);
+    screen->update_screen();
 }
 
 
 void nanoboy_t::render_main_menu_bar(){
+
+    bool fullscreen = SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN_DESKTOP;
+
+    if(fullscreen && gb->cartridge_inserted) return;
+
     if(!ImGui::BeginMainMenuBar()) return;
         
     if(ImGui::BeginMenu("File")){
@@ -375,6 +493,7 @@ void nanoboy_t::render_main_menu_bar(){
         
         if(ImGui::MenuItem("Pause","Esq",nullptr,gb->cartridge_inserted)){
             gb_thread_safe_set_paused(gb,!gb->paused);
+            pause_audio_device(gb->paused);
         }
 
         if(ImGui::MenuItem("Reset","Ctrl+R",nullptr,gb->cartridge_inserted)){
@@ -406,46 +525,7 @@ void nanoboy_t::render_main_menu_bar(){
     
     if(ImGui::BeginMenu("Settings")){
 
-        if(ImGui::BeginMenu("Screen Size")){
-
-            bool fullscreen = SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN;
-            int scale = fullscreen ? -1 : screen->embedded_scale;
-
-            if(ImGui::MenuItem("1x","Alt+1",scale == 1)) scale = 1;
-            if(ImGui::MenuItem("2x","Alt+2",scale == 2)) scale = 2;
-            if(ImGui::MenuItem("3x","Alt+3",scale == 3)) scale = 3;
-            if(ImGui::MenuItem("4x","Alt+4",scale == 4)) scale = 4;
-            if(ImGui::MenuItem("5x","Alt+5",scale == 5)) scale = 5;
-            if(ImGui::MenuItem("6x","Alt+6",scale == 6)) scale = 6;
-            if(ImGui::MenuItem("7x","Alt+7",scale == 7)) scale = 7;
-            if(ImGui::MenuItem("8x","Alt+8",scale == 8)) scale = 8;
-            if(ImGui::MenuItem("9x","Alt+9",scale == 9)) scale = 9;
-
-            if(scale > 0 && scale != screen->embedded_scale){
-                screen->set_embedded_scale(window,scale);
-            }
-
-            if(ImGui::MenuItem("FullScreen","F11",fullscreen)){
-                if(fullscreen){
-                    SDL_SetWindowFullscreen(window,0);
-                }
-                else{
-                    SDL_SetWindowFullscreen(window,SDL_WINDOW_FULLSCREEN);
-                }
-            }
-
-            ImGui::EndMenu();
-        }
-
-        if(ImGui::BeginMenu("Screen Mode")){
-            if(ImGui::MenuItem("Embedded",nullptr,screen->mode == screen_t::embedded_mode)){
-                screen->mode = screen_t::embedded_mode;
-            }
-            if(ImGui::MenuItem("Floating",nullptr,screen->mode == screen_t::floating_mode)){
-                screen->mode = screen_t::floating_mode;
-            }
-            ImGui::EndMenu();
-        }
+        screen->render_menu_bar();
 
         if(ImGui::BeginMenu("Model")){
             
@@ -469,6 +549,10 @@ void nanoboy_t::render_main_menu_bar(){
                 gb_thread_safe_set_execution_mode(gb,true);
             }
             ImGui::EndMenu();
+        }
+
+        if(ImGui::MenuItem("Input")){
+            input->open_settings();
         }
 
         ImGui::EndMenu();
@@ -501,11 +585,13 @@ void nanoboy_t::imgui_render(){
 
     render_main_menu_bar();
 
+    input->render_settings();
+
     file_selector->render();
 
     savestate->render();
     
-    screen->render();
+    screen->render_floating();
     
     cheats->render();
     printer->render();
@@ -525,19 +611,23 @@ void nanoboy_t::sdl_render(){
 
     SDL_RenderClear(renderer);
 
-    if(screen->mode == screen->embedded_mode && gb->cartridge_inserted){
-        SDL_RenderCopy(renderer, screen->texture, NULL, &screen->embedded_rect);
-    }
+    screen->render_embedded();
 
     ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer);
 
     SDL_RenderPresent(renderer);
+
+    if(gb->cartridge_inserted){
+        static char buffer[256] = {0};
+
+        snprintf(buffer,sizeof(buffer),"NanoBoy - %s (%.1f fps)",rom_name.c_str(),gb_get_fps(gb));
+
+        SDL_SetWindowTitle(window,buffer);
+    }
 }
 
 
 void nanoboy_t::run(){
-
-    char buffer[256] = {0};
     
     while(running){
 
@@ -546,13 +636,7 @@ void nanoboy_t::run(){
         gb_run();
 
         imgui_render();
+
         sdl_render();
-
-        if(gb->cartridge_inserted){
-
-            snprintf(buffer,sizeof(buffer),"NanoBoy - %s (%.1f fps)",rom_name.c_str(),gb_get_fps(gb));
-
-            SDL_SetWindowTitle(window,buffer);
-        }            
     } 
 }

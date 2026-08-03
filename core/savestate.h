@@ -41,7 +41,6 @@ typedef struct _gb_savestate_info_t {
 } gb_savestate_info_t;
 
 #define gb_state_write(state,src) gb_state_write_ex(state,&src,sizeof(src))
-
 #define gb_state_read(state,dst) gb_state_read_ex(state,&dst,sizeof(dst))
 
 #ifdef __cplusplus

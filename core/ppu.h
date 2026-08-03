@@ -85,6 +85,7 @@ void gb_pixel_fifo_pop(gb_pixel_fifo_t* fifo);
 
 typedef struct _gb_ppu_t {
     gb_t* gb;
+    bool interframe_blending;
 
     gb_ppu_lcdc_t lcdc;
     gb_ppu_status_t status;

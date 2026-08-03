@@ -2,10 +2,6 @@
 
 #include <gui/utils/utils.hpp>
 
-static const char* str_save = "Save";
-static const char* str_load = "Load";
-static const char* str_delete = "Delete";
-
 class savestate_t {
 private:
     enum{
@@ -39,8 +35,6 @@ private:
 
     gb_t* gb = nullptr;
 
-    SDL_AudioDeviceID audio_device;
-
     std::array<slot_t,savestate_t::number_of_slots> slots;
 
     ImVec2 screenshot_size{gb_screen_width,gb_screen_height};
@@ -57,12 +51,12 @@ private:
     void update_slots();
 
 public:
-    savestate_t(gb_t* gb,SDL_Renderer* renderer,SDL_AudioDeviceID audio_device);
+    savestate_t(gb_t* gb,SDL_Renderer* renderer);
 
     void load(std::filesystem::path path,std::string rom_name);
     void unload();
 
-    void event();
+    void event(SDL_Event& event);
 
     void render_menu_bar();
 

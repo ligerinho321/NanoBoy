@@ -1,6 +1,11 @@
 #include <gui/savestate/savestate.hpp>
 
-savestate_t::savestate_t(gb_t* gb,SDL_Renderer* renderer,SDL_AudioDeviceID audio_device):gb(gb),audio_device(audio_device){
+static const char* str_save = "Save";
+static const char* str_load = "Load";
+static const char* str_delete = "Delete";
+
+
+savestate_t::savestate_t(gb_t* gb,SDL_Renderer* renderer):gb(gb){
 
     for(int i = 0; i < savestate_t::number_of_slots; ++i){
         slots[i].name = "Slot #" + std::to_string(i + 1);
@@ -50,22 +55,13 @@ void savestate_t::unload(){
 }
 
 
-void savestate_t::save_slot(slot_t& slot){
-    SDL_PauseAudioDevice(audio_device,true);
-    
+void savestate_t::save_slot(slot_t& slot){    
     gb_savestate_thread_safe_serialize(gb,slot.path.u8string().c_str());
-    
     update_slots();
-
-    SDL_PauseAudioDevice(audio_device,false);
 }
 
 void savestate_t::load_slot(slot_t& slot){
-    SDL_PauseAudioDevice(audio_device,true);
-    
     gb_savestate_thread_safe_deserialize(gb,slot.path.u8string().c_str());
-
-    SDL_PauseAudioDevice(audio_device,false);
 }
 
 void savestate_t::delete_slot(slot_t& slot){
@@ -126,11 +122,9 @@ void savestate_t::update_slots(){
 }
 
 
-void savestate_t::event(){
+void savestate_t::event(SDL_Event& event){
 
     if(!gb->cartridge_inserted) return;
-
-    ImGuiIO& io = ImGui::GetIO();
 
     std::chrono::nanoseconds elapsed = std::chrono::steady_clock::now() - last_update_time;
 
@@ -138,19 +132,21 @@ void savestate_t::event(){
         update_slots();
     }
 
-    //SaveState
-    if(io.KeyShift){
-        for(int i = 0; i < number_of_slots; ++i){
-            if(ImGui::IsKeyDown((ImGuiKey)(ImGuiKey_F1 + i))){
-                save_slot(slots[i]);
+    if(event.type == SDL_KEYDOWN){
+        //SaveState
+        if(SDL_GetModState() & KMOD_SHIFT){
+            for(int i = 0; i < number_of_slots; ++i){
+                if(event.key.keysym.scancode == SDL_SCANCODE_F1 + i){
+                    save_slot(slots[i]);
+                }
             }
         }
-    }
-    //LoadState
-    else{
-        for(int i = 0; i < number_of_slots; ++i){
-            if(slots[i].exists && ImGui::IsKeyDown((ImGuiKey)(ImGuiKey_F1 + i))){
-                load_slot(slots[i]);
+        //LoadState
+        else{
+            for(int i = 0; i < number_of_slots; ++i){
+                if(slots[i].exists && event.key.keysym.scancode == SDL_SCANCODE_F1 + i){
+                    load_slot(slots[i]);
+                }
             }
         }
     }

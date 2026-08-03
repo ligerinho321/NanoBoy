@@ -39,6 +39,35 @@ void gb_ppu_remove_handler(gb_ppu_t* ppu,gb_ppu_handler_t* handler){
 }
 
 
+
+void gb_ppu_interframe_blending(gb_ppu_t* ppu){
+
+    uint8_t* last = ppu->screen[!ppu->screen_index];
+    
+    uint8_t* current = ppu->screen[ppu->screen_index];
+    
+    uint8_t* end = current + gb_screen_length;
+
+    while(current < end){
+        *current = *last * 0.4f + *current * 0.6f;
+        ++current;
+        ++last;
+    }
+}
+
+
+static inline void gb_ppu_swap_frame_buffer(gb_ppu_t* ppu){
+
+    if(ppu->interframe_blending){
+        gb_ppu_interframe_blending(ppu);
+    }
+
+    gb_atomic_store_explicit(&ppu->screen_index,!ppu->screen_index,gb_memory_order_release);
+
+    ppu->current_screen = ppu->screen[ppu->screen_index];
+}
+
+
 static inline void gb_ppu_init_line_renderer(gb_ppu_t* ppu){
     ppu->wx_enabled = false;
 
@@ -109,13 +138,9 @@ static inline void gb_ppu_vblank_scanline(gb_ppu_t* ppu){
             if(ppu->_ly == 144){
                 ppu->first_frame = false;
 
-                ppu->frame_count++;
+                gb_ppu_swap_frame_buffer(ppu);
 
-                bool screen_index = gb_atomic_load_explicit(&ppu->screen_index,gb_memory_order_relaxed);
-
-                gb_atomic_store_explicit(&ppu->screen_index,!screen_index,gb_memory_order_release);
-
-                ppu->current_screen = ppu->screen[!screen_index];
+                ++ppu->frame_count;
 
                 gb_joypad_update(&ppu->gb->joypad);
 
@@ -474,17 +499,11 @@ void gb_ppu_clock(gb_ppu_t* ppu,int cycles){
             
             ppu->off_cycle -= gb_frame_cycles;
 
-            ppu->frame_count++;
+            memset(ppu->current_screen,0xFF,gb_screen_length);
 
-            if(ppu->first_frame){
-                ppu->first_frame = false;
+            gb_ppu_swap_frame_buffer(ppu);
 
-                bool screen_index = gb_atomic_load_explicit(&ppu->screen_index,gb_memory_order_relaxed);
-                
-                memset(ppu->screen[screen_index],0xFF,gb_screen_length);
-                
-                gb_atomic_store_explicit(&ppu->screen_index,!screen_index,gb_memory_order_release);
-            }
+            ++ppu->frame_count;
 
             gb_joypad_update(&ppu->gb->joypad);
 
@@ -554,8 +573,6 @@ void gb_ppu_write_register(void* data,uint8_t value,uint16_t address){
 
                 //Quando a PPU é ligado a linha 0 é mais curta em 5 T-cycles
                 ppu->cycle = 0x04;
-
-                ppu->current_screen = ppu->screen[gb_atomic_load_explicit(&ppu->screen_index,gb_memory_order_relaxed)];
 
                 ppu->first_frame = true;
             }
@@ -755,9 +772,9 @@ void gb_ppu_reset(gb_ppu_t* ppu){
     ppu->frame_count = 0;
     ppu->first_frame = false;
 
-    gb_atomic_store_explicit(&ppu->screen_index,0,gb_memory_order_relaxed);
-    memset(ppu->screen,0xFF,sizeof(ppu->screen));
-    ppu->current_screen = ppu->screen[0];
+    memset(ppu->screen[ppu->screen_index],0xFF,gb_screen_length);
+    ppu->screen_index = !ppu->screen_index;
+    ppu->current_screen = ppu->screen[ppu->screen_index];
 
     memset(ppu->vram,0x00,sizeof(ppu->vram));
     ppu->vram_bank_ptr = ppu->vram;
@@ -867,7 +884,7 @@ void gb_ppu_load_state(gb_ppu_t* ppu,gb_state_t* state){
     
     gb_state_read(state,ppu->screen_index);
     gb_state_read_ex(state,ppu->screen,sizeof(ppu->screen));
-    ppu->current_screen = ppu->screen[gb_atomic_load_explicit(&ppu->screen_index,gb_memory_order_relaxed)];
+    ppu->current_screen = ppu->screen[ppu->screen_index];
 
     gb_state_read_ex(state,ppu->vram,sizeof(ppu->vram));
     gb_state_read(state,ppu->vram_bank);
