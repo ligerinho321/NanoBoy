@@ -9,7 +9,8 @@
 #include <gui/printer/printer.hpp>
 #include <gui/savestate/savestate.hpp>
 #include <gui/screen/screen.hpp>
-#include <gui/input/input.hpp>
+#include <gui/boot_settings/boot_settings.hpp>
+#include <gui/input_settings/input_settings.hpp>
 #include <gui/tilemap_viewer/tilemap_viewer.hpp>
 #include <gui/utils/utils.hpp>
 #include <gui/wave_form/wave_form.hpp>
@@ -82,7 +83,8 @@ public:
     SDL_Renderer* renderer = nullptr;
     SDL_AudioDeviceID audio_device = 0;
 
-    input_t* input = nullptr;
+    boot_settings_t* boot_settings = nullptr;
+    input_settings_t* input_settings = nullptr;
     
     file_selector_t* file_selector = nullptr;
     savestate_t* savestate = nullptr;

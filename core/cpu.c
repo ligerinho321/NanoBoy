@@ -1684,16 +1684,12 @@ void gb_cpu_execute(gb_cpu_t* cpu){
 
 
 void gb_cpu_reset(gb_cpu_t* cpu){
-    
     cpu->state = gb_cpu_running_state;
-
     cpu->opcode = 0x00;
-
     cpu->halt_fetch = false;
-
+    cpu->halt_cycles = 0x00;
     cpu->ime_pending = false;
     cpu->ime = false;
-
     cpu->af = 0x00;
     cpu->bc = 0x00;
     cpu->de = 0x00;
@@ -1701,6 +1697,34 @@ void gb_cpu_reset(gb_cpu_t* cpu){
     cpu->sp = 0x00;
     cpu->pc = 0x00;
 }
+
+void gb_cpu_skip_boot(gb_cpu_t* cpu){
+    if(cpu->gb->is_cgb){
+
+        if(cpu->gb->cgb_mode){
+            cpu->af = 0x1180;
+            cpu->bc = 0x0000;
+            cpu->de = 0xFF56;
+            cpu->hl = 0x000D;
+        }
+        else{
+            cpu->af = 0x1180;
+            cpu->bc = 0x1400;
+            cpu->de = 0x0008;
+            cpu->hl = 0x007C;
+        }
+    }
+    else{
+        cpu->af = 0x0190;
+        cpu->bc = 0x0013;
+        cpu->de = 0x00D8;
+        cpu->hl = 0x014D;
+    }
+
+    cpu->sp = 0xFFFE;
+    cpu->pc = 0x0100;
+}
+
 
 void gb_cpu_save_state(gb_cpu_t* cpu,gb_state_t* state){
     gb_state_write(state,cpu->state);

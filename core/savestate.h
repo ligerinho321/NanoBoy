@@ -10,8 +10,16 @@ typedef struct _gb_t gb_t;
 
 typedef struct _gb_savestate_header_t {
     char magic[4];
+    
+    bool is_cgb;
+    
+    bool boot_mapped;
+    uint32_t boot_rom_crc32;
+
     uint32_t rom_crc32;
+    
     uint64_t timestamp;
+    
     uint32_t state_offset;
 } gb_savestate_header_t;
 

@@ -83,7 +83,7 @@ void palette_viewer_t::render_tooltip_color(palette_t& palette,uint8_t* cram,uin
 
         gb_rgb_t color{0};
 
-        if(gb->type == gb_cgb){
+        if(gb->is_cgb){
 
             uint16_t address = 0x00;
 
@@ -159,7 +159,7 @@ void palette_viewer_t::render_palette(palette_t& palette,uint8_t* cram){
     texture_size.x *= palette_scale;
     texture_size.y *= palette_scale;
 
-    palette.update_texture(gb->type,cgb_mode);
+    palette.update_texture(gb->is_cgb,cgb_mode);
 
     ImGui::Image((ImTextureRef)palette.texture,texture_size,texture_uv0,texture_uv1);
 

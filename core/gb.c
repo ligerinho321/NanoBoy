@@ -10,8 +10,8 @@ gb_t* gb_new(){
 
     memset(gb,0x00,sizeof(gb_t));
 
-    gb->type = gb_cgb;
-    gb->type_pending = gb->type;
+    gb->is_cgb = true;
+    gb->is_cgb_pending = gb->is_cgb;
     gb->speed = 1.0f;
     
     gb->key0_register_handler = (gb_memory_handler_t){
@@ -32,6 +32,12 @@ gb_t* gb_new(){
         gb
     };
 
+    gb->undocumented_register_handler = (gb_memory_handler_t){
+        gb_write_undocumented_register,
+        gb_read_undocumented_register,
+        gb
+    };
+
     gb_cpu_init(&gb->cpu,gb);
     gb_ppu_init(&gb->ppu,gb);
     gb_apu_init(&gb->apu,gb);
@@ -41,6 +47,7 @@ gb_t* gb_new(){
     gb_dma_init(&gb->dma,gb);
     gb_palette_init(&gb->palette,gb);
     gb_serial_init(&gb->serial,gb);
+    gb_infrared_init(&gb->infrared,gb);
     gb_boot_init(&gb->boot,gb);
     gb_memory_init(&gb->memory,gb);
     gb_cartridge_init(&gb->cartridge,gb);
@@ -78,8 +85,9 @@ bool gb_insert_cartridge(gb_t* gb,const char* path){
 }
 
 void gb_remove_cartridge(gb_t* gb){
-    gb_cartridge_clear(&gb->cartridge);
-    
+
+    gb_cartridge_remove(&gb->cartridge);
+
     gb->cartridge_inserted = false;
 
     gb_frame_timer_stop(&gb->frame_timer);
@@ -250,7 +258,7 @@ void gb_execute_frame(gb_t* gb){
 }
 
 
-static void gb_execute(gb_t* gb){
+static inline void gb_execute(gb_t* gb){
     gb_ppu_t* ppu = &gb->ppu;
     gb_cpu_t* cpu = &gb->cpu;
     gb_frame_timer_t* frame_timer = &gb->frame_timer;
@@ -333,38 +341,84 @@ void gb_switch_speed(gb_t* gb){
 
 void gb_write_key0_register(void* data,uint8_t value,uint16_t address){
     gb_t* gb = (gb_t*)data;
+
+    if(!(gb->is_cgb && gb->boot.mapped)) return;
+
     gb->cgb_mode = !(value & 0x0C);
 }
 
 
 void gb_write_key1_register(void* data,uint8_t value,uint16_t address){
     gb_t* gb = (gb_t*)data;
+
+    if(!(gb->is_cgb && (gb->cgb_mode || gb->boot.mapped))) return;
+
     gb->speed_switch_needed = value & 0x01;
 }
 
 uint8_t gb_read_key1_register(void* data,uint16_t address){
     gb_t* gb = (gb_t*)data;
+
+    if(!(gb->is_cgb && (gb->cgb_mode || gb->boot.mapped))) return 0xFF;
+
     return (gb->double_speed ? 0x80 : 0x00) | 0x7E | gb->speed_switch_needed;
 }
 
 
 void gb_write_opri_register(void* data,uint8_t value,uint16_t address){
     gb_t* gb = (gb_t*)data;
+
+    if(!(gb->is_cgb && (gb->cgb_mode || gb->boot.mapped))) return;
+
     gb->obj_priority_mode = value & 0x01;
 }
 
 uint8_t gb_read_opri_register(void* data,uint16_t address){
     gb_t* gb = (gb_t*)data;
+
+    if(!(gb->is_cgb && (gb->cgb_mode || gb->boot.mapped))) return 0xFF;
+
     return 0xFE | gb->obj_priority_mode;
 }
 
 
+void gb_write_undocumented_register(void* data,uint8_t value,uint16_t address){
+    gb_t* gb = (gb_t*)data;
+
+    if(!(gb->is_cgb && (gb->cgb_mode || gb->boot.mapped))) return;
+
+    switch(address){
+        case 0xFF72: case 0xFF73: case 0xFF74:
+            gb->undocumented_registers[address - 0xFF72] = value;
+            break;
+        case 0xFF75:
+            gb->undocumented_registers[0x03] = value & 0x70;
+            break;
+    }
+}
+
+uint8_t gb_read_undocumented_register(void* data,uint16_t address){
+    gb_t* gb = (gb_t*)data;
+
+    if(!(gb->is_cgb && (gb->cgb_mode || gb->boot.mapped))) return 0xFF;
+
+    uint8_t value = 0xFF;
+
+    switch(address){
+        case 0xFF72: case 0xFF73: case 0xFF74:
+            value = gb->undocumented_registers[address - 0xFF72];
+            break;
+        case 0xFF75:
+            value = 0x8F | (gb->undocumented_registers[0x03] & 0x70);
+            break;
+    }
+
+    return value;
+}
+
+
 void gb_map(gb_t* gb){
-    gb_ppu_map_vram(&gb->ppu);
-
-    gb_ppu_map_registers(&gb->ppu);
-
-    gb_ppu_map_oam(&gb->ppu);
+    gb_ppu_map(&gb->ppu);
 
     gb_apu_map_registers(&gb->apu);
 
@@ -374,79 +428,58 @@ void gb_map(gb_t* gb){
 
     gb_timer_map_registers(&gb->timer);
 
-    gb_oam_dma_map_registers(&gb->dma);
+    gb_dma_map(&gb->dma);
 
-    gb_palette_map_dmg_registers(&gb->palette);
+    gb_palette_map(&gb->palette);
 
     gb_serial_map_registers(&gb->serial);
+
+    gb_infrared_map(&gb->infrared);
+
+    gb_boot_map_register(&gb->boot);
 
     gb_memory_map_wram(&gb->memory);
 
     gb_memory_map_hram(&gb->memory);
 
     gb_cartridge_map(&gb->cartridge);
-}
 
-
-void gb_map_cgb_registers(gb_t* gb){
-    gb_memory_t* memory = &gb->memory;
     //KEY0
-    gb_memory_map(memory,&gb->key0_register_handler,0xFF4C);
-    //KEY1
-    gb_memory_map(memory,&gb->key1_register_handler,0xFF4D);
-    //VBK
-    gb_memory_map(memory,&gb->ppu.vbk_register_handler,0xFF4F);
-    //VRAM DMA
-    gb_vram_dma_map_registers(&gb->dma);
-    //Palette
-    gb_palette_map_cgb_registers(&gb->palette);
-    //OPRI
-    gb_memory_map(memory,&gb->opri_register_handler,0xFF6C);
-    //WBK
-    gb_memory_map(memory,&gb->memory.wbk_register_handler,0xFF70);
-    //PCM
-    gb_apu_map_pcm_registers(&gb->apu);
-}
+    gb_memory_map(&gb->memory,&gb->key0_register_handler,0xFF4C);
 
-void gb_unmap_cgb_registers(gb_t* gb){
-    gb_memory_t* memory = &gb->memory;
     //KEY1
-    gb_memory_unmap(memory,0xFF4D);
-    //VBK
-    gb_memory_unmap(memory,0xFF4F);
-    //VRAM DMA
-    gb_vram_dma_unmap_registers(&gb->dma);
-    //Palette
-    gb_palette_unmap_cgb_registers(&gb->palette);
+    gb_memory_map(&gb->memory,&gb->key1_register_handler,0xFF4D);
+
     //OPRI
-    gb_memory_unmap(memory,0xFF6C);
-    //WBK
-    gb_memory_unmap(memory,0xFF70);
-    //PCM
-    gb_apu_unmap_pcm_registers(&gb->apu);
+    gb_memory_map(&gb->memory,&gb->opri_register_handler,0xFF6C);
+
+    //Undocumented registers
+    gb_memory_map_in_range(&gb->memory,&gb->undocumented_register_handler,0xFF72,0xFF75);
 }
 
 
 void gb_reset(gb_t* gb){
 
-    if(gb->type_pending != gb->type){
-        gb->type = gb->type_pending;
-    }
+    gb->is_cgb = gb->is_cgb_pending;
 
-    gb->double_speed = false;
-    gb->speed_switch_needed = false;
-    
-    if(gb->type == gb_cgb){
+    gb_boot_update_roms(&gb->boot);
+
+    bool skip_boot = gb->boot.skip_enabled || (gb->is_cgb && !gb->boot.cgb_rom_inserted) || (!gb->is_cgb && !gb->boot.dmg_rom_inserted);
+
+    if(gb->is_cgb && (!skip_boot || gb_cartridge_cgb_flag(&gb->cartridge))){
         gb->cgb_mode = true;
         gb->obj_priority_mode = false;
-        gb_map_cgb_registers(gb);
     }
     else{
         gb->cgb_mode = false;
         gb->obj_priority_mode = true;
-        gb_unmap_cgb_registers(gb);
     }
-    
+
+    gb->double_speed = false;
+    gb->speed_switch_needed = false;
+
+    memset(gb->undocumented_registers,0x00,sizeof(gb->undocumented_registers));
+
     gb->cycle = (uint64_t)-1;
 
     gb_cpu_reset(&gb->cpu);
@@ -458,63 +491,28 @@ void gb_reset(gb_t* gb){
     gb_dma_reset(&gb->dma);
     gb_palette_reset(&gb->palette);
     gb_serial_reset(&gb->serial);
-    gb_boot_map(&gb->boot);
+    gb_infrared_reset(&gb->infrared);
     gb_memory_reset(&gb->memory);
     gb_cartridge_reset(&gb->cartridge);
     gb_printer_reset(&gb->printer);
-}
 
+    if(skip_boot){
+        gb_boot_unmap(&gb->boot);
 
-void gb_save_state(gb_t* gb,gb_state_t* state){
-    gb_state_write(state,gb->type);
-    gb_state_write(state,gb->cgb_mode);
-    gb_state_write(state,gb->double_speed);
-    gb_state_write(state,gb->speed_switch_needed);
-    gb_state_write(state,gb->obj_priority_mode);
-    gb_state_write(state,gb->cycle);
-
-    gb_cpu_save_state(&gb->cpu,state);
-    gb_ppu_save_state(&gb->ppu,state);
-    gb_apu_save_state(&gb->apu,state);
-    gb_joypad_save_state(&gb->joypad,state);
-    gb_interrupt_save_state(&gb->interrupt,state);
-    gb_timer_save_state(&gb->timer,state);
-    gb_dma_save_state(&gb->dma,state);
-    gb_palette_save_state(&gb->palette,state);
-    gb_serial_save_state(&gb->serial,state);
-    gb_boot_save_state(&gb->boot,state);
-    gb_memory_save_state(&gb->memory,state);
-    gb_cartridge_save_state(&gb->cartridge,state);
-}
-
-void gb_load_state(gb_t* gb,gb_state_t* state){
-    gb_state_read(state,gb->type);
-
-    if(gb->type == gb_cgb){
-        gb_map_cgb_registers(gb);
+        gb_cpu_skip_boot(&gb->cpu);
+        gb_ppu_skip_boot(&gb->ppu);
+        gb_apu_skip_boot(&gb->apu);
+        gb_joypad_skip_boot(&gb->joypad);
+        gb_interrupt_skip_boot(&gb->interrupt);
+        gb_timer_skip_boot(&gb->timer);
+        gb_dma_skip_boot(&gb->dma);
+        gb_palette_skip_boot(&gb->palette);
+        gb_memory_skip_boot(&gb->memory);
     }
     else{
-        gb_unmap_cgb_registers(gb);
+        gb_boot_map(&gb->boot);
     }
 
-    gb_state_read(state,gb->cgb_mode);
-    gb_state_read(state,gb->double_speed);
-    gb_state_read(state,gb->speed_switch_needed);
-    gb_state_read(state,gb->obj_priority_mode);
-    gb_state_read(state,gb->cycle);
-
-    gb_cpu_load_state(&gb->cpu,state);
-    gb_ppu_load_state(&gb->ppu,state);
-    gb_apu_load_state(&gb->apu,state);
-    gb_joypad_load_state(&gb->joypad,state);
-    gb_interrupt_load_state(&gb->interrupt,state);
-    gb_timer_load_state(&gb->timer,state);
-    gb_dma_load_state(&gb->dma,state);
-    gb_palette_load_state(&gb->palette,state);
-    gb_serial_load_state(&gb->serial,state);
-    gb_boot_load_state(&gb->boot,state);
-    gb_memory_load_state(&gb->memory,state);
-    gb_cartridge_load_state(&gb->cartridge,state);
 }
 
 

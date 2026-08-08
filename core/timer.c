@@ -135,6 +135,24 @@ void gb_timer_reset(gb_timer_t* timer){
     timer->tima_reloaded = false;
 }
 
+void gb_timer_skip_boot(gb_timer_t* timer){
+    if(timer->gb->is_cgb){
+        
+        if(timer->gb->cgb_mode){
+            //Value based on the Shantae ROM
+            timer->div = 0x1CA0;
+        }
+        else{
+            //Value based on the Pokemon Red ROM
+            timer->div = 0x2C00;
+        }
+    }
+    else{
+        timer->div = 0xABC4;
+    }
+}
+
+
 void gb_timer_save_state(gb_timer_t* timer,gb_state_t* state){
     gb_state_write(state,timer->div);
     gb_state_write(state,timer->tima);

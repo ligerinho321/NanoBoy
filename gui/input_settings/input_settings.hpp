@@ -2,7 +2,7 @@
 
 #include <gui/utils/utils.hpp>
 
-class input_t {
+class input_settings_t {
 private:
     enum{
         controller_binding_none,
@@ -48,10 +48,10 @@ private:
     ImVec2 window_min_size;
     ImVec2 window_max_size;
     
-    int binding_type = input_t::binding_none;
+    int binding_type = input_settings_t::binding_none;
     int binding_button = -1;
 
-    bool open = false;
+    bool _open = false;
 
     void update_window_size_constraints();
 
@@ -60,33 +60,31 @@ private:
     int get_controller_binding_type_from_string(const char* string);
     const char* get_controller_binding_type_string(int type);
 
-    void save_keyboard_bindings(cJSON* input_object);
-    void save_controller_bindings(cJSON* input_object);
+    void save_keyboard_bindings(cJSON* input_settings_object);
+    void save_controller_bindings(cJSON* input_settings_object);
 
-    void load_keyboard_bindings(cJSON* input_object);
-    void load_controller_bindings(cJSON* input_object);
+    void load_keyboard_bindings(cJSON* input_settings_object);
+    void load_controller_bindings(cJSON* input_settings_object);
 public:
 
-    input_t();
+    input_settings_t();
 
-    ~input_t();
+    ~input_settings_t();
 
-    void save(cJSON* settings_object);
-
-    void load(cJSON* settings_object);
+    void save(cJSON* object);
+    void load(cJSON* object);
 
     bool button_pressed(gb_joypad_button_t button);
 
-    void event_settings(SDL_Event& event);
+    void event(SDL_Event& event);
 
-    void render_settings();
+    void render();
 
+    void open() noexcept;
 
-    void open_settings() noexcept;
-
-    void close_settings(bool discard_changes) noexcept;
+    void close(bool discard_changes) noexcept;
 
     bool get_open() const noexcept {
-        return open;
+        return _open;
     }
 };

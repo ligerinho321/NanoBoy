@@ -60,6 +60,22 @@ typedef struct _gb_cartridge_t {
 } gb_cartridge_t;
 
 
+#define gb_cartridge_nintendo_logo(cartridge)\
+    ((cartridge)->header + 0x04)
+
+#define gb_cartridge_title(cartridge)\
+    ((cartridge)->header + 0x34)
+    
+#define gb_cartridge_cgb_flag(cartridge)\
+    ((cartridge)->header[0x43] & 0x80)
+
+#define gb_cartridge_old_licensee_code(cartridge)\
+    (cartridge)->header[0x4B]
+
+#define gb_cartridge_new_licensee_code(cartridge)\
+    ((cartridge)->header + 0x44)
+
+
 #define gb_cartridge_set_rom0_bank(cartridge,bank)\
     (cartridge)->rom0_ptr = (cartridge)->rom + (((bank) & (cartridge)->rom_bank_mask) << 0x0E)
 
@@ -77,6 +93,7 @@ extern "C" {
 void gb_cartridge_init(gb_cartridge_t* cartridge,gb_t* gb);
 
 bool gb_cartridge_load(gb_cartridge_t* cartridge,const char* path);
+void gb_cartridge_remove(gb_cartridge_t* cartridge);
 
 void gb_cartridge_save_ram(gb_cartridge_t* cartridge,const char* path);
 void gb_cartridge_load_ram(gb_cartridge_t* cartridge,const char* path);
@@ -106,8 +123,6 @@ void gb_cartridge_reset(gb_cartridge_t* cartridge);
 
 void gb_cartridge_save_state(gb_cartridge_t* cartridge,gb_state_t* state);
 void gb_cartridge_load_state(gb_cartridge_t* cartridge,gb_state_t* state);
-
-void gb_cartridge_clear(gb_cartridge_t* cartridge);
 
 #ifdef __cplusplus
 }

@@ -129,6 +129,8 @@ void gb_apu_update_rates(gb_apu_t* apu){
 void gb_apu_update_output(gb_apu_t* apu){
     
     int clock_time = apu->frame_cycles - 1;
+    
+    if(clock_time < 0) return;
 
     int square1_output = gb_apu_square_output(&apu->square1);
     int square2_output = gb_apu_square_output(&apu->square2);
@@ -310,8 +312,6 @@ void gb_apu_run(gb_apu_t* apu){
 
     while(cycles_to_run > 0){
 
-        gb_apu_frame_end(apu);
-
         uint64_t cycles = cycles_to_run;
 
         uint32_t frame_cycles_remaining = gb_frame_cycles - apu->frame_cycles;
@@ -319,30 +319,29 @@ void gb_apu_run(gb_apu_t* apu){
         if(frame_cycles_remaining < cycles){
             cycles = frame_cycles_remaining;
         }
-
-        if(apu->enabled){
-
-            if(apu->square1.enabled && apu->square1.timer < cycles){
-                cycles = apu->square1.timer;
-            }
-            if(apu->square2.enabled && apu->square2.timer < cycles){
-                cycles = apu->square2.timer;
-            }
-            if(apu->wave.enabled && apu->wave.timer < cycles){
-                cycles = apu->wave.timer;
-            }
-            if(apu->noise.enabled && apu->noise.timer < cycles){
-                cycles = apu->noise.timer;
-            }
-
-            gb_apu_square_clock(&apu->square1,cycles);
-            gb_apu_square_clock(&apu->square2,cycles);
-            gb_apu_wave_clock(&apu->wave,cycles);
-            gb_apu_noise_clock(&apu->noise,cycles);
+        if(apu->square1.enabled && apu->square1.timer < cycles){
+            cycles = apu->square1.timer;
+        }
+        if(apu->square2.enabled && apu->square2.timer < cycles){
+            cycles = apu->square2.timer;
+        }
+        if(apu->wave.enabled && apu->wave.timer < cycles){
+            cycles = apu->wave.timer;
+        }
+        if(apu->noise.enabled && apu->noise.timer < cycles){
+            cycles = apu->noise.timer;
         }
 
         apu->frame_cycles += cycles;
+
+        gb_apu_square_clock(&apu->square1,cycles);
+        gb_apu_square_clock(&apu->square2,cycles);
+        gb_apu_wave_clock(&apu->wave,cycles);
+        gb_apu_noise_clock(&apu->noise,cycles);
+
         gb_apu_update_output(apu);
+
+        gb_apu_frame_end(apu);
 
         cycles_to_run -= cycles;
     }
@@ -361,22 +360,16 @@ void gb_apu_frame_sequencer_clock(gb_apu_t* apu){
                 gb_apu_length_counter_clock(&apu->square2.length_counter,&apu->square2.enabled);
                 gb_apu_length_counter_clock(&apu->wave.length_counter,&apu->wave.enabled);
                 gb_apu_length_counter_clock(&apu->noise.length_counter,&apu->noise.enabled);
-
-                gb_apu_update_output(apu);
             }
 
             if(apu->frame_sequencer == 0x07){
                 gb_apu_envelope_clock(&apu->square1.envelope);
                 gb_apu_envelope_clock(&apu->square2.envelope);
                 gb_apu_envelope_clock(&apu->noise.envelope);
-
-                gb_apu_update_output(apu);
             }
 
             if((apu->frame_sequencer & 0x03) == 0x02){
                 gb_apu_sweep_clock(&apu->square1);
-
-                gb_apu_update_output(apu);
             }
 
             apu->frame_sequencer = (apu->frame_sequencer + 0x01) & 0x07;
@@ -385,8 +378,6 @@ void gb_apu_frame_sequencer_clock(gb_apu_t* apu){
             apu->skip_first_frame_sequence_event = false;
         }
     }
-
-    gb_apu_frame_end(apu);
 }
 
 
@@ -403,8 +394,6 @@ void gb_apu_write_register(void* data,uint8_t value,uint16_t address){
             apu->vin_panning.right = value & 0x08;
             apu->volume.left = (value & 0x70) >> 0x04;
             apu->volume.right = value & 0x07;
-
-            gb_apu_update_output(apu);
             break;
         }
         case 0xFF25:{
@@ -421,8 +410,6 @@ void gb_apu_write_register(void* data,uint8_t value,uint16_t address){
 
             apu->noise_panning.left = value & 0x80;
             apu->noise_panning.right = value & 0x08;
-
-            gb_apu_update_output(apu);
             break;
         }
         case 0xFF26:{
@@ -437,21 +424,16 @@ void gb_apu_write_register(void* data,uint8_t value,uint16_t address){
             }
             else if(apu->enabled && !new_enabled){
                 gb_apu_reset(apu,false);
-                
-                gb_apu_update_output(apu);
             }
             break;
         }
     }
-
-    gb_apu_frame_end(apu);
 }
 
 uint8_t gb_apu_read_register(void* data,uint16_t address){
     gb_apu_t* apu = (gb_apu_t*)data;
 
     gb_apu_run(apu);
-    gb_apu_frame_end(apu);
 
     uint8_t value = 0xFF;
 
@@ -625,7 +607,9 @@ void gb_apu_length_counter_extra_clock(gb_apu_t* apu,gb_apu_length_counter_t* le
 }
 
 void gb_apu_length_counter_clock(gb_apu_length_counter_t* length_counter,bool* channel_enabled){
-    if(length_counter->enabled && length_counter->counter && --length_counter->counter == 0x00){
+    if(!length_counter->enabled) return;
+
+    if(length_counter->counter && --length_counter->counter == 0x00){
         *channel_enabled = false;
     }
 }
@@ -639,6 +623,7 @@ void gb_apu_length_counter_load_state(gb_apu_length_counter_t* length_counter,gb
     gb_state_read(state,length_counter->enabled);
     gb_state_read(state,length_counter->counter);
 }
+
 
 
 void gb_apu_square_clock(gb_apu_square_t* square,int timer){
@@ -656,6 +641,7 @@ void gb_apu_square_clock(gb_apu_square_t* square,int timer){
     gb_apu_square_update_output(square);
 }
 
+
 void gb_apu_write_square_register(void* data,uint8_t value,uint16_t address){
     gb_apu_square_t* square = (gb_apu_square_t*)data;
 
@@ -672,10 +658,6 @@ void gb_apu_write_square_register(void* data,uint8_t value,uint16_t address){
 
             if(square->sweep.negate && !new_negate && square->sweep.calc_negate){
                 square->enabled = false;
-
-                gb_apu_square_update_output(square);
-
-                gb_apu_update_output(square->apu);
             }
 
             square->sweep.negate = new_negate;
@@ -685,7 +667,7 @@ void gb_apu_write_square_register(void* data,uint8_t value,uint16_t address){
             if(square->apu->enabled){
                 square->duty = value >> 0x06;
             }
-            if(square->apu->enabled || square->apu->gb->type == gb_dmg){
+            if(square->apu->enabled || !square->apu->gb->is_cgb){
                 square->length_counter.counter = 0x40 - (value & 0x3F);
             }
             break;
@@ -699,10 +681,6 @@ void gb_apu_write_square_register(void* data,uint8_t value,uint16_t address){
 
             if(square->enabled && !(value & 0xF8)){
                 square->enabled = false;
-
-                gb_apu_square_update_output(square);
-
-                gb_apu_update_output(square->apu);
             }
             break;
         }
@@ -747,22 +725,15 @@ void gb_apu_write_square_register(void* data,uint8_t value,uint16_t address){
             }
 
             gb_apu_length_counter_extra_clock(square->apu,&square->length_counter,value,0x3F,&square->enabled);
-            
-            gb_apu_square_update_output(square);
-
-            gb_apu_update_output(square->apu);
             break;
         }
     }
-
-    gb_apu_frame_end(square->apu);
 }
 
 uint8_t gb_apu_read_square_register(void* data,uint16_t address){
     gb_apu_square_t* square = (gb_apu_square_t*)data;
 
     gb_apu_run(square->apu);
-    gb_apu_frame_end(square->apu);
 
     uint8_t value = 0xFF;
 
@@ -793,28 +764,29 @@ uint8_t gb_apu_read_square_register(void* data,uint16_t address){
     return value;
 }
 
+
 uint8_t gb_apu_square_raw_output(gb_apu_square_t* square){
-    if(square->enabled && square_duty_table[square->duty][square->duty_pos]){
-        return square->envelope.current_volume;
+    if(square->enabled){
+        return square->envelope.current_volume * square_duty_table[square->duty][square->duty_pos];
     }
     return 0x00;
 }
 
-int gb_apu_square_output(gb_apu_square_t* square){
-    if(square->external_enabled){
-        return (7 - square->output) << gb_audio_channel_volume_shift;
-    }
-    return 0;
-}
-
 void gb_apu_square_update_output(gb_apu_square_t* square){
     if(square->enabled){
-        square->output = square->envelope.current_volume * square_duty_table[square->duty][square->duty_pos];
+        uint8_t output = square->envelope.current_volume * square_duty_table[square->duty][square->duty_pos];
+        
+        square->output = (7 - output) << gb_audio_channel_volume_shift;
     }
     else{
-        square->output = 0x00;
+        square->output = 0;
     }
 }
+
+int gb_apu_square_output(gb_apu_square_t* square){
+    return square->external_enabled ? square->output : 0;
+}
+
 
 void gb_apu_square_reset(gb_apu_square_t* square,bool hardware){
     square->enabled = false;
@@ -826,7 +798,7 @@ void gb_apu_square_reset(gb_apu_square_t* square,bool hardware){
     memset(&square->envelope,0x00,sizeof(square->envelope));
 
     square->length_counter.enabled = false;
-    if(hardware || square->apu->gb->type == gb_cgb){
+    if(hardware || square->apu->gb->is_cgb){
         square->length_counter.counter = 0x00;
     }
 
@@ -836,8 +808,9 @@ void gb_apu_square_reset(gb_apu_square_t* square,bool hardware){
     square->frequency = 0x00;
     square->timer = (0x800 - square->frequency) << 0x02;
 
-    square->output = 0x00;
+    square->output = 0;
 }
+
 
 void gb_apu_square_save_state(gb_apu_square_t* square,gb_state_t* state){
     gb_state_write(state,square->enabled);
@@ -850,7 +823,6 @@ void gb_apu_square_save_state(gb_apu_square_t* square,gb_state_t* state){
     gb_state_write(state,square->duty_pos);
     gb_state_write(state,square->frequency);
     gb_state_write(state,square->timer);
-    gb_state_write(state,square->output);
 }
 
 void gb_apu_square_load_state(gb_apu_square_t* square,gb_state_t* state){
@@ -864,8 +836,8 @@ void gb_apu_square_load_state(gb_apu_square_t* square,gb_state_t* state){
     gb_state_read(state,square->duty_pos);
     gb_state_read(state,square->frequency);
     gb_state_read(state,square->timer);
-    gb_state_read(state,square->output);
 }
+
 
 
 void gb_apu_wave_clock(gb_apu_wave_t* wave,int timer){
@@ -890,6 +862,7 @@ void gb_apu_wave_clock(gb_apu_wave_t* wave,int timer){
     gb_apu_wave_update_output(wave);
 }
 
+
 void gb_apu_write_wave_register(void* data,uint8_t value,uint16_t address){
     gb_apu_wave_t* wave = (gb_apu_wave_t*)data;
 
@@ -907,7 +880,7 @@ void gb_apu_write_wave_register(void* data,uint8_t value,uint16_t address){
             break;
         }
         case 0xFF1B:{
-            if(!wave->apu->enabled && wave->apu->gb->type != gb_dmg) break;
+            if(!wave->apu->enabled && wave->apu->gb->is_cgb) break;
 
             wave->length_counter.counter = 0x100 - value;
             break;
@@ -916,10 +889,6 @@ void gb_apu_write_wave_register(void* data,uint8_t value,uint16_t address){
             if(!wave->apu->enabled) break;
 
             wave->volume_code = (value & 0x60) >> 0x05;
-
-            gb_apu_wave_update_output(wave);
-
-            gb_apu_update_output(wave->apu);
             break;
         }
         case 0xFF1D:{
@@ -949,22 +918,15 @@ void gb_apu_write_wave_register(void* data,uint8_t value,uint16_t address){
             }
 
             gb_apu_length_counter_extra_clock(wave->apu,&wave->length_counter,value,0xFF,&wave->enabled);
-
-            gb_apu_wave_update_output(wave);
-
-            gb_apu_update_output(wave->apu);
             break;
         }
     }
-
-    gb_apu_frame_end(wave->apu);
 }
 
 uint8_t gb_apu_read_wave_register(void* data,uint16_t address){
     gb_apu_wave_t* wave = (gb_apu_wave_t*)data;
 
     gb_apu_run(wave->apu);
-    gb_apu_frame_end(wave->apu);
 
     uint8_t value = 0xFF;
 
@@ -977,11 +939,11 @@ uint8_t gb_apu_read_wave_register(void* data,uint16_t address){
     return value;
 }
 
+
 void gb_apu_write_wave_ram(void* data,uint8_t value,uint16_t address){
     gb_apu_wave_t* wave = (gb_apu_wave_t*)data;
     
     gb_apu_run(wave->apu);
-    gb_apu_frame_end(wave->apu);
 
     if(!wave->enabled){
         wave->ram[address & 0x0F] = value;
@@ -992,17 +954,17 @@ uint8_t gb_apu_read_wave_ram(void* data,uint16_t address){
     gb_apu_wave_t* wave = (gb_apu_wave_t*)data;
 
     gb_apu_run(wave->apu);
-    gb_apu_frame_end(wave->apu);
 
     if(!wave->enabled){
         return wave->ram[address & 0x0F];
     }
-    else if(wave->apu->gb->type == gb_cgb){
+    else if(wave->apu->gb->is_cgb){
         return wave->ram[wave->ram_pos >> 0x01];
     }
 
     return 0xFF;
 }
+
 
 uint8_t gb_apu_wave_raw_output(gb_apu_wave_t* wave){
     if(wave->enabled){
@@ -1011,21 +973,22 @@ uint8_t gb_apu_wave_raw_output(gb_apu_wave_t* wave){
     return 0x00;
 }
 
-int gb_apu_wave_output(gb_apu_wave_t* wave){
-    if(wave->external_enabled){
-        return (7 - wave->output) << gb_audio_channel_volume_shift;
-    }
-    return 0;
-}
-
 void gb_apu_wave_update_output(gb_apu_wave_t* wave){
     if(wave->enabled){
-        wave->output = wave->sample_buffer >> wave_volume_shift[wave->volume_code];
+
+        uint8_t output = wave->sample_buffer >> wave_volume_shift[wave->volume_code];
+
+        wave->output = (7 - output) << gb_audio_channel_volume_shift;
     }
     else{
-        wave->output = 0x00;
+        wave->output = 0;
     }
 }
+
+int gb_apu_wave_output(gb_apu_wave_t* wave){
+    return wave->external_enabled ? wave->output : 0;
+}
+
 
 void gb_apu_wave_reset(gb_apu_wave_t* wave,bool hardware){
 
@@ -1033,7 +996,7 @@ void gb_apu_wave_reset(gb_apu_wave_t* wave,bool hardware){
     wave->dac_enabled = false;
     
     wave->length_counter.enabled = false;
-    if(hardware || wave->apu->gb->type == gb_cgb){
+    if(hardware || wave->apu->gb->is_cgb){
         wave->length_counter.counter = 0x00;
     }
 
@@ -1046,22 +1009,23 @@ void gb_apu_wave_reset(gb_apu_wave_t* wave,bool hardware){
     wave->ram_pos = 0x00;
 
     if(hardware){
-        if(wave->apu->gb->type == gb_cgb){
-            uint8_t cgb_ram[0x10] = {
+        if(wave->apu->gb->is_cgb){
+            const uint8_t cgb_ram[0x10] = {
                 0x00,0xFF,0x00,0xFF,0x00,0xFF,0x00,0xFF,0x00,0xFF,0x00,0xFF,0x00,0xFF,0x00,0xFF
             };
             memcpy(wave->ram,cgb_ram,sizeof(wave->ram));
         }
         else{
-            uint8_t dmg_ram[0x10] = {
+            const uint8_t dmg_ram[0x10] = {
                 0x84,0x40,0x43,0xAA,0x2D,0x78,0x92,0x3C,0x60,0x59,0x59,0xB0,0x34,0xB8,0x2E,0xDA
             };
             memcpy(wave->ram,dmg_ram,sizeof(wave->ram));
         }
     }
 
-    wave->output = 0x00;
+    wave->output = 0;
 }
+
 
 void gb_apu_wave_save_state(gb_apu_wave_t* wave,gb_state_t* state){
     gb_state_write(state,wave->enabled);
@@ -1073,7 +1037,6 @@ void gb_apu_wave_save_state(gb_apu_wave_t* wave,gb_state_t* state){
     gb_state_write(state,wave->sample_buffer);
     gb_state_write(state,wave->ram_pos);
     gb_state_write_ex(state,wave->ram,sizeof(wave->ram));
-    gb_state_write(state,wave->output);
 }
 
 void gb_apu_wave_load_state(gb_apu_wave_t* wave,gb_state_t* state){
@@ -1086,8 +1049,8 @@ void gb_apu_wave_load_state(gb_apu_wave_t* wave,gb_state_t* state){
     gb_state_read(state,wave->sample_buffer);
     gb_state_read(state,wave->ram_pos);
     gb_state_read_ex(state,wave->ram,sizeof(wave->ram));
-    gb_state_read(state,wave->output);
 }
+
 
 
 void gb_apu_noise_clock(gb_apu_noise_t* noise,int timer){
@@ -1118,6 +1081,7 @@ void gb_apu_noise_clock(gb_apu_noise_t* noise,int timer){
     gb_apu_noise_update_output(noise);
 }
 
+
 void gb_apu_write_noise_register(void* data,uint8_t value,uint16_t address){
     gb_apu_noise_t* noise = (gb_apu_noise_t*)data;
 
@@ -1125,7 +1089,7 @@ void gb_apu_write_noise_register(void* data,uint8_t value,uint16_t address){
 
     switch(address){
         case 0xFF20:{
-            if(!noise->apu->enabled && noise->apu->gb->type != gb_dmg) break;
+            if(!noise->apu->enabled && noise->apu->gb->is_cgb) break;
 
             noise->length_counter.counter = 0x40 - (value & 0x3F);
             break;
@@ -1139,10 +1103,6 @@ void gb_apu_write_noise_register(void* data,uint8_t value,uint16_t address){
 
             if(noise->enabled && !(value & 0xF8)){
                 noise->enabled = false;
-
-                gb_apu_noise_update_output(noise);
-
-                gb_apu_update_output(noise->apu);
             }
             break;
         }
@@ -1175,23 +1135,15 @@ void gb_apu_write_noise_register(void* data,uint8_t value,uint16_t address){
             }
 
             gb_apu_length_counter_extra_clock(noise->apu,&noise->length_counter,value,0x3F,&noise->enabled);
-
-            gb_apu_noise_update_output(noise);
-
-            gb_apu_update_output(noise->apu);
-
             break;
         }
     }
-
-    gb_apu_frame_end(noise->apu);
 }
 
 uint8_t gb_apu_read_noise_register(void* data,uint16_t address){
     gb_apu_noise_t* noise = (gb_apu_noise_t*)data;
 
     gb_apu_run(noise->apu);
-    gb_apu_frame_end(noise->apu);
 
     uint8_t value = 0xFF;
 
@@ -1218,28 +1170,30 @@ uint8_t gb_apu_read_noise_register(void* data,uint16_t address){
     return value;
 }
 
+
 uint8_t gb_apu_noise_raw_output(gb_apu_noise_t* noise){
-    if(noise->enabled && !(noise->lfsr & 0x01)){
-        return noise->envelope.current_volume;
+    if(noise->enabled){
+        return noise->envelope.current_volume * !(noise->lfsr & 0x01);
     }
     return 0x00;
 }
 
-int gb_apu_noise_output(gb_apu_noise_t* noise){
-    if(noise->external_enabled){
-        return (7 - noise->output) << gb_audio_channel_volume_shift; 
-    }
-    return 0;
-}
-
 void gb_apu_noise_update_output(gb_apu_noise_t* noise){
     if(noise->enabled){
-        noise->output = !(noise->lfsr & 0x01) ? noise->envelope.current_volume : 0x00;
+        
+        uint8_t output = noise->envelope.current_volume * !(noise->lfsr & 0x01);
+
+        noise->output = (7 - output) << gb_audio_channel_volume_shift; 
     }
     else{
-        noise->output = 0x00;
+        noise->output = 0;
     }
 }
+
+int gb_apu_noise_output(gb_apu_noise_t* noise){
+    return noise->external_enabled ? noise->output : 0;
+}
+
 
 void gb_apu_noise_reset(gb_apu_noise_t* noise,bool hardware){
     noise->enabled = false;
@@ -1247,7 +1201,7 @@ void gb_apu_noise_reset(gb_apu_noise_t* noise,bool hardware){
     memset(&noise->envelope,0x00,sizeof(noise->envelope));
 
     noise->length_counter.enabled = false;
-    if(hardware || noise->apu->gb->type == gb_cgb){
+    if(hardware || noise->apu->gb->is_cgb){
         noise->length_counter.counter = 0x00;
     }
     
@@ -1259,8 +1213,9 @@ void gb_apu_noise_reset(gb_apu_noise_t* noise,bool hardware){
 
     noise->timer = noise_divisor[noise->divisor_code] << noise->clock_shift;
 
-    noise->output = 0x00;
+    noise->output = 0;
 }
+
 
 void gb_apu_noise_save_state(gb_apu_noise_t* noise,gb_state_t* state){
     gb_state_write(state,noise->enabled);
@@ -1271,7 +1226,6 @@ void gb_apu_noise_save_state(gb_apu_noise_t* noise,gb_state_t* state){
     gb_state_write(state,noise->divisor_code);
     gb_state_write(state,noise->lfsr);
     gb_state_write(state,noise->timer);
-    gb_state_write(state,noise->output);
 }
 
 void gb_apu_noise_load_state(gb_apu_noise_t* noise,gb_state_t* state){
@@ -1283,24 +1237,27 @@ void gb_apu_noise_load_state(gb_apu_noise_t* noise,gb_state_t* state){
     gb_state_read(state,noise->divisor_code);
     gb_state_read(state,noise->lfsr);
     gb_state_read(state,noise->timer);
-    gb_state_read(state,noise->output);
 }
 
 
 uint8_t gb_apu_read_pcm12_register(void* data,uint16_t address){
     gb_apu_t* apu = (gb_apu_t*)data;
+    gb_t* gb = apu->gb;
+
+    if(!(gb->is_cgb && (gb->cgb_mode || gb->boot.mapped))) return 0xFF;
 
     gb_apu_run(apu);
-    gb_apu_frame_end(apu);
 
     return (gb_apu_square_raw_output(&apu->square2) << 0x04) | gb_apu_square_raw_output(&apu->square1);
 }
 
 uint8_t gb_apu_read_pcm34_register(void* data,uint16_t address){
     gb_apu_t* apu = (gb_apu_t*)data;
+    gb_t* gb = apu->gb;
+
+    if(!(gb->is_cgb && (gb->cgb_mode || gb->boot.mapped))) return 0xFF;
 
     gb_apu_run(apu);
-    gb_apu_frame_end(apu);
 
     return (gb_apu_noise_raw_output(&apu->noise) << 0x04) | gb_apu_wave_raw_output(&apu->wave);
 }
@@ -1314,19 +1271,8 @@ void gb_apu_map_registers(gb_apu_t* apu){
     gb_memory_map_in_range(memory,&apu->noise_register_handler,0xFF20,0xFF23);
     gb_memory_map_in_range(memory,&apu->register_handler,0xFF24,0xFF26);
     gb_memory_map_in_range(memory,&apu->wave_ram_handler,0xFF30,0xFF3F);
-}
-
-
-void gb_apu_map_pcm_registers(gb_apu_t* apu){
-    gb_memory_t* memory = &apu->gb->memory;
     gb_memory_map(memory,&apu->pcm12_register_handler,0xFF76);
     gb_memory_map(memory,&apu->pcm34_register_handler,0xFF77);
-}
-
-void gb_apu_unmap_pcm_registers(gb_apu_t* apu){
-    gb_memory_t* memory = &apu->gb->memory;
-    gb_memory_unmap(memory,0xFF76);
-    gb_memory_unmap(memory,0xFF77);
 }
 
 
@@ -1334,11 +1280,16 @@ void gb_apu_reset(gb_apu_t* apu,bool hardware){
 
     if(hardware){
 
-        gb_apu_channel_frame_reset(&apu->square1_frame);
-        gb_apu_channel_frame_reset(&apu->square2_frame);
-        gb_apu_channel_frame_reset(&apu->wave_frame);
-        gb_apu_channel_frame_reset(&apu->noise_frame);
+        if(apu->handlers != NULL){
+            gb_apu_channel_frame_reset(&apu->square1_frame);
+            gb_apu_channel_frame_reset(&apu->square2_frame);
+            gb_apu_channel_frame_reset(&apu->wave_frame);
+            gb_apu_channel_frame_reset(&apu->noise_frame);
+        }
+
         gb_apu_mixer_frame_reset(&apu->mixer_frame);
+
+        apu->frame_cycles = 0;
 
         gb_ring_buffer_clear(&apu->ring_buffer);
 
@@ -1346,8 +1297,6 @@ void gb_apu_reset(gb_apu_t* apu,bool hardware){
         
         apu->last_clock_cycle = 0;
         apu->cycles = 0;
-
-        apu->frame_cycles = 0;
     }
 
     gb_apu_square_reset(&apu->square1,hardware);
@@ -1378,6 +1327,39 @@ void gb_apu_reset(gb_apu_t* apu,bool hardware){
     apu->frame_sequencer = 0x00;
 }
 
+void gb_apu_skip_boot(gb_apu_t* apu){
+
+    apu->square1.enabled = true;
+    
+    apu->square1.envelope.initial_volume = 0x0F;
+    apu->square1.envelope.period = 0x03;
+    
+    apu->square1.length_counter.counter = 0x40;
+
+    apu->square1.duty = 0x02;
+    
+    apu->square1.frequency = 1985;
+
+    
+    apu->square1_panning.left = true;
+    apu->square1_panning.right = true;
+
+    apu->square2_panning.left = true;
+    apu->square2_panning.right = true;
+    
+    apu->wave_panning.left = true;
+    apu->wave_panning.right = false;
+
+    apu->noise_panning.left = true;
+    apu->noise_panning.right = false;
+
+    apu->volume.left = 0x07;
+    apu->volume.right = 0x07;
+
+    apu->enabled = true;
+
+    apu->frame_sequencer = 0x01;
+}
 
 void gb_apu_free(gb_apu_t* apu){
     blip_delete(apu->square1_frame.blip);
@@ -1413,8 +1395,6 @@ void gb_apu_save_state(gb_apu_t* apu,gb_state_t* state){
 
     gb_state_write(state,apu->last_clock_cycle);
     gb_state_write(state,apu->cycles);
-
-    gb_state_write(state,apu->frame_cycles);
 }
 
 void gb_apu_load_state(gb_apu_t* apu,gb_state_t* state){
@@ -1440,13 +1420,16 @@ void gb_apu_load_state(gb_apu_t* apu,gb_state_t* state){
     gb_state_read(state,apu->last_clock_cycle);
     gb_state_read(state,apu->cycles);
 
-    gb_state_read(state,apu->frame_cycles);
+    if(apu->handlers != NULL){
+        gb_apu_channel_frame_reset(&apu->square1_frame);
+        gb_apu_channel_frame_reset(&apu->square2_frame);
+        gb_apu_channel_frame_reset(&apu->wave_frame);
+        gb_apu_channel_frame_reset(&apu->noise_frame);
+    }
 
-    gb_apu_channel_frame_reset(&apu->square1_frame);
-    gb_apu_channel_frame_reset(&apu->square2_frame);
-    gb_apu_channel_frame_reset(&apu->wave_frame);
-    gb_apu_channel_frame_reset(&apu->noise_frame);
     gb_apu_mixer_frame_reset(&apu->mixer_frame);
+
+    apu->frame_cycles = 0;
 
     gb_ring_buffer_clear(&apu->ring_buffer);
 }

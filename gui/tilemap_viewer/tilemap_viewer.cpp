@@ -84,7 +84,7 @@ void tilemap_viewer_t::update_tilemap_texture(uint8_t map_index){
 
                     uint8_t color_index = ((hi & bit) ? 0x02 : 0x00) | ((lo & bit) ? 0x01 : 0x00);
 
-                    if(gb->type == gb_cgb){
+                    if(gb->is_cgb){
                         if(cgb_mode){
                             color = bg_palette.get_cgb_color(attribute & gb_tilemap_palette_mask,color_index);
                         }
@@ -426,7 +426,7 @@ void tilemap_viewer_t::render_tilemap(const char* str_id,bool tilemap){
 
     if(ImGui::BeginChild(str_id,ImVec2(0.0f,0.0f),ImGuiChildFlags_Borders,ImGuiWindowFlags_HorizontalScrollbar)){
         
-        bg_palette.update_texture(gb->type,cgb_mode);
+        bg_palette.update_texture(gb->is_cgb,cgb_mode);
         update_tilemap_texture(tilemap);
 
         ImGui::Image((ImTextureRef)tilemap_texture[tilemap],tilemap_size);

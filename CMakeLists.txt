@@ -67,6 +67,7 @@ target_sources(
     core/cpu.c
     core/dma.c
     core/gb.c
+    core/infrared.c
     core/interrupt.c
     core/joypad.c
     core/memory.c
@@ -103,7 +104,8 @@ target_sources(
     gui/printer/printer.cpp
     gui/savestate/savestate.cpp
     gui/screen/screen.cpp
-    gui/input/input.cpp
+    gui/boot_settings/boot_settings.cpp
+    gui/input_settings/input_settings.cpp
     gui/tilemap_viewer/tilemap_viewer.cpp
     gui/utils/utils.cpp
     gui/wave_form/wave_form.cpp

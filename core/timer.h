@@ -36,6 +36,7 @@ uint8_t gb_timer_read_register(void* data,uint16_t address);
 void gb_timer_map_registers(gb_timer_t* timer);
 
 void gb_timer_reset(gb_timer_t* timer);
+void gb_timer_skip_boot(gb_timer_t* timer);
 
 void gb_timer_save_state(gb_timer_t* timer,gb_state_t* state);
 void gb_timer_load_state(gb_timer_t* timer,gb_state_t* state);

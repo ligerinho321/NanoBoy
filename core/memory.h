@@ -2,6 +2,11 @@
 
 #include "utils/utils.h"
 
+enum{
+    gb_wram_length = 0x8000,
+    gb_hram_length = 0x7F,
+};
+
 typedef struct _gb_memory_t {
     gb_t *gb;
 
@@ -72,6 +77,7 @@ void gb_memory_write_wbk_register(void* data,uint8_t value,uint16_t address);
 uint8_t gb_memory_read_wbk_register(void* data,uint16_t address);
 
 void gb_memory_reset(gb_memory_t* memory);
+void gb_memory_skip_boot(gb_memory_t* memory);
 
 void gb_memory_save_state(gb_memory_t* memory,gb_state_t* state);
 void gb_memory_load_state(gb_memory_t* memory,gb_state_t* state);

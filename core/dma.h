@@ -46,12 +46,10 @@ void gb_vram_general_dma(gb_dma_t* dma);
 void gb_vram_dma_write_register(void* data,uint8_t value,uint16_t address);
 uint8_t gb_vram_dma_read_register(void* data,uint16_t address);
 
-void gb_oam_dma_map_registers(gb_dma_t* dma);
-
-void gb_vram_dma_map_registers(gb_dma_t* dma);
-void gb_vram_dma_unmap_registers(gb_dma_t* dma);
+void gb_dma_map(gb_dma_t* dma);
 
 void gb_dma_reset(gb_dma_t* dma);
+void gb_dma_skip_boot(gb_dma_t* dma);
 
 void gb_dma_save_state(gb_dma_t* dma,gb_state_t* state);
 void gb_dma_load_state(gb_dma_t* dma,gb_state_t* state);

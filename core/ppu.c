@@ -367,7 +367,7 @@ static inline void gb_ppu_render_pixel(gb_ppu_t* ppu){
         gb_palette_t* palette = &ppu->gb->palette;
 
         if(ppu->lcdc.object_enabled && object->color_index && (!tile->color_index || !ppu->lcdc.tile_enabled || (!tile->priority && !object->priority))){
-            if(ppu->gb->type == gb_cgb){
+            if(ppu->gb->is_cgb){
                 if(ppu->gb->cgb_mode){
                     color = gb_palette_get_cgb_obp_color(palette,object->palette_index,object->color_index);
                 }
@@ -380,7 +380,7 @@ static inline void gb_ppu_render_pixel(gb_ppu_t* ppu){
             }
         }
         else{
-            if(ppu->gb->type == gb_cgb){
+            if(ppu->gb->is_cgb){
                 if(ppu->gb->cgb_mode){
                     color = gb_palette_get_cgb_bgp_color(palette,tile->palette_index,tile->color_index);
                 }
@@ -689,12 +689,20 @@ uint8_t gb_ppu_read_register(void* data,uint16_t address){
 
 void gb_ppu_write_vbk_register(void* data,uint8_t value,uint16_t address){
     gb_ppu_t* ppu = (gb_ppu_t*)data;
+    gb_t* gb = ppu->gb;
+
+    if(!(gb->is_cgb && (gb->cgb_mode || gb->boot.mapped))) return;
+
     ppu->vram_bank = value & 0x01;
     ppu->vram_bank_ptr = ppu->vram + (ppu->vram_bank ? 0x2000 : 0x0000);
 }
 
 uint8_t gb_ppu_read_vbk_register(void* data,uint16_t address){
     gb_ppu_t* ppu = (gb_ppu_t*)data;
+    gb_t* gb = ppu->gb;
+    
+    if(!(gb->is_cgb && (gb->cgb_mode || gb->boot.mapped))) return 0xFF;
+    
     return 0xFE | (ppu->vram_bank & 0x01);
 }
 
@@ -715,22 +723,73 @@ uint8_t gb_ppu_read_oam(void* data,uint16_t address){
 }
 
 
-void gb_ppu_map_vram(gb_ppu_t* ppu){
-    gb_memory_map_in_range(&ppu->gb->memory,&ppu->vram_handler,0x8000,0x9FFF);
-}
-
-void gb_ppu_map_registers(gb_ppu_t* ppu){
+void gb_ppu_map(gb_ppu_t* ppu){
     gb_memory_t* memory = &ppu->gb->memory;
+
+    gb_memory_map_in_range(memory,&ppu->vram_handler,0x8000,0x9FFF);
+
     gb_memory_map_in_range(memory,&ppu->register_handler,0xFF40,0xFF45);
     gb_memory_map_in_range(memory,&ppu->register_handler,0xFF4A,0xFF4B);
+
+    gb_memory_map_in_range(memory,&ppu->oam_handler,0xFE00,0xFE9F);
+
+    gb_memory_map(memory,&ppu->vbk_register_handler,0xFF4F);
 }
 
-void gb_ppu_map_oam(gb_ppu_t* ppu){
-    gb_memory_map_in_range(&ppu->gb->memory,&ppu->oam_handler,0xFE00,0xFE9F);
+
+void gb_ppu_init_vram_after_skip_boot_dmg(gb_ppu_t* ppu){
+
+    // Nintendo
+
+    const uint8_t* logo = gb_cartridge_nintendo_logo(&ppu->gb->cartridge);
+
+    for(int i = 0; i < 0x30; ++i){
+
+        uint8_t value = logo[i];
+
+        uint8_t byte1 = 0x00;
+        byte1 |= (value & 0x10) >> 0x03;
+        byte1 |= (value & 0x20) >> 0x02;
+        byte1 |= (value & 0x40) >> 0x01;
+        byte1 |= (value & 0x80) >> 0x00;
+        byte1 |= byte1 >> 0x01;
+
+        uint8_t byte2 = 0x00;
+        byte2 |= (value & 0x01) << 0x00;
+        byte2 |= (value & 0x02) << 0x01;
+        byte2 |= (value & 0x04) << 0x02;
+        byte2 |= (value & 0x08) << 0x03;
+        byte2 |= byte2 << 0x01;
+
+        ppu->vram[0x0010 + i * 0x08] = byte1;
+        ppu->vram[0x0012 + i * 0x08] = byte1;
+        ppu->vram[0x0014 + i * 0x08] = byte2;
+        ppu->vram[0x0016 + i * 0x08] = byte2;
+    }
+
+    // ®
+
+    static const uint8_t more_vram[0x08] = {
+        0x3C,0x42,0xB9,0xA5,0xB9,0xA5,0x42,0x3C
+    };
+
+    for(int i = 0; i < sizeof(more_vram); ++i){
+        ppu->vram[0x0190 + i * 0x02] = more_vram[i];
+    }
+
+    // Tilemap
+
+    ppu->vram[0x1910] = 0x19;
+
+    for(int i = 0; i < 12; ++i){
+        ppu->vram[0x1904 + i] = i + 0x01;
+        ppu->vram[0x1924 + i] = i + 0x0D;
+    }
 }
 
 
 void gb_ppu_reset(gb_ppu_t* ppu){
+
     memset(&ppu->lcdc,0x00,sizeof(ppu->lcdc));
     memset(&ppu->status,0x00,sizeof(ppu->status));
 
@@ -748,7 +807,7 @@ void gb_ppu_reset(gb_ppu_t* ppu){
     ppu->wx = 0x00;
     ppu->wy_enabled = false;
     ppu->wx_enabled = false;
-    ppu->window_ly = 0x00;
+    ppu->window_ly = -1;
 
     memset(&ppu->tile_fetcher,0x00,sizeof(ppu->tile_fetcher));
     memset(&ppu->object_fetcher,0x00,sizeof(ppu->object_fetcher));
@@ -784,7 +843,42 @@ void gb_ppu_reset(gb_ppu_t* ppu){
     memset(ppu->oam,0x00,sizeof(ppu->oam));
     ppu->oam_address = 0x00;
     ppu->oam_blocked = false;
+
 }
+
+void gb_ppu_skip_boot(gb_ppu_t* ppu){
+    
+    if(ppu->gb->is_cgb){
+        
+        if(ppu->gb->cgb_mode){
+            ppu->ly = 144;
+            ppu->_ly = 144;
+            ppu->cycle = 156;
+        }
+        else{
+            //Value based on the Pokemon Red ROM
+            ppu->ly = 147;
+            ppu->_ly = 147;
+            ppu->cycle = 348;
+        }
+    }
+    else{
+        ppu->status.lcy_equals_ly = true;
+
+        ppu->ly = 0;
+        ppu->_ly = 153;
+        ppu->cycle = 396;
+
+        gb_ppu_init_vram_after_skip_boot_dmg(ppu);
+    }
+
+    ppu->lcdc.tile_enabled = true;
+    ppu->lcdc.tiledata_area = true;
+    ppu->lcdc.lcd_enabled = true;
+
+    ppu->status.mode = 0x01;
+}
+
 
 void gb_ppu_save_state(gb_ppu_t* ppu,gb_state_t* state){
     gb_state_write(state,ppu->lcdc);

@@ -48,18 +48,18 @@ protected:
     ImVec2 window_max;
     ImVec2 window_start_pos;
 
-    const char** extensions;
-    int extensions_count;
-    int current_extension;
+    const char** extensions = nullptr;
+    int extensions_count = 0;
+    int current_extension = 0;
 
-    file_dialog_callback_t callback;
-    void* userdata;
+    file_dialog_callback_t callback = nullptr;
+    void* userdata = nullptr;
 
     bool request_open = false;
     bool open = false;
 
     void set_current_path(std::filesystem::path path);
-
+    
     std::uintmax_t number_of_entries_in_directory(const std::filesystem::path directory);
 
     const char* get_current_extension() const noexcept;
@@ -96,12 +96,17 @@ protected:
 public:
     file_base_dialog_t();
 
+    void save(cJSON* object);
+    void load(cJSON* object);
+
+
     void copy_to_name_buffer(const char* src) noexcept {
         size_t len = strlen(src);
         if(len >= sizeof(name_buffer)) return;
         strcpy(name_buffer,src);
         name_buffer_length = len;
     }
+
 
     void set_current_extension(int _current_extension) noexcept {
         if(_current_extension < 0 || _current_extension >= extensions_count) return;
@@ -111,12 +116,14 @@ public:
     void set_extensions(const char** _extensions,int _extensions_count) noexcept {
         extensions = _extensions;
         extensions_count = _extensions_count;
+        current_extension = 0;
     }
 
     void remove_extensions() noexcept {
         extensions = nullptr;
         extensions_count = 0;
     }
+
 
     void set_callback(file_dialog_callback_t _callback,void* _userdata) noexcept {
         callback = _callback;
@@ -127,6 +134,7 @@ public:
         callback = nullptr;
         userdata = nullptr;
     }
+
 
     void set_open(bool _open) noexcept {
         if(open == _open) return;

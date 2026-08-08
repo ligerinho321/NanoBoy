@@ -9,20 +9,16 @@
 #include "dma.h"
 #include "palette.h"
 #include "serial.h"
+#include "infrared.h"
 #include "boot.h"
 #include "memory.h"
 #include "cartridge.h"
 #include "printer.h"
 #include "savestate.h"
 
-typedef enum _gb_type_t {
-    gb_dmg = 0x00,
-    gb_cgb = 0x01
-} gb_type_t;
-
 typedef struct _gb_t {
-    gb_type_t type;
-    gb_type_t type_pending;
+    bool is_cgb;
+    bool is_cgb_pending;
     
     float speed;
     
@@ -40,9 +36,11 @@ typedef struct _gb_t {
     bool paused;
 
     bool cgb_mode;
+    bool obj_priority_mode;
     bool double_speed;
     bool speed_switch_needed;
-    bool obj_priority_mode;
+
+    uint8_t undocumented_registers[0x04];
 
     uint64_t cycle;
     
@@ -55,6 +53,7 @@ typedef struct _gb_t {
     gb_dma_t dma;
     gb_palette_t palette;
     gb_serial_t serial;
+    gb_infrared_t infrared;
     gb_boot_t boot;
     gb_memory_t memory;
     gb_cartridge_t cartridge;
@@ -64,6 +63,7 @@ typedef struct _gb_t {
     gb_memory_handler_t key0_register_handler;
     gb_memory_handler_t key1_register_handler;
     gb_memory_handler_t opri_register_handler;
+    gb_memory_handler_t undocumented_register_handler;
 } gb_t;
 
 
@@ -142,15 +142,12 @@ uint8_t gb_read_key1_register(void* data,uint16_t address);
 void gb_write_opri_register(void* data,uint8_t value,uint16_t address);
 uint8_t gb_read_opri_register(void* data,uint16_t address);
 
+void gb_write_undocumented_register(void* data,uint8_t value,uint16_t address);
+uint8_t gb_read_undocumented_register(void* data,uint16_t address);
+
 void gb_map(gb_t* gb);
 
-void gb_map_cgb_registers(gb_t* gb);
-void gb_unmap_cgb_registers(gb_t* gb);
-
 void gb_reset(gb_t* gb);
-
-void gb_save_state(gb_t* gb,gb_state_t* state);
-void gb_load_state(gb_t* gb,gb_state_t* state);
 
 void gb_delete(gb_t* gb);
 

@@ -154,7 +154,7 @@ void object_viewer_t::update_object_texture(object_t& object){
 
             uint8_t color_index = ((hi & bit) ? 0x02 : 0x00) | ((lo & bit) ? 0x01 : 0x00);
 
-            if(gb->type == gb_cgb){
+            if(gb->is_cgb){
                 if(cgb_mode){
                     color = obj_palette.get_cgb_color(object.palette_index,color_index);
                 }
@@ -478,7 +478,7 @@ void object_viewer_t::render(){
 
     if(ImGui::Begin("Object Viewer",&_open)){
 
-        obj_palette.update_texture(gb->type,cgb_mode);
+        obj_palette.update_texture(gb->is_cgb,cgb_mode);
         update_objects();
 
         if(ImGui::BeginTable("ObjectTable1",2,ImGuiTableFlags_None)){

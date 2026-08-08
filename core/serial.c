@@ -65,8 +65,10 @@ void gb_serial_write_register(void* data,uint8_t value,uint16_t address){
         //Serial Control
         case 0xFF02:
             serial->transfer_enabled = value & 0x80;
-            
-            serial->clock_speed = value & 0x02;
+
+            if(serial->gb->cgb_mode){
+                serial->clock_speed = value & 0x02;
+            }
 
             serial->internal_clock = value & 0x01;
             
@@ -78,9 +80,10 @@ void gb_serial_write_register(void* data,uint8_t value,uint16_t address){
             double  set    8     524288  65536
             */
 
-            serial->timer = serial->clock_speed ? 16 : 512;
-            
-            serial->bits_received = 0x00;
+            if(serial->transfer_enabled){
+                serial->timer = serial->clock_speed ? 16 : 512;
+                serial->bits_received = 0x00;
+            }
 
             break;
     }
@@ -98,7 +101,20 @@ uint8_t gb_serial_read_register(void* data,uint16_t address){
             break;
         //Serial Control
         case 0xFF02:
-            value = (serial->transfer_enabled ? 0x80 : 0x00) | 0x7C | (serial->clock_speed ? 0x02 : 0x00) | (serial->internal_clock ? 0x01 : 0x00);
+            value = serial->transfer_enabled ? 0x80 : 0x00;
+            
+            if(serial->gb->cgb_mode){
+                
+                value |= 0x7C;
+                
+                value |= serial->clock_speed ? 0x02 : 0x00;
+            }
+            else{
+                value |= 0x7E;
+            }
+            
+            value |= serial->internal_clock ? 0x01 : 0x00;
+
             break;
     }
 
@@ -113,12 +129,12 @@ void gb_serial_map_registers(gb_serial_t* serial){
 
 void gb_serial_reset(gb_serial_t* serial){
     serial->sb = 0x00;
-    serial->bits_received = 0x00;
-
+    
     serial->transfer_enabled = false;
     serial->clock_speed = false;
     serial->internal_clock = false;
 
+    serial->bits_received = 0x00;
     serial->timer = 0x00;
 }
 

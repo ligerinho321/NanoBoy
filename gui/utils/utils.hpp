@@ -74,7 +74,7 @@ struct palette_t{
     virtual gb_rgb_t get_cgb_dmg_color(uint8_t palette_index,uint8_t color_index) const noexcept = 0;
 
 
-    void update_texture(gb_type_t type,bool cgb_mode);
+    void update_texture(bool is_cgb,bool cgb_mode);
 };
 
 struct bg_palette_t : public palette_t {

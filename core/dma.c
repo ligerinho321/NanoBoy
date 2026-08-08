@@ -49,7 +49,7 @@ void gb_oam_dma_clock(gb_dma_t* dma){
 bool gb_oam_dma_bus_conflict(gb_dma_t* dma,uint16_t address){
     uint8_t src = dma->oam_src;
 
-    if(dma->gb->type == gb_cgb){
+    if(dma->gb->is_cgb){
         return (
             //ROM and RAM
             ((src <= 0x7F || (src >= 0xA0 && src <= 0xBF)) && (address <= 0x7FFF || (address >= 0xA000 && address <= 0xBFFF))) ||
@@ -158,6 +158,9 @@ void gb_vram_general_dma(gb_dma_t* dma){
 
 void gb_vram_dma_write_register(void* data,uint8_t value,uint16_t address){
     gb_dma_t* dma = (gb_dma_t*)data;
+    gb_t* gb = dma->gb;
+
+    if(!(gb->is_cgb && (gb->cgb_mode || gb->boot.mapped))) return;
 
     switch(address){
         //Src msb
@@ -204,7 +207,10 @@ void gb_vram_dma_write_register(void* data,uint8_t value,uint16_t address){
 
 uint8_t gb_vram_dma_read_register(void* data,uint16_t address){
     gb_dma_t* dma = (gb_dma_t*)data;
-
+    gb_t* gb = dma->gb;
+    
+    if(!(gb->is_cgb && (gb->cgb_mode || gb->boot.mapped))) return 0xFF;
+    
     uint8_t value = 0xFF;
 
     if(address == 0xFF55){
@@ -215,31 +221,40 @@ uint8_t gb_vram_dma_read_register(void* data,uint16_t address){
 }
 
 
-void gb_oam_dma_map_registers(gb_dma_t* dma){
-    gb_memory_map(&dma->gb->memory,&dma->oam_register_handler,0xFF46);
-}
+void gb_dma_map(gb_dma_t* dma){
+    gb_memory_t* memory = &dma->gb->memory;
+    
+    gb_memory_map(memory,&dma->oam_register_handler,0xFF46);
 
-
-void gb_vram_dma_map_registers(gb_dma_t* dma){
-    gb_memory_map_in_range(&dma->gb->memory,&dma->vram_register_handler,0xFF51,0xFF55);
-}
-
-void gb_vram_dma_unmap_registers(gb_dma_t* dma){
-    gb_memory_unmap_in_range(&dma->gb->memory,0xFF51,0xFF55);
+    gb_memory_map_in_range(memory,&dma->vram_register_handler,0xFF51,0xFF55);
 }
 
 
 void gb_dma_reset(gb_dma_t* dma){
     dma->oam_state = gb_oam_dma_state_none;
-    dma->oam_src = 0xFF;
+
+    if(dma->gb->is_cgb){
+        dma->oam_src = 0x00;
+    }
+    else{
+        dma->oam_src = 0xFF;
+    }
+    
     dma->oam_hi_addr = 0x00;
     dma->oam_counter = 0x00;
     dma->oam_byte = 0x00;
 
     dma->vram_src = 0x00;
     dma->vram_dst = 0x00;
-    dma->vram_length = 0xFF;
-    dma->vram_hblank_running = 0x00;
+    dma->vram_length = 0x7F;
+    dma->vram_hblank_running = false;
+}
+
+void gb_dma_skip_boot(gb_dma_t* dma){
+    if(dma->gb->is_cgb){
+        dma->vram_src = 0xD430;
+        dma->vram_dst = 0x99D0;
+    }
 }
 
 

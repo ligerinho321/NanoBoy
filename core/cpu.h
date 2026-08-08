@@ -61,6 +61,7 @@ void gb_cpu_init(gb_cpu_t* cpu,gb_t* gb);
 void gb_cpu_execute(gb_cpu_t* cpu);
 
 void gb_cpu_reset(gb_cpu_t* cpu);
+void gb_cpu_skip_boot(gb_cpu_t* cpu);
 
 void gb_cpu_save_state(gb_cpu_t* cpu,gb_state_t* state);
 void gb_cpu_load_state(gb_cpu_t* cpu,gb_state_t* state);

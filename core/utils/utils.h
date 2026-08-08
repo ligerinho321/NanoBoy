@@ -112,13 +112,6 @@ typedef bool gb_atomic_bool_t;
 
 enum {
     gb_clock_rate = 4194304,
-
-    gb_vram_length = 0x4000,
-    gb_wram_length = 0x8000,
-    gb_oam_length = 0xA0,
-    gb_hram_length = 0x7F,
-
-    gb_oam_objects = gb_oam_length / 4,
     
     gb_object_width = 8,
     gb_object_min_height = 8,

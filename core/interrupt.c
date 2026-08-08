@@ -76,6 +76,10 @@ void gb_interrupt_reset(gb_interrupt_t* interrupt){
     interrupt->flag = 0x00;
 }
 
+void gb_interrupt_skip_boot(gb_interrupt_t* interrupt){
+    interrupt->flag = 0x01;
+}
+
 
 void gb_interrupt_save_state(gb_interrupt_t* interrupt,gb_state_t* state){
     gb_state_write(state,interrupt->enable);

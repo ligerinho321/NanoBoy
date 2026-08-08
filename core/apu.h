@@ -53,7 +53,7 @@ typedef struct _gb_apu_square_t {
     uint8_t duty_pos;
     uint16_t frequency;
     int timer;
-    uint8_t output;
+    int output;
 } gb_apu_square_t;
 
 typedef struct _gb_apu_wave_t {
@@ -69,7 +69,7 @@ typedef struct _gb_apu_wave_t {
     uint8_t sample_buffer;
     uint8_t ram_pos;
     uint8_t ram[0x10];
-    uint8_t output;
+    int output;
 } gb_apu_wave_t;
 
 typedef struct _gb_apu_noise_t {
@@ -84,7 +84,7 @@ typedef struct _gb_apu_noise_t {
     uint8_t divisor_code;
     uint16_t lfsr;
     int timer;
-    uint8_t output;
+    int output;
 } gb_apu_noise_t;
 
 typedef struct _gb_apu_channel_frame_t {
@@ -190,35 +190,51 @@ void gb_apu_length_counter_clock(gb_apu_length_counter_t* length_counter,bool* c
 void gb_apu_length_counter_save_state(gb_apu_length_counter_t* length_counter,gb_state_t* state);
 void gb_apu_length_counter_load_state(gb_apu_length_counter_t* length_counter,gb_state_t* state);
 
+
 void gb_apu_square_clock(gb_apu_square_t* square,int timer);
+
 void gb_apu_write_square_register(void* data,uint8_t value,uint16_t address);
 uint8_t gb_apu_read_square_register(void* data,uint16_t address);
+
 uint8_t gb_apu_square_raw_output(gb_apu_square_t* square);
-int gb_apu_square_output(gb_apu_square_t* square);
 void gb_apu_square_update_output(gb_apu_square_t* square);
+int gb_apu_square_output(gb_apu_square_t* square);
+
 void gb_apu_square_reset(gb_apu_square_t* square,bool hardware);
+
 void gb_apu_square_save_state(gb_apu_square_t* square,gb_state_t* state);
 void gb_apu_square_load_state(gb_apu_square_t* square,gb_state_t* state);
 
+
 void gb_apu_wave_clock(gb_apu_wave_t* wave,int timer);
+
 void gb_apu_write_wave_register(void* data,uint8_t value,uint16_t address);
 uint8_t gb_apu_read_wave_register(void* data,uint16_t address);
+
 void gb_apu_write_wave_ram(void* data,uint8_t value,uint16_t address);
 uint8_t gb_apu_read_wave_ram(void* data,uint16_t address);
+
 uint8_t gb_apu_wave_raw_output(gb_apu_wave_t* wave);
-int gb_apu_wave_output(gb_apu_wave_t* wave);
 void gb_apu_wave_update_output(gb_apu_wave_t* wave);
+int gb_apu_wave_output(gb_apu_wave_t* wave);
+
 void gb_apu_wave_reset(gb_apu_wave_t* wave,bool hardware);
+
 void gb_apu_wave_save_state(gb_apu_wave_t* wave,gb_state_t* state);
 void gb_apu_wave_load_state(gb_apu_wave_t* wave,gb_state_t* state);
 
+
 void gb_apu_noise_clock(gb_apu_noise_t* noise,int timer);
+
 void gb_apu_write_noise_register(void* data,uint8_t value,uint16_t address);
 uint8_t gb_apu_read_noise_register(void* data,uint16_t address);
+
 uint8_t gb_apu_noise_raw_output(gb_apu_noise_t* noise);
-int gb_apu_noise_output(gb_apu_noise_t* noise);
 void gb_apu_noise_update_output(gb_apu_noise_t* noise);
+int gb_apu_noise_output(gb_apu_noise_t* noise);
+
 void gb_apu_noise_reset(gb_apu_noise_t* noise,bool hardware);
+
 void gb_apu_noise_save_state(gb_apu_noise_t* noise,gb_state_t* state);
 void gb_apu_noise_load_state(gb_apu_noise_t* noise,gb_state_t* state);
 
@@ -227,11 +243,8 @@ uint8_t gb_apu_read_pcm34_register(void* data,uint16_t address);
 
 void gb_apu_map_registers(gb_apu_t* apu);
 
-void gb_apu_map_pcm_registers(gb_apu_t* apu);
-
-void gb_apu_unmap_pcm_registers(gb_apu_t* apu);
-
 void gb_apu_reset(gb_apu_t* apu,bool hardware);
+void gb_apu_skip_boot(gb_apu_t* apu);
 
 void gb_apu_free(gb_apu_t* apu);
 

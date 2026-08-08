@@ -18,7 +18,26 @@ bool gb_savestate_serialize(gb_t* gb,const char* filename){
     uint8_t* screen_cbuff = NULL;
 
     gb_state_t state = {0};
-    gb_save_state(gb,&state);
+
+    gb_state_write(&state,gb->cgb_mode);
+    gb_state_write(&state,gb->double_speed);
+    gb_state_write(&state,gb->speed_switch_needed);
+    gb_state_write(&state,gb->obj_priority_mode);
+    gb_state_write_ex(&state,gb->undocumented_registers,sizeof(gb->undocumented_registers));
+    gb_state_write(&state,gb->cycle);
+
+    gb_cpu_save_state(&gb->cpu,&state);
+    gb_ppu_save_state(&gb->ppu,&state);
+    gb_apu_save_state(&gb->apu,&state);
+    gb_joypad_save_state(&gb->joypad,&state);
+    gb_interrupt_save_state(&gb->interrupt,&state);
+    gb_timer_save_state(&gb->timer,&state);
+    gb_dma_save_state(&gb->dma,&state);
+    gb_palette_save_state(&gb->palette,&state);
+    gb_serial_save_state(&gb->serial,&state);
+    gb_infrared_save_state(&gb->infrared,&state);
+    gb_memory_save_state(&gb->memory,&state);
+    gb_cartridge_save_state(&gb->cartridge,&state);
 
     if(!state.length) goto fail;
 
@@ -64,16 +83,31 @@ bool gb_savestate_serialize(gb_t* gb,const char* filename){
     screen_header.compressed_size = screen_compress_result;
 
     gb_savestate_header_t header = {0};
+    
     memcpy(header.magic,gb_savestate_header_magic,4);
+
+    header.is_cgb = gb->is_cgb;
+
+    if(gb->boot.mapped){
+        header.boot_mapped = true;
+        header.boot_rom_crc32 = header.is_cgb ? gb->boot.cgb_rom_crc32 : gb->boot.dmg_rom_crc32;
+    }
+
     header.rom_crc32 = gb->cartridge.rom_crc32;
+    
     header.timestamp = time(NULL);
-    header.state_offset = sizeof(gb_savestate_header_t) + sizeof(gb_screenshot_header_t) + screen_header.compressed_size;
+    
+    header.state_offset = (
+        sizeof(gb_savestate_header_t) +
+        sizeof(gb_screenshot_header_t) +
+        screen_header.compressed_size
+    );
 
     fwrite(&header,sizeof(gb_savestate_header_t),1,file);
     
     fwrite(&screen_header,sizeof(gb_screenshot_header_t),1,file);
     fwrite(screen_cbuff,1,screen_header.compressed_size,file);
-    
+
     fwrite(&state_header,sizeof(gb_state_header_t),1,file);
     fwrite(state_cbuff,1,state_header.compressed_size,file);
 
@@ -118,12 +152,26 @@ bool gb_savestate_deserialize(gb_t* gb,const char* filename){
     fread(&header,sizeof(gb_savestate_header_t),1,file);
 
     if(memcmp(header.magic,gb_savestate_header_magic,4)) goto fail;
-    
+
+    if(header.boot_mapped){
+
+        gb_boot_update_roms(&gb->boot);
+
+        if(header.is_cgb){
+            if(!gb->boot.cgb_rom_inserted || gb->boot.cgb_rom_crc32 != header.boot_rom_crc32) goto fail;
+        }
+        else{
+            if(!gb->boot.dmg_rom_inserted || gb->boot.dmg_rom_crc32 != header.boot_rom_crc32) goto fail;
+        }
+
+    }
+
     if(header.rom_crc32 != gb->cartridge.rom_crc32) goto fail;
 
     if(size < header.state_offset + sizeof(gb_state_header_t)) goto fail;
 
     fseek(file,header.state_offset,SEEK_SET);
+    
 
     gb_state_header_t state_header = {0};
 
@@ -170,7 +218,34 @@ bool gb_savestate_deserialize(gb_t* gb,const char* filename){
 
     if(crc32(state.data,state.length) != state_header.decompressed_crc32) goto fail;
 
-    gb_load_state(gb,&state);
+    gb->is_cgb = header.is_cgb;
+    
+    if(header.boot_mapped){
+        gb_boot_map(&gb->boot);
+    }
+    else{
+        gb_boot_unmap(&gb->boot);
+    }
+
+    gb_state_read(&state,gb->cgb_mode);
+    gb_state_read(&state,gb->double_speed);
+    gb_state_read(&state,gb->speed_switch_needed);
+    gb_state_read(&state,gb->obj_priority_mode);
+    gb_state_read_ex(&state,gb->undocumented_registers,sizeof(gb->undocumented_registers));
+    gb_state_read(&state,gb->cycle);
+
+    gb_cpu_load_state(&gb->cpu,&state);
+    gb_ppu_load_state(&gb->ppu,&state);
+    gb_apu_load_state(&gb->apu,&state);
+    gb_joypad_load_state(&gb->joypad,&state);
+    gb_interrupt_load_state(&gb->interrupt,&state);
+    gb_timer_load_state(&gb->timer,&state);
+    gb_dma_load_state(&gb->dma,&state);
+    gb_palette_load_state(&gb->palette,&state);
+    gb_serial_load_state(&gb->serial,&state);
+    gb_infrared_load_state(&gb->infrared,&state);
+    gb_memory_load_state(&gb->memory,&state);
+    gb_cartridge_load_state(&gb->cartridge,&state);
 
     free(state_cbuff);
     free(state_dbuff);

@@ -46,6 +46,7 @@ uint8_t gb_interrupt_get_vector(gb_interrupt_t* interrupt);
 void gb_interrupt_map_registers(gb_interrupt_t* interrupt);
 
 void gb_interrupt_reset(gb_interrupt_t* interrupt);
+void gb_interrupt_skip_boot(gb_interrupt_t* interrupt);
 
 void gb_interrupt_save_state(gb_interrupt_t* interrupt,gb_state_t* state);
 void gb_interrupt_load_state(gb_interrupt_t* interrupt,gb_state_t* state);

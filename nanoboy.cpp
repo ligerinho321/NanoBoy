@@ -6,16 +6,16 @@ static void joypad_callback(void* data,gb_joypad_state_t* state){
 
     if(ImGui::GetIO().WantCaptureKeyboard && !nanoboy->screen->focused()) return;
 
-    input_t* input = nanoboy->input;
+    input_settings_t* input_settings = nanoboy->input_settings;
 
-    state->down = input->button_pressed(gb_button_down);
-    state->up = input->button_pressed(gb_button_up);
-    state->left = input->button_pressed(gb_button_left);
-    state->right = input->button_pressed(gb_button_right);
-    state->start = input->button_pressed(gb_button_start);
-    state->select = input->button_pressed(gb_button_select);
-    state->a = input->button_pressed(gb_button_a);
-    state->b = input->button_pressed(gb_button_b);
+    state->down = input_settings->button_pressed(gb_button_down);
+    state->up = input_settings->button_pressed(gb_button_up);
+    state->left = input_settings->button_pressed(gb_button_left);
+    state->right = input_settings->button_pressed(gb_button_right);
+    state->start = input_settings->button_pressed(gb_button_start);
+    state->select = input_settings->button_pressed(gb_button_select);
+    state->a = input_settings->button_pressed(gb_button_a);
+    state->b = input_settings->button_pressed(gb_button_b);
 }
 
 static void audio_callback(void* userdata,uint8_t* data,int len){
@@ -31,12 +31,12 @@ static void audio_callback(void* userdata,uint8_t* data,int len){
 }
 
 
-const char* file_selector_filters[] = {
+static const char* file_selector_extensions[] = {
     "All files\0.*",
     "GB ROM files\0.gb;.gbc"
 };
 
-const int file_selector_filters_count = sizeof(file_selector_filters) / sizeof(file_selector_filters[0]);
+static const int file_selector_extensions_count = sizeof(file_selector_extensions) / sizeof(file_selector_extensions[0]);
 
 
 static void file_selector_callback(void* userdata,std::filesystem::path path){
@@ -63,10 +63,12 @@ nanoboy_t::nanoboy_t(){
 
     SDL_SetWindowPosition(window,SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED);
 
-    input = new input_t();
+    boot_settings = new boot_settings_t(gb);
+
+    input_settings = new input_settings_t();
 
     file_selector = new file_selector_t();
-    file_selector->set_extensions(file_selector_filters,file_selector_filters_count);
+    file_selector->set_extensions(file_selector_extensions,file_selector_extensions_count);
     file_selector->set_current_extension(1);
     file_selector->set_callback(file_selector_callback,this);
 
@@ -107,7 +109,8 @@ nanoboy_t::~nanoboy_t(){
     delete screen;
     delete savestate;
     delete file_selector;
-    delete input;
+    delete input_settings;
+    delete boot_settings;
 
     ImGui_ImplSDLRenderer2_Shutdown();
     ImGui_ImplSDL2_Shutdown();
@@ -136,7 +139,7 @@ void nanoboy_t::init_directories(){
     main_folder_path /= "Roaming";
     main_folder_path /= "nanoboy";
 
-    printf("windows main folder path: %s\n",main_folder_path.u8string().c_str());
+    //printf("windows main folder path: %s\n",main_folder_path.u8string().c_str());
 #else
     const char* home = getenv("HOME");
     
@@ -148,7 +151,7 @@ void nanoboy_t::init_directories(){
     main_folder_path /= ".config";
     main_folder_path /= "nanoboy";
 
-    printf("linux main folder path: %s\n",main_folder_path.u8string().c_str());
+    //printf("linux main folder path: %s\n",main_folder_path.u8string().c_str());
 #endif
 
     saves_path = main_folder_path / "saves";
@@ -291,8 +294,10 @@ void nanoboy_t::save_settings(){
 
     save_window_settings(settings_object);
 
+    file_selector->save(settings_object);
     screen->save(settings_object);
-    input->save(settings_object);
+    boot_settings->save(settings_object);
+    input_settings->save(settings_object);
 
     char* settings_string = cJSON_Print(settings_object);
 
@@ -320,8 +325,10 @@ void nanoboy_t::load_settings(){
 
     load_window_settings(settings_object);
 
+    file_selector->load(settings_object);
     screen->load(settings_object);
-    input->load(settings_object);
+    boot_settings->load(settings_object);
+    input_settings->load(settings_object);
 
     end:
     free(data);
@@ -335,7 +342,7 @@ void nanoboy_t::save_imgui_ini_settings(){
     if(io.WantSaveIniSettings){
         std::string imgui_ini_path = get_imgui_ini_path();
 
-        printf("save imgui ini settings from \"%s\"\n", imgui_ini_path.c_str());
+        //printf("save imgui ini settings from \"%s\"\n", imgui_ini_path.c_str());
 
         ImGui::SaveIniSettingsToDisk((const char*)get_imgui_ini_path().c_str());
 
@@ -346,7 +353,7 @@ void nanoboy_t::save_imgui_ini_settings(){
 void nanoboy_t::load_imgui_ini_settings(){
     std::string imgui_ini_path = get_imgui_ini_path();
 
-    printf("load imgui ini settings from \"%s\"\n", imgui_ini_path.c_str());
+    //printf("load imgui ini settings from \"%s\"\n", imgui_ini_path.c_str());
 
     ImGui::LoadIniSettingsFromDisk((const char*)imgui_ini_path.c_str());
 }
@@ -417,7 +424,7 @@ void nanoboy_t::event(){
         
         ImGui_ImplSDL2_ProcessEvent(&event);
 
-        input->event_settings(event);
+        input_settings->event(event);
         savestate->event(event);
         screen->event(event);
 
@@ -529,13 +536,13 @@ void nanoboy_t::render_main_menu_bar(){
 
         if(ImGui::BeginMenu("Model")){
             
-            bool type = gb->type_pending;
+            bool is_cgb = gb->is_cgb_pending;
 
-            if(ImGui::MenuItem("Game Boy (DMG)",nullptr,type == gb_dmg)){
-                gb->type_pending = gb_dmg;
+            if(ImGui::MenuItem("Game Boy (DMG)",nullptr,!is_cgb)){
+                gb->is_cgb_pending = false;
             }
-            if(ImGui::MenuItem("Game Boy Color (CGB)",nullptr,type == gb_cgb)){
-                gb->type_pending = gb_cgb;
+            if(ImGui::MenuItem("Game Boy Color (CGB)",nullptr,is_cgb)){
+                gb->is_cgb_pending = true;
             }
 
             ImGui::EndMenu();
@@ -551,8 +558,12 @@ void nanoboy_t::render_main_menu_bar(){
             ImGui::EndMenu();
         }
 
+        if(ImGui::MenuItem("Boot")){
+            boot_settings->open();
+        }
+
         if(ImGui::MenuItem("Input")){
-            input->open_settings();
+            input_settings->open();
         }
 
         ImGui::EndMenu();
@@ -585,7 +596,8 @@ void nanoboy_t::imgui_render(){
 
     render_main_menu_bar();
 
-    input->render_settings();
+    boot_settings->render();
+    input_settings->render();
 
     file_selector->render();
 

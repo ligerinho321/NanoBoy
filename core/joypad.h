@@ -67,6 +67,7 @@ bool gb_joypad_is_any_button_pressed(gb_joypad_t* joypad);
 void gb_joypad_map_registers(gb_joypad_t* joypad);
 
 void gb_joypad_reset(gb_joypad_t* joypad);
+void gb_joypad_skip_boot(gb_joypad_t* joypad);
 
 void gb_joypad_save_state(gb_joypad_t* joypad,gb_state_t* state);
 void gb_joypad_load_state(gb_joypad_t* joypad,gb_state_t* state);

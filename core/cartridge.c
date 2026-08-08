@@ -91,16 +91,62 @@ bool gb_cartridge_load(gb_cartridge_t* cartridge,const char* path){
     }
 
     cartridge->rom_crc32 = crc32(cartridge->rom,cartridge->rom_size);
-    
+
     fclose(file);
     return true;
 
     fail:
-    gb_cartridge_clear(cartridge);
+    gb_cartridge_remove(cartridge);
 
     fclose(file);
     
     return false;
+}
+
+void gb_cartridge_remove(gb_cartridge_t* cartridge){
+    
+    if(cartridge->rom != NULL){
+        free(cartridge->rom);
+        cartridge->rom = NULL;
+    }
+
+    cartridge->rom_size = 0x00;
+
+    cartridge->rom_crc32 = 0x00;
+    
+    cartridge->rom0_handler.write = gb_memory_write_empty;
+    cartridge->rom0_handler.read = gb_cartridge_read_rom0;
+    
+    cartridge->rom1_handler.write = gb_memory_write_empty;
+    cartridge->rom1_handler.read = gb_cartridge_read_rom1;
+
+    cartridge->rom0_ptr = NULL;
+    cartridge->rom1_ptr = NULL;
+    
+    cartridge->rom_bank_mask = 0x00;
+
+    if(cartridge->ram != NULL){
+        free(cartridge->ram);
+        cartridge->ram = NULL;
+    }
+
+    cartridge->ram_size = 0x00;
+    cartridge->ram_handler.write = gb_memory_write_empty;
+    cartridge->ram_handler.read = gb_memory_read_empty;
+    cartridge->ram_ptr = NULL;
+    cartridge->ram_bank_mask = 0x00;
+    cartridge->ram_address_mask = 0x00;
+    cartridge->ram_has_battery = false;
+
+
+    if(cartridge->mapper.data != NULL){
+        free(cartridge->mapper.data);
+        cartridge->mapper.data = NULL;
+    }
+    cartridge->mapper.rtc_update_timer = NULL;
+    cartridge->mapper.rtc_save = NULL;
+    cartridge->mapper.rtc_load = NULL;
+    cartridge->mapper.reset = NULL;
 }
 
 
@@ -398,51 +444,4 @@ void gb_cartridge_load_state(gb_cartridge_t* cartridge,gb_state_t* state){
     if(cartridge->mapper.load_state != NULL){
         cartridge->mapper.load_state(cartridge,state);
     }
-}
-
-
-void gb_cartridge_clear(gb_cartridge_t* cartridge){
-    
-    if(cartridge->rom != NULL){
-        free(cartridge->rom);
-        cartridge->rom = NULL;
-    }
-
-    cartridge->rom_size = 0x00;
-
-    cartridge->rom_crc32 = 0x00;
-    
-    cartridge->rom0_handler.write = gb_memory_write_empty;
-    cartridge->rom0_handler.read = gb_cartridge_read_rom0;
-    
-    cartridge->rom1_handler.write = gb_memory_write_empty;
-    cartridge->rom1_handler.read = gb_cartridge_read_rom1;
-
-    cartridge->rom0_ptr = NULL;
-    cartridge->rom1_ptr = NULL;
-    
-    cartridge->rom_bank_mask = 0x00;
-
-    if(cartridge->ram != NULL){
-        free(cartridge->ram);
-        cartridge->ram = NULL;
-    }
-
-    cartridge->ram_size = 0x00;
-    cartridge->ram_handler.write = gb_memory_write_empty;
-    cartridge->ram_handler.read = gb_memory_read_empty;
-    cartridge->ram_ptr = NULL;
-    cartridge->ram_bank_mask = 0x00;
-    cartridge->ram_address_mask = 0x00;
-    cartridge->ram_has_battery = false;
-
-
-    if(cartridge->mapper.data != NULL){
-        free(cartridge->mapper.data);
-        cartridge->mapper.data = NULL;
-    }
-    cartridge->mapper.rtc_update_timer = NULL;
-    cartridge->mapper.rtc_save = NULL;
-    cartridge->mapper.rtc_load = NULL;
-    cartridge->mapper.reset = NULL;
 }

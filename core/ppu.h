@@ -2,6 +2,12 @@
 
 #include "utils/utils.h"
 
+enum{
+    gb_vram_length = 0x4000,
+    gb_oam_length = 0xA0,
+    gb_oam_objects = gb_oam_length / 4,
+};
+
 typedef enum _gb_ppu_mode_t {
     gb_ppu_hblank_mode = 0x00,
     gb_ppu_vblank_mode = 0x01,
@@ -81,8 +87,6 @@ typedef struct _gb_pixel_fifo_t {
     uint8_t length;
 } gb_pixel_fifo_t;
 
-void gb_pixel_fifo_pop(gb_pixel_fifo_t* fifo);
-
 typedef struct _gb_ppu_t {
     gb_t* gb;
     bool interframe_blending;
@@ -154,6 +158,9 @@ typedef struct _gb_ppu_t {
 extern "C" {
 #endif
 
+void gb_pixel_fifo_pop(gb_pixel_fifo_t* fifo);
+
+
 void gb_ppu_init(gb_ppu_t* ppu,gb_t* gb);
 
 void gb_ppu_clock(gb_ppu_t* ppu,int cycles);
@@ -175,11 +182,12 @@ uint8_t gb_ppu_read_vbk_register(void* data,uint16_t address);
 void gb_ppu_write_oam(void* data,uint8_t value,uint16_t address);
 uint8_t gb_ppu_read_oam(void* data,uint16_t address);
 
-void gb_ppu_map_vram(gb_ppu_t* ppu);
-void gb_ppu_map_registers(gb_ppu_t* ppu);
-void gb_ppu_map_oam(gb_ppu_t* ppu);
+void gb_ppu_map(gb_ppu_t* ppu);
+
+void gb_ppu_init_vram_after_skip_boot_dmg(gb_ppu_t* ppu);
 
 void gb_ppu_reset(gb_ppu_t* ppu);
+void gb_ppu_skip_boot(gb_ppu_t* ppu);
 
 void gb_ppu_save_state(gb_ppu_t* ppu,gb_state_t* state);
 void gb_ppu_load_state(gb_ppu_t* ppu,gb_state_t* state);

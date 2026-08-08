@@ -15,6 +15,33 @@ file_base_dialog_t::file_base_dialog_t(){
 }
 
 
+void file_base_dialog_t::save(cJSON* object){
+    cJSON* file_dialog_object = cJSON_CreateObject();
+    cJSON_AddItemToObjectCS(object,"File dialog",file_dialog_object);
+
+    cJSON* current_path_string = cJSON_CreateString(current_path.u8string().c_str());
+    cJSON_AddItemToObjectCS(file_dialog_object,"Current path",current_path_string);
+}
+
+void file_base_dialog_t::load(cJSON* object){
+    cJSON* file_dialog_object = cJSON_GetObjectItemCaseSensitive(object,"File dialog");
+    
+    if(!file_dialog_object || !cJSON_IsObject(file_dialog_object)) return;
+
+    cJSON* current_path_string = cJSON_GetObjectItemCaseSensitive(file_dialog_object,"Current path");
+
+    if(!current_path_string || !cJSON_IsString(current_path_string)) return;
+
+    std::filesystem::path path = cJSON_GetStringValue(current_path_string);
+
+    std::error_code error;
+
+    if(std::filesystem::exists(path,error) && std::filesystem::is_directory(path,error)){
+        set_current_path(path);
+    }
+}
+
+
 void file_base_dialog_t::set_current_path(std::filesystem::path path){
     current_path = path;
     

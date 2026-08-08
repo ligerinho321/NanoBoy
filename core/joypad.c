@@ -22,12 +22,14 @@ void gb_joypad_init(gb_joypad_t* joypad,gb_t* gb){
     };
 }
 
+
 const char* gb_joypad_get_button_name(int button){
     if(button < 0 || button >= gb_button_count){
         return "";
     }
     return button_names[button];
 }
+
 
 void gb_joypad_set_callback(gb_joypad_t* joypad,gb_joypad_callback_t callback,void* data){
     joypad->callback = callback;
@@ -118,9 +120,10 @@ void gb_joypad_map_registers(gb_joypad_t* joypad){
 
 
 void gb_joypad_reset(gb_joypad_t* joypad){
-    joypad->select_buttons = false;
-    joypad->select_directions = false;
     
+    joypad->select_buttons = true;
+    joypad->select_directions = false;
+
     joypad->state.down = false;
     joypad->state.up = false;
     joypad->state.left = false;
@@ -132,6 +135,18 @@ void gb_joypad_reset(gb_joypad_t* joypad){
     joypad->state.a = false;
 
     joypad->current_edge = false;
+}
+
+void gb_joypad_skip_boot(gb_joypad_t* joypad){
+    
+    if(joypad->gb->is_cgb && !joypad->gb->cgb_mode){
+        joypad->select_buttons = false;
+        joypad->select_directions = false;
+    }
+    else{
+        joypad->select_buttons = true;
+        joypad->select_directions = true;
+    }
 }
 
 

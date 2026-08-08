@@ -1,6 +1,6 @@
 #include <gui/utils/utils.hpp>
 
-void palette_t::update_texture(gb_type_t type,bool cgb_mode){
+void palette_t::update_texture(bool is_cgb,bool cgb_mode){
     
     int rows = cgb_mode ? gb_cgb_palettes : (is_obj ? gb_dmg_obj_palettes : gb_dmg_bg_palettes);
 
@@ -13,7 +13,7 @@ void palette_t::update_texture(gb_type_t type,bool cgb_mode){
     for(int row = 0; row < rows; ++row){
         for(int col = 0; col < gb_palette_colors; ++col){
 
-            if(type == gb_cgb){
+            if(is_cgb){
                 if(cgb_mode){
                     color = get_cgb_color(row,col);
                 }

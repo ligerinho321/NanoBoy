@@ -1,17 +1,17 @@
-#include <gui/input/input.hpp>
+#include <gui/input_settings/input_settings.hpp>
 
-input_t::input_t(){
+input_settings_t::input_settings_t(){
     update_window_size_constraints();
 }
 
-input_t::~input_t(){
+input_settings_t::~input_settings_t(){
     for(auto controller : controller_devices){
         SDL_GameControllerClose(controller);
     }
 }
 
 
-void input_t::update_window_size_constraints(){
+void input_settings_t::update_window_size_constraints(){
     
     ImGuiStyle& style = ImGui::GetStyle();
 
@@ -35,10 +35,10 @@ void input_t::update_window_size_constraints(){
 }
 
 
-void input_t::clear_bindings(){
+void input_settings_t::clear_bindings(){
     for(int i = 0; i < gb_button_count; ++i){
         keyboard_bindings[i] = SDL_SCANCODE_UNKNOWN;
-        controller_bindings[i].type = input_t::controller_binding_none;
+        controller_bindings[i].type = input_settings_t::controller_binding_none;
     }
 }
 
@@ -49,8 +49,8 @@ static const char* controller_binding_type_names[] = {
     "Axis"
 };
 
-int input_t::get_controller_binding_type_from_string(const char* string){
-    for(int i = 0; i < input_t::controller_binding_count; ++i){
+int input_settings_t::get_controller_binding_type_from_string(const char* string){
+    for(int i = 0; i < input_settings_t::controller_binding_count; ++i){
         if(!strcmp(controller_binding_type_names[i],string)){
             return i;
         }
@@ -58,18 +58,18 @@ int input_t::get_controller_binding_type_from_string(const char* string){
     return -1;
 }
 
-const char* input_t::get_controller_binding_type_string(int type){
-    if(type < input_t::controller_binding_none && type >= input_t::controller_binding_count){
+const char* input_settings_t::get_controller_binding_type_string(int type){
+    if(type < input_settings_t::controller_binding_none && type >= input_settings_t::controller_binding_count){
         return "";
     }
     return controller_binding_type_names[type];
 }
 
 
-void input_t::save_keyboard_bindings(cJSON* input_object){
+void input_settings_t::save_keyboard_bindings(cJSON* input_settings_object){
 
     cJSON* keyboard_object = cJSON_CreateObject();
-    cJSON_AddItemToObjectCS(input_object,"Keyboard",keyboard_object);
+    cJSON_AddItemToObjectCS(input_settings_object,"Keyboard",keyboard_object);
 
     for(int i = 0; i < gb_button_count; ++i){
 
@@ -80,10 +80,10 @@ void input_t::save_keyboard_bindings(cJSON* input_object){
     }
 }
 
-void input_t::save_controller_bindings(cJSON* input_object){
+void input_settings_t::save_controller_bindings(cJSON* input_settings_object){
 
     cJSON* controller_object = cJSON_CreateObject();
-    cJSON_AddItemToObjectCS(input_object,"Controller",controller_object);
+    cJSON_AddItemToObjectCS(input_settings_object,"Controller",controller_object);
 
     for(int i = 0; i < gb_button_count; ++i){
 
@@ -98,12 +98,12 @@ void input_t::save_controller_bindings(cJSON* input_object){
         cJSON_AddItemToObjectCS(binding_object,"Type",type_string);
 
         switch(binding->type){
-            case input_t::controller_binding_button:{
+            case input_settings_t::controller_binding_button:{
                 cJSON* value_number = cJSON_CreateNumber((double)binding->button);
                 cJSON_AddItemToObjectCS(binding_object,"Value",value_number);
                 break;
             }
-            case input_t::controller_binding_axis:{
+            case input_settings_t::controller_binding_axis:{
                 cJSON* index_number = cJSON_CreateNumber((double)binding->axis.index);
                 cJSON_AddItemToObjectCS(binding_object,"Index",index_number);
 
@@ -115,20 +115,20 @@ void input_t::save_controller_bindings(cJSON* input_object){
     }
 }
 
-void input_t::save(cJSON* settings_object){
+void input_settings_t::save(cJSON* object){
 
-    cJSON* input_object = cJSON_CreateObject();
-    cJSON_AddItemToObjectCS(settings_object,"Input",input_object);
+    cJSON* input_settings_object = cJSON_CreateObject();
+    cJSON_AddItemToObjectCS(object,"Input settings",input_settings_object);
 
-    save_keyboard_bindings(input_object);
+    save_keyboard_bindings(input_settings_object);
 
-    save_controller_bindings(input_object);
+    save_controller_bindings(input_settings_object);
 }
 
 
-void input_t::load_keyboard_bindings(cJSON* input_object){
+void input_settings_t::load_keyboard_bindings(cJSON* input_settings_object){
 
-    cJSON* keyboard_object = cJSON_GetObjectItemCaseSensitive(input_object,"Keyboard");
+    cJSON* keyboard_object = cJSON_GetObjectItemCaseSensitive(input_settings_object,"Keyboard");
     
     if(!keyboard_object || !cJSON_IsObject(keyboard_object)) return;
 
@@ -148,9 +148,9 @@ void input_t::load_keyboard_bindings(cJSON* input_object){
     }
 }
 
-void input_t::load_controller_bindings(cJSON* input_object){
+void input_settings_t::load_controller_bindings(cJSON* input_settings_object){
 
-    cJSON* controller_object = cJSON_GetObjectItemCaseSensitive(input_object,"Controller");
+    cJSON* controller_object = cJSON_GetObjectItemCaseSensitive(input_settings_object,"Controller");
 
     if(!controller_object || !cJSON_IsObject(controller_object)) return;
 
@@ -168,12 +168,12 @@ void input_t::load_controller_bindings(cJSON* input_object){
 
         int type = get_controller_binding_type_from_string(cJSON_GetStringValue(type_string));
 
-        if(type < input_t::controller_binding_none && type >= input_t::controller_binding_count) continue;
+        if(type < input_settings_t::controller_binding_none && type >= input_settings_t::controller_binding_count) continue;
 
         controller_binding_t* binding = controller_bindings + i;
 
         switch(type){
-            case input_t::controller_binding_button:{
+            case input_settings_t::controller_binding_button:{
                 
                 cJSON* value_number = cJSON_GetObjectItemCaseSensitive(binding_object,"Value");
 
@@ -183,7 +183,7 @@ void input_t::load_controller_bindings(cJSON* input_object){
 
                 break;
             }
-            case input_t::controller_binding_axis:{
+            case input_settings_t::controller_binding_axis:{
 
                 cJSON* index_number = cJSON_GetObjectItemCaseSensitive(binding_object,"Index");
 
@@ -210,21 +210,21 @@ void input_t::load_controller_bindings(cJSON* input_object){
     }
 }
 
-void input_t::load(cJSON* settings_object){
+void input_settings_t::load(cJSON* object){
     
     clear_bindings();
 
-    cJSON* input_object = cJSON_GetObjectItemCaseSensitive(settings_object,"Input");
+    cJSON* input_settings_object = cJSON_GetObjectItemCaseSensitive(object,"Input settings");
 
-    if(!input_object) return;
+    if(!input_settings_object) return;
 
-    load_keyboard_bindings(input_object);
+    load_keyboard_bindings(input_settings_object);
 
-    load_controller_bindings(input_object);
+    load_controller_bindings(input_settings_object);
 }
 
 
-bool input_t::button_pressed(gb_joypad_button_t button){
+bool input_settings_t::button_pressed(gb_joypad_button_t button){
 
     const uint8_t* keyboard = SDL_GetKeyboardState(nullptr);
 
@@ -239,14 +239,14 @@ bool input_t::button_pressed(gb_joypad_button_t button){
         controller_binding_t* controller_binding = controller_bindings + button;
 
         switch(controller_binding->type){
-            case input_t::controller_binding_button:{
+            case input_settings_t::controller_binding_button:{
                 pressed = SDL_GameControllerGetButton(current_controller,(SDL_GameControllerButton)controller_binding->button);
                 break;
             }
-            case input_t::controller_binding_axis:{
+            case input_settings_t::controller_binding_axis:{
                 int16_t axis = SDL_GameControllerGetAxis(current_controller,(SDL_GameControllerAxis)controller_binding->axis.index);
                 
-                if(abs(axis) > input_t::controller_axis_deadzone){
+                if(abs(axis) > input_settings_t::controller_axis_deadzone){
                     if(!controller_binding->axis.negative && axis > 0){
                         pressed = true;
                     }
@@ -266,7 +266,7 @@ bool input_t::button_pressed(gb_joypad_button_t button){
 }
 
 
-void input_t::event_settings(SDL_Event& event){
+void input_settings_t::event(SDL_Event& event){
 
     switch(event.type){
         case SDL_CONTROLLERDEVICEADDED:{
@@ -312,11 +312,11 @@ void input_t::event_settings(SDL_Event& event){
         }
         case SDL_KEYDOWN:{
 
-            if(binding_type == input_t::binding_keyboard && binding_button != -1){
+            if(binding_type == input_settings_t::binding_keyboard && binding_button != -1){
                 
                 temp_keyboard_bindings[binding_button] = event.key.keysym.scancode;
 
-                binding_type = input_t::binding_none;
+                binding_type = input_settings_t::binding_none;
                 binding_button = -1;
             }
             
@@ -326,14 +326,14 @@ void input_t::event_settings(SDL_Event& event){
 
             current_controller = SDL_GameControllerFromInstanceID(event.cbutton.which);
 
-            if(binding_type == input_t::binding_controller && binding_button != -1){
+            if(binding_type == input_settings_t::binding_controller && binding_button != -1){
 
                 controller_binding_t* binding = temp_controller_bindings + binding_button;
 
-                binding->type = input_t::controller_binding_button;
+                binding->type = input_settings_t::controller_binding_button;
                 binding->button = event.cbutton.button;
 
-                binding_type = input_t::binding_none;
+                binding_type = input_settings_t::binding_none;
                 binding_button = -1;
             }
 
@@ -343,15 +343,15 @@ void input_t::event_settings(SDL_Event& event){
 
             current_controller = SDL_GameControllerFromInstanceID(event.cbutton.which);
 
-            if(binding_type == input_t::binding_controller && binding_button != -1 && abs(event.caxis.value) > input_t::controller_axis_deadzone){
+            if(binding_type == input_settings_t::binding_controller && binding_button != -1 && abs(event.caxis.value) > input_settings_t::controller_axis_deadzone){
 
                 controller_binding_t* binding = temp_controller_bindings + binding_button;
 
-                binding->type = input_t::controller_binding_axis;
+                binding->type = input_settings_t::controller_binding_axis;
                 binding->axis.index = event.caxis.axis;
                 binding->axis.negative = event.caxis.value < 0;
 
-                binding_type = input_t::binding_none;
+                binding_type = input_settings_t::binding_none;
                 binding_button = -1;
             }
 
@@ -361,10 +361,8 @@ void input_t::event_settings(SDL_Event& event){
 }
 
 
-void input_t::render_settings(){
-    if(!open) return;
-
-    bool _open = open;
+void input_settings_t::render(){
+    if(!_open) return;
 
     ImGui::SetNextWindowSizeConstraints(window_min_size,window_max_size);
 
@@ -394,7 +392,7 @@ void input_t::render_settings(){
                 
                 ImGui::PushID("KeyboardSetup");
 
-                if(binding_type == input_t::binding_keyboard && binding_button == i){
+                if(binding_type == input_settings_t::binding_keyboard && binding_button == i){
 
                     ImGuiStyle& style = ImGui::GetStyle();
 
@@ -408,7 +406,7 @@ void input_t::render_settings(){
                 else{
                     if(ImGui::Button(SDL_GetScancodeName(temp_keyboard_bindings[i]),ImVec2(-FLT_MIN,0.0f))){
                         
-                        binding_type = input_t::binding_keyboard;
+                        binding_type = input_settings_t::binding_keyboard;
                         binding_button = i;
 
                         temp_keyboard_bindings[i] = SDL_SCANCODE_UNKNOWN;
@@ -421,7 +419,7 @@ void input_t::render_settings(){
 
                 ImGui::TableNextColumn();
 
-                if(binding_type == input_t::binding_controller && binding_button == i){
+                if(binding_type == input_settings_t::binding_controller && binding_button == i){
 
                     ImGuiStyle& style = ImGui::GetStyle();
 
@@ -438,11 +436,11 @@ void input_t::render_settings(){
                     const char* label = "";
 
                     switch(binding->type){
-                        case input_t::controller_binding_button:{
+                        case input_settings_t::controller_binding_button:{
                             label = SDL_GameControllerGetStringForButton((SDL_GameControllerButton)binding->button);
                             break;
                         }
-                        case input_t::controller_binding_axis:{
+                        case input_settings_t::controller_binding_axis:{
                             label = SDL_GameControllerGetStringForAxis((SDL_GameControllerAxis)binding->axis.index);
                             break;
                         }
@@ -450,10 +448,10 @@ void input_t::render_settings(){
 
                     if(ImGui::Button(label,ImVec2(-FLT_MIN,0.0f))){
                         
-                        binding_type = input_t::binding_controller;
+                        binding_type = input_settings_t::binding_controller;
                         binding_button = i;
 
-                        temp_controller_bindings[i].type = input_t::controller_binding_none;
+                        temp_controller_bindings[i].type = input_settings_t::controller_binding_none;
                     }
                 }
 
@@ -477,47 +475,47 @@ void input_t::render_settings(){
 
         ImGui::SetCursorPosX((ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x) - (ok_button_width + reset_button_width + cancel_button_width + style.ItemSpacing.x * 2.0f));
 
-        if(ImGui::Button(str_ok)) close_settings(false);
+        if(ImGui::Button(str_ok)) close(false);
 
         ImGui::SameLine();
 
         if(ImGui::Button(str_reset)){
-            binding_type = input_t::binding_none;
+            binding_type = input_settings_t::binding_none;
             binding_button = -1;
             for(int i = 0; i < gb_button_count; ++i){
                 temp_keyboard_bindings[i] = SDL_SCANCODE_UNKNOWN;
-                temp_controller_bindings[i].type = input_t::controller_binding_none;
+                temp_controller_bindings[i].type = input_settings_t::controller_binding_none;
             }
         }
 
         ImGui::SameLine();
 
-        if(ImGui::Button(str_cancel)) close_settings(true);
+        if(ImGui::Button(str_cancel)) close(true);
     }
 
     ImGui::End();
 
     if(!_open){
-        close_settings(true);
+        close(true);
     }
 }
 
 
-void input_t::open_settings() noexcept {
-    if(open) return;
+void input_settings_t::open() noexcept {
+    if(_open) return;
 
-    open = true;
+    _open = true;
 
     memcpy(temp_keyboard_bindings,keyboard_bindings,sizeof(temp_keyboard_bindings));
     memcpy(temp_controller_bindings,controller_bindings,sizeof(temp_controller_bindings));
 }
 
-void input_t::close_settings(bool discard_changes) noexcept {
-    if(!open) return;
+void input_settings_t::close(bool discard_changes) noexcept {
+    if(!_open) return;
 
-    open = false;
+    _open = false;
 
-    binding_type = input_t::binding_none;
+    binding_type = input_settings_t::binding_none;
     binding_button = -1;
 
     if(!discard_changes){
