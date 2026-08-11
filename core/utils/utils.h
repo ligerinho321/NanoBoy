@@ -178,11 +178,11 @@ typedef struct _gb_cheat_code_t {
     struct _gb_cheat_code_t* next;
 } gb_cheat_code_t;
 
-typedef struct _gb_memory_handler_t {
+typedef struct _gb_memory_descriptor_t {
     void (*write)(void*,uint8_t,uint16_t);
     uint8_t (*read)(void*,uint16_t);
     void* data;
-} gb_memory_handler_t;
+} gb_memory_descriptor_t;
 
 
 typedef struct _gb_frame_timer_t {

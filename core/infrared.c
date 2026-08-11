@@ -4,7 +4,7 @@
 void gb_infrared_init(gb_infrared_t* infrared,gb_t* gb){
     infrared->gb = gb;
 
-    infrared->register_handler = (gb_memory_handler_t){
+    infrared->register_descriptor = (gb_memory_descriptor_t){
         gb_infrared_write_register,
         gb_infrared_read_register,
         infrared
@@ -42,11 +42,7 @@ uint8_t gb_infrared_read_register(void* data,uint16_t address){
 
 
 void gb_infrared_map(gb_infrared_t* infrared){
-    gb_memory_map(&infrared->gb->memory,&infrared->register_handler,0xFF56);
-}
-
-void gb_infrared_unmap(gb_infrared_t* infrared){
-    gb_memory_unmap(&infrared->gb->memory,0xFF56);
+    gb_memory_map(&infrared->gb->memory,&infrared->register_descriptor,0xFF56);
 }
 
 

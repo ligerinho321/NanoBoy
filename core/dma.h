@@ -23,8 +23,8 @@ typedef struct _gb_dma_t {
     uint8_t vram_length;
     bool vram_hblank_running;
 
-    gb_memory_handler_t oam_register_handler;
-    gb_memory_handler_t vram_register_handler;
+    gb_memory_descriptor_t oam_register_descriptor;
+    gb_memory_descriptor_t vram_register_descriptor;
 } gb_dma_t;
 
 #ifdef __cplusplus

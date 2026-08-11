@@ -41,7 +41,7 @@ typedef struct _gb_joypad_t {
     gb_joypad_callback_t callback;
     void* callback_data;
 
-    gb_memory_handler_t register_handler;
+    gb_memory_descriptor_t register_descriptor;
 } gb_joypad_t;
 
 

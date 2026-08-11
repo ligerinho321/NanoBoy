@@ -24,8 +24,8 @@ bool gb_mbc6_init(gb_cartridge_t* cartridge,uint8_t flags){
 
     gb_cartridge_set_rom0_bank(cartridge,0x00);
 
-    cartridge->rom0_handler.write = gb_mbc6_write_register;
-    cartridge->rom1_handler.read = gb_mbc6_read_rom_or_flash;
+    cartridge->rom0_descriptor.write = gb_mbc6_write_register;
+    cartridge->rom1_descriptor.read = gb_mbc6_read_rom_or_flash;
 
     if(flags & gb_cartridge_ram){
         
@@ -79,12 +79,12 @@ void gb_mbc6_write_register(void* data,uint8_t value,uint16_t address){
 
         if(cartridge->ram_size > 0x00){
             if(mbc6->ram_enabled){
-                cartridge->ram_handler.write = gb_mbc6_write_ram;
-                cartridge->ram_handler.read = gb_mbc6_read_ram;
+                cartridge->ram_descriptor.write = gb_mbc6_write_ram;
+                cartridge->ram_descriptor.read = gb_mbc6_read_ram;
             }
             else{
-                cartridge->ram_handler.write = gb_memory_write_empty;
-                cartridge->ram_handler.read = gb_memory_read_empty;
+                cartridge->ram_descriptor.write = gb_memory_write_empty;
+                cartridge->ram_descriptor.read = gb_memory_read_empty;
             }
         }
     }
@@ -104,10 +104,10 @@ void gb_mbc6_write_register(void* data,uint8_t value,uint16_t address){
         mbc6->flash_enabled = value & 0x01;
 
         if(mbc6->flash_enabled){
-            cartridge->rom1_handler.write = gb_mbc6_write_flash;
+            cartridge->rom1_descriptor.write = gb_mbc6_write_flash;
         }
         else{
-            cartridge->rom1_handler.write = gb_memory_write_empty;
+            cartridge->rom1_descriptor.write = gb_memory_write_empty;
         }
     }
     //0x1000-0x1FFF
@@ -447,13 +447,13 @@ void gb_mbc6_reset(gb_cartridge_t* cartridge){
     mbc6->ram_enabled = false;
 
     if(cartridge->ram_size > 0x00){
-        cartridge->ram_handler.write = gb_memory_write_empty;
-        cartridge->ram_handler.read = gb_memory_read_empty;
+        cartridge->ram_descriptor.write = gb_memory_write_empty;
+        cartridge->ram_descriptor.read = gb_memory_read_empty;
     }
 
     mbc6->flash_enabled = false;
 
-    cartridge->rom1_handler.write = gb_memory_write_empty;
+    cartridge->rom1_descriptor.write = gb_memory_write_empty;
 
     mbc6->flash_write_enabled = false;
 
@@ -514,22 +514,22 @@ void gb_mbc6_load_state(gb_cartridge_t* cartridge,gb_state_t* state){
 
     if(cartridge->ram_size > 0x00){
         if(mbc6->ram_enabled){
-            cartridge->ram_handler.write = gb_mbc6_write_ram;
-            cartridge->ram_handler.read = gb_mbc6_read_ram;
+            cartridge->ram_descriptor.write = gb_mbc6_write_ram;
+            cartridge->ram_descriptor.read = gb_mbc6_read_ram;
         }
         else{
-            cartridge->ram_handler.write = gb_memory_write_empty;
-            cartridge->ram_handler.read = gb_memory_read_empty;
+            cartridge->ram_descriptor.write = gb_memory_write_empty;
+            cartridge->ram_descriptor.read = gb_memory_read_empty;
         }
     }
 
     gb_state_read(state,mbc6->flash_enabled);
 
     if(mbc6->flash_enabled){
-        cartridge->rom1_handler.write = gb_mbc6_write_flash;
+        cartridge->rom1_descriptor.write = gb_mbc6_write_flash;
     }
     else{
-        cartridge->rom1_handler.write = gb_memory_write_empty;
+        cartridge->rom1_descriptor.write = gb_memory_write_empty;
     }
 
     gb_state_read(state,mbc6->flash_write_enabled);

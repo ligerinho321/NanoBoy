@@ -30,8 +30,8 @@ bool gb_mbc3_init(gb_cartridge_t* cartridge,uint8_t flags){
 
     gb_cartridge_set_rom0_bank(cartridge,0x00);
 
-    cartridge->rom0_handler.write = gb_mbc3_write_register_0;
-    cartridge->rom1_handler.write = gb_mbc3_write_register_1;
+    cartridge->rom0_descriptor.write = gb_mbc3_write_register_0;
+    cartridge->rom1_descriptor.write = gb_mbc3_write_register_1;
     
     if(flags & gb_cartridge_ram){
         if(!gb_cartridge_init_ram(cartridge,flags & gb_cartridge_battery)){
@@ -55,8 +55,8 @@ void gb_mbc3_update_ram_or_rtc_mapping(gb_cartridge_t* cartridge){
             
             gb_cartridge_set_ram_bank(cartridge,mbc3->ram_or_rtc_bank);
 
-            cartridge->ram_handler.write = gb_cartridge_write_ram;
-            cartridge->ram_handler.read = gb_cartridge_read_ram;
+            cartridge->ram_descriptor.write = gb_cartridge_write_ram;
+            cartridge->ram_descriptor.read = gb_cartridge_read_ram;
         }
         else{
             goto unmap;
@@ -66,8 +66,8 @@ void gb_mbc3_update_ram_or_rtc_mapping(gb_cartridge_t* cartridge){
 
         if(mbc3->has_rtc){
             
-            cartridge->ram_handler.write = gb_mbc3_rtc_write_register;
-            cartridge->ram_handler.read = gb_mbc3_rtc_read_register;
+            cartridge->ram_descriptor.write = gb_mbc3_rtc_write_register;
+            cartridge->ram_descriptor.read = gb_mbc3_rtc_read_register;
         }
         else{
             goto unmap;
@@ -80,8 +80,8 @@ void gb_mbc3_update_ram_or_rtc_mapping(gb_cartridge_t* cartridge){
     return;
 
     unmap:
-    cartridge->ram_handler.write = gb_memory_write_empty;
-    cartridge->ram_handler.read = gb_memory_read_empty;
+    cartridge->ram_descriptor.write = gb_memory_write_empty;
+    cartridge->ram_descriptor.read = gb_memory_read_empty;
 }
 
 

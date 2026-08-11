@@ -4,25 +4,25 @@
 void gb_ppu_init(gb_ppu_t* ppu,gb_t* gb){
     ppu->gb = gb;
 
-    ppu->vram_handler = (gb_memory_handler_t){
+    ppu->vram_descriptor = (gb_memory_descriptor_t){
         gb_ppu_write_vram,
         gb_ppu_read_vram,
         ppu
     };
 
-    ppu->register_handler = (gb_memory_handler_t){
+    ppu->register_descriptor = (gb_memory_descriptor_t){
         gb_ppu_write_register,
         gb_ppu_read_register,
         ppu
     };
 
-    ppu->vbk_register_handler = (gb_memory_handler_t){
+    ppu->vbk_register_descriptor = (gb_memory_descriptor_t){
         gb_ppu_write_vbk_register,
         gb_ppu_read_vbk_register,
         ppu
     };
     
-    ppu->oam_handler = (gb_memory_handler_t){
+    ppu->oam_descriptor = (gb_memory_descriptor_t){
         gb_ppu_write_oam,
         gb_ppu_read_oam,
         ppu
@@ -726,14 +726,14 @@ uint8_t gb_ppu_read_oam(void* data,uint16_t address){
 void gb_ppu_map(gb_ppu_t* ppu){
     gb_memory_t* memory = &ppu->gb->memory;
 
-    gb_memory_map_in_range(memory,&ppu->vram_handler,0x8000,0x9FFF);
+    gb_memory_map_in_range(memory,&ppu->vram_descriptor,0x8000,0x9FFF);
 
-    gb_memory_map_in_range(memory,&ppu->register_handler,0xFF40,0xFF45);
-    gb_memory_map_in_range(memory,&ppu->register_handler,0xFF4A,0xFF4B);
+    gb_memory_map_in_range(memory,&ppu->register_descriptor,0xFF40,0xFF45);
+    gb_memory_map_in_range(memory,&ppu->register_descriptor,0xFF4A,0xFF4B);
 
-    gb_memory_map_in_range(memory,&ppu->oam_handler,0xFE00,0xFE9F);
+    gb_memory_map_in_range(memory,&ppu->oam_descriptor,0xFE00,0xFE9F);
 
-    gb_memory_map(memory,&ppu->vbk_register_handler,0xFF4F);
+    gb_memory_map(memory,&ppu->vbk_register_descriptor,0xFF4F);
 }
 
 

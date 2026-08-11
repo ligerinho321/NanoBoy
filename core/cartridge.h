@@ -34,15 +34,15 @@ typedef struct _gb_cartridge_t {
     uint8_t* rom;
     size_t rom_size;
     uint32_t rom_crc32;
-    gb_memory_handler_t rom0_handler;
-    gb_memory_handler_t rom1_handler;
+    gb_memory_descriptor_t rom0_descriptor;
+    gb_memory_descriptor_t rom1_descriptor;
     uint8_t* rom0_ptr;
     uint8_t* rom1_ptr;
     uint16_t rom_bank_mask;
 
     uint8_t* ram;
     size_t ram_size;
-    gb_memory_handler_t ram_handler;
+    gb_memory_descriptor_t ram_descriptor;
     uint8_t* ram_ptr;
     uint8_t ram_bank_mask;
     uint16_t ram_address_mask;

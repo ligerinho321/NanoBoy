@@ -4,7 +4,7 @@
 void gb_serial_init(gb_serial_t* serial,gb_t* gb){
     serial->gb = gb;
 
-    serial->register_handler = (gb_memory_handler_t){
+    serial->register_descriptor = (gb_memory_descriptor_t){
         gb_serial_write_register,
         gb_serial_read_register,
         serial
@@ -123,7 +123,7 @@ uint8_t gb_serial_read_register(void* data,uint16_t address){
 
 
 void gb_serial_map_registers(gb_serial_t* serial){
-    gb_memory_map_in_range(&serial->gb->memory,&serial->register_handler,0xFF01,0xFF02);
+    gb_memory_map_in_range(&serial->gb->memory,&serial->register_descriptor,0xFF01,0xFF02);
 }
 
 

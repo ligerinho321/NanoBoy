@@ -24,8 +24,8 @@ typedef struct _gb_boot_t {
 
     bool mapped;
     
-    gb_memory_handler_t rom_handler;
-    gb_memory_handler_t bank_register_handler;
+    gb_memory_descriptor_t rom_descriptor;
+    gb_memory_descriptor_t bank_register_descriptor;
 } gb_boot_t;
 
 

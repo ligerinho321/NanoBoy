@@ -140,15 +140,15 @@ typedef struct _gb_ppu_t {
     uint8_t* vram_bank_ptr;
     uint8_t vram_bank;
     bool vram_blocked;
-    gb_memory_handler_t vram_handler;
-    gb_memory_handler_t vbk_register_handler;
+    gb_memory_descriptor_t vram_descriptor;
+    gb_memory_descriptor_t vbk_register_descriptor;
 
     uint8_t oam[gb_oam_length];
     uint8_t oam_address;
     bool oam_blocked;
-    gb_memory_handler_t oam_handler;
+    gb_memory_descriptor_t oam_descriptor;
 
-    gb_memory_handler_t register_handler;
+    gb_memory_descriptor_t register_descriptor;
 
     gb_ppu_handler_t* handlers;
 } gb_ppu_t;

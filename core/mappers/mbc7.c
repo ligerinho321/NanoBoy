@@ -35,8 +35,8 @@ bool gb_mbc7_init(gb_cartridge_t* cartridge,uint8_t flags){
     cartridge->ram_address_mask = gb_eeprom93lc56_ram_address_mask;
     cartridge->ram_has_battery = flags & gb_cartridge_battery;
 
-    cartridge->rom0_handler.write = gb_mbc7_write_register_0;
-    cartridge->rom1_handler.write = gb_mbc7_write_register_1;
+    cartridge->rom0_descriptor.write = gb_mbc7_write_register_0;
+    cartridge->rom1_descriptor.write = gb_mbc7_write_register_1;
 
     gb_cartridge_set_rom0_bank(cartridge,0x00);
 
@@ -53,12 +53,12 @@ void gb_mbc7_write_register_0(void* data,uint8_t value,uint16_t address){
         mbc7->ram_1_enabled = (value & 0x0F) == 0x0A;
 
         if(mbc7->ram_1_enabled && mbc7->ram_2_enabled){
-            cartridge->ram_handler.write = gb_mbc7_write_register_2;
-            cartridge->ram_handler.read = gb_mbc7_read_register_2;
+            cartridge->ram_descriptor.write = gb_mbc7_write_register_2;
+            cartridge->ram_descriptor.read = gb_mbc7_read_register_2;
         }
         else{
-            cartridge->ram_handler.write = gb_memory_write_empty;
-            cartridge->ram_handler.read = gb_memory_read_empty;
+            cartridge->ram_descriptor.write = gb_memory_write_empty;
+            cartridge->ram_descriptor.read = gb_memory_read_empty;
         }
     }
     //0x2000-0x3FFF
@@ -77,12 +77,12 @@ void gb_mbc7_write_register_1(void* data,uint8_t value,uint16_t address){
         mbc7->ram_2_enabled = value == 0x40;
 
         if(mbc7->ram_1_enabled && mbc7->ram_2_enabled){
-            cartridge->ram_handler.write = gb_mbc7_write_register_2;
-            cartridge->ram_handler.read = gb_mbc7_read_register_2;
+            cartridge->ram_descriptor.write = gb_mbc7_write_register_2;
+            cartridge->ram_descriptor.read = gb_mbc7_read_register_2;
         }
         else{
-            cartridge->ram_handler.write = gb_memory_write_empty;
-            cartridge->ram_handler.read = gb_memory_read_empty;
+            cartridge->ram_descriptor.write = gb_memory_write_empty;
+            cartridge->ram_descriptor.read = gb_memory_read_empty;
         }
     }
 }
@@ -150,8 +150,8 @@ void gb_mbc7_reset(gb_cartridge_t* cartridge){
     mbc7->ram_1_enabled = false;
     mbc7->ram_2_enabled = false;
 
-    cartridge->ram_handler.write = gb_memory_write_empty;
-    cartridge->ram_handler.read = gb_memory_read_empty;
+    cartridge->ram_descriptor.write = gb_memory_write_empty;
+    cartridge->ram_descriptor.read = gb_memory_read_empty;
 
     mbc7->rom_bank = 0x00;
 
@@ -187,12 +187,12 @@ void gb_mbc7_load_state(gb_cartridge_t* cartridge,gb_state_t* state){
     gb_state_read(state,mbc7->ram_2_enabled);
 
     if(mbc7->ram_1_enabled && mbc7->ram_2_enabled){
-        cartridge->ram_handler.write = gb_mbc7_write_register_2;
-        cartridge->ram_handler.read = gb_mbc7_read_register_2;
+        cartridge->ram_descriptor.write = gb_mbc7_write_register_2;
+        cartridge->ram_descriptor.read = gb_mbc7_read_register_2;
     }
     else{
-        cartridge->ram_handler.write = gb_memory_write_empty;
-        cartridge->ram_handler.read = gb_memory_read_empty;
+        cartridge->ram_descriptor.write = gb_memory_write_empty;
+        cartridge->ram_descriptor.read = gb_memory_read_empty;
     }
 
     gb_state_write(state,mbc7->rom_bank);

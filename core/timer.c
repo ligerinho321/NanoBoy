@@ -6,7 +6,7 @@ static const uint16_t div_bit[4] = {0x200,0x08,0x20,0x80};
 void gb_timer_init(gb_timer_t* timer,gb_t* gb){
     timer->gb = gb;
     
-    timer->register_handler = (gb_memory_handler_t){
+    timer->register_descriptor = (gb_memory_descriptor_t){
         gb_timer_write_register,
         gb_timer_read_register,
         timer
@@ -121,7 +121,7 @@ uint8_t gb_timer_read_register(void* data,uint16_t address){
 
 
 void gb_timer_map_registers(gb_timer_t* timer){
-    gb_memory_map_in_range(&timer->gb->memory,&timer->register_handler,0xFF04,0xFF07);
+    gb_memory_map_in_range(&timer->gb->memory,&timer->register_descriptor,0xFF04,0xFF07);
 }
 
 

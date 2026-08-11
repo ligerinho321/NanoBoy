@@ -4,7 +4,7 @@
 void gb_memory_init(gb_memory_t* memory,gb_t* gb){
     memory->gb = gb;
 
-    memory->empty_handler = (gb_memory_handler_t){
+    memory->empty_descriptor = (gb_memory_descriptor_t){
         gb_memory_write_empty,
         gb_memory_read_empty,
         NULL
@@ -12,25 +12,25 @@ void gb_memory_init(gb_memory_t* memory,gb_t* gb){
 
     gb_memory_unmap_in_range(memory,0x0000,0xFFFF);
 
-    memory->wram0_handler = (gb_memory_handler_t){
+    memory->wram0_descriptor = (gb_memory_descriptor_t){
         gb_memory_write_wram0,
         gb_memory_read_wram0,
         memory
     };
 
-    memory->wram1_handler = (gb_memory_handler_t){
+    memory->wram1_descriptor = (gb_memory_descriptor_t){
         gb_memory_write_wram1,
         gb_memory_read_wram1,
         memory
     };
 
-    memory->hram_handler = (gb_memory_handler_t){
+    memory->hram_descriptor = (gb_memory_descriptor_t){
         gb_memory_write_hram,
         gb_memory_read_hram,
         memory
     };
 
-    memory->wbk_register_handler = (gb_memory_handler_t){
+    memory->wbk_register_descriptor = (gb_memory_descriptor_t){
         gb_memory_write_wbk_register,
         gb_memory_read_wbk_register,
         memory
@@ -67,22 +67,22 @@ void gb_memory_remove_cheat_code(gb_memory_t* memory,gb_cheat_code_t* code){
 
 
 void gb_memory_cpu_write(gb_memory_t* memory,uint8_t value,uint16_t address){
-    gb_memory_handler_t* handler = memory->bus[address];
+    gb_memory_descriptor_t* descriptor = memory->bus[address];
 
     if(memory->gb->dma.oam_state != gb_oam_dma_state_transfer || !gb_oam_dma_bus_conflict(&memory->gb->dma,address)){
-        handler->write(handler->data,value,address);
+        descriptor->write(descriptor->data,value,address);
     }
 
 }
 
 uint8_t gb_memory_cpu_read(gb_memory_t* memory,uint16_t address){
-    gb_memory_handler_t* handler = memory->bus[address];
+    gb_memory_descriptor_t* descriptor = memory->bus[address];
     
     uint8_t value = 0xFF;
 
     if(memory->gb->dma.oam_state != gb_oam_dma_state_transfer || !gb_oam_dma_bus_conflict(&memory->gb->dma,address)){
         
-        value = handler->read(handler->data,address);
+        value = descriptor->read(descriptor->data,address);
 
         gb_memory_apply_cheat(memory,&value,address);
     }
@@ -95,9 +95,9 @@ uint8_t gb_memory_cpu_read(gb_memory_t* memory,uint16_t address){
 
 
 uint8_t gb_memory_oam_dma_read(gb_memory_t* memory,uint16_t address){
-    gb_memory_handler_t* handler = memory->bus[address];
+    gb_memory_descriptor_t* descriptor = memory->bus[address];
 
-    uint8_t value = handler->read(handler->data,address);
+    uint8_t value = descriptor->read(descriptor->data,address);
 
     gb_memory_apply_cheat(memory,&value,address);
 
@@ -106,9 +106,9 @@ uint8_t gb_memory_oam_dma_read(gb_memory_t* memory,uint16_t address){
 
 
 void gb_memory_vram_dma_write(gb_memory_t* memory,uint8_t value,uint16_t address){
-    gb_memory_handler_t* handler = memory->bus[address];
+    gb_memory_descriptor_t* descriptor = memory->bus[address];
 
-    handler->write(handler->data,value,address);
+    descriptor->write(descriptor->data,value,address);
 }
 
 uint8_t gb_memory_vram_dma_read(gb_memory_t* memory,uint16_t address){
@@ -117,9 +117,9 @@ uint8_t gb_memory_vram_dma_read(gb_memory_t* memory,uint16_t address){
         return 0xFF;
     }
 
-    gb_memory_handler_t* handler = memory->bus[address];
+    gb_memory_descriptor_t* descriptor = memory->bus[address];
 
-    uint8_t value = handler->read(handler->data,address);
+    uint8_t value = descriptor->read(descriptor->data,address);
     
     gb_memory_apply_cheat(memory,&value,address);
 
@@ -148,13 +148,13 @@ uint8_t gb_memory_read_wram1(void* data,uint16_t address){
 }
 
 void gb_memory_map_wram(gb_memory_t* memory){
-    gb_memory_map_in_range(memory,&memory->wram0_handler,0xC000,0xCFFF);
-    gb_memory_map_in_range(memory,&memory->wram0_handler,0xE000,0xEFFF);
+    gb_memory_map_in_range(memory,&memory->wram0_descriptor,0xC000,0xCFFF);
+    gb_memory_map_in_range(memory,&memory->wram0_descriptor,0xE000,0xEFFF);
 
-    gb_memory_map_in_range(memory,&memory->wram1_handler,0xD000,0xDFFF);
-    gb_memory_map_in_range(memory,&memory->wram1_handler,0xF000,0xFDFF);
+    gb_memory_map_in_range(memory,&memory->wram1_descriptor,0xD000,0xDFFF);
+    gb_memory_map_in_range(memory,&memory->wram1_descriptor,0xF000,0xFDFF);
 
-    gb_memory_map(memory,&memory->wbk_register_handler,0xFF70);
+    gb_memory_map(memory,&memory->wbk_register_descriptor,0xFF70);
 }
 
 
@@ -169,7 +169,7 @@ uint8_t gb_memory_read_hram(void* data,uint16_t address){
 }
 
 void gb_memory_map_hram(gb_memory_t* memory){
-    gb_memory_map_in_range(memory,&memory->hram_handler,0xFF80,0xFFFE);
+    gb_memory_map_in_range(memory,&memory->hram_descriptor,0xFF80,0xFFFE);
 }
 
 

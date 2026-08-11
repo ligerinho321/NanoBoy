@@ -4,13 +4,13 @@
 void gb_dma_init(gb_dma_t* dma,gb_t* gb){
     dma->gb = gb;
 
-    dma->oam_register_handler = (gb_memory_handler_t){
+    dma->oam_register_descriptor = (gb_memory_descriptor_t){
         gb_oam_dma_write_register,
         gb_oam_dma_read_register,
         dma
     };
     
-    dma->vram_register_handler = (gb_memory_handler_t){
+    dma->vram_register_descriptor = (gb_memory_descriptor_t){
         gb_vram_dma_write_register,
         gb_vram_dma_read_register,
         dma
@@ -224,9 +224,9 @@ uint8_t gb_vram_dma_read_register(void* data,uint16_t address){
 void gb_dma_map(gb_dma_t* dma){
     gb_memory_t* memory = &dma->gb->memory;
     
-    gb_memory_map(memory,&dma->oam_register_handler,0xFF46);
+    gb_memory_map(memory,&dma->oam_register_descriptor,0xFF46);
 
-    gb_memory_map_in_range(memory,&dma->vram_register_handler,0xFF51,0xFF55);
+    gb_memory_map_in_range(memory,&dma->vram_register_descriptor,0xFF51,0xFF55);
 }
 
 

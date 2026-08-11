@@ -21,8 +21,8 @@ bool gb_mbc5_init(gb_cartridge_t* cartridge,uint8_t flags){
 
     gb_cartridge_set_rom0_bank(cartridge,0x00);
 
-    cartridge->rom0_handler.write = gb_mbc5_write_register_0;
-    cartridge->rom1_handler.write = gb_mbc5_write_register_1;
+    cartridge->rom0_descriptor.write = gb_mbc5_write_register_0;
+    cartridge->rom1_descriptor.write = gb_mbc5_write_register_1;
 
     if(flags & gb_cartridge_ram){
         if(!gb_cartridge_init_ram(cartridge,flags & gb_cartridge_battery)){
@@ -45,12 +45,12 @@ void gb_mbc5_write_register_0(void* data,uint8_t value,uint16_t address){
             mbc5->ram_enabled = (value & 0x0F) == 0x0A;
 
             if(mbc5->ram_enabled){
-                cartridge->ram_handler.write = gb_cartridge_write_ram;
-                cartridge->ram_handler.read = gb_cartridge_read_ram;
+                cartridge->ram_descriptor.write = gb_cartridge_write_ram;
+                cartridge->ram_descriptor.read = gb_cartridge_read_ram;
             }
             else{
-                cartridge->ram_handler.write = gb_memory_write_empty;
-                cartridge->ram_handler.read = gb_memory_read_empty;
+                cartridge->ram_descriptor.write = gb_memory_write_empty;
+                cartridge->ram_descriptor.read = gb_memory_read_empty;
             }
         }
     }
@@ -86,8 +86,8 @@ void gb_mbc5_reset(gb_cartridge_t* cartridge){
     if(cartridge->ram_size > 0x00){
         mbc5->ram_enabled = false;
 
-        cartridge->ram_handler.write = gb_memory_write_empty;
-        cartridge->ram_handler.read = gb_memory_read_empty;
+        cartridge->ram_descriptor.write = gb_memory_write_empty;
+        cartridge->ram_descriptor.read = gb_memory_read_empty;
 
         mbc5->ram_bank = 0x00;
         gb_cartridge_set_ram_bank(cartridge,mbc5->ram_bank);
@@ -116,12 +116,12 @@ void gb_mbc5_load_state(gb_cartridge_t* cartridge,gb_state_t* state){
         gb_state_read(state,mbc5->ram_enabled);
 
         if(mbc5->ram_enabled){
-            cartridge->ram_handler.write = gb_cartridge_write_ram;
-            cartridge->ram_handler.read = gb_cartridge_read_ram;
+            cartridge->ram_descriptor.write = gb_cartridge_write_ram;
+            cartridge->ram_descriptor.read = gb_cartridge_read_ram;
         }
         else{
-            cartridge->ram_handler.write = gb_memory_write_empty;
-            cartridge->ram_handler.read = gb_memory_read_empty;
+            cartridge->ram_descriptor.write = gb_memory_write_empty;
+            cartridge->ram_descriptor.read = gb_memory_read_empty;
         }
 
         gb_state_read(state,mbc5->ram_bank);

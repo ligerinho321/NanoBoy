@@ -15,7 +15,7 @@ static const char* button_names[] = {
 void gb_joypad_init(gb_joypad_t* joypad,gb_t* gb){
     joypad->gb = gb;
 
-    joypad->register_handler = (gb_memory_handler_t){
+    joypad->register_descriptor = (gb_memory_descriptor_t){
         gb_joypad_write_register,
         gb_joypad_read_register,
         joypad
@@ -115,7 +115,7 @@ bool gb_joypad_is_any_button_pressed(gb_joypad_t* joypad){
 
 
 void gb_joypad_map_registers(gb_joypad_t* joypad){
-    gb_memory_map(&joypad->gb->memory,&joypad->register_handler,0xFF00);
+    gb_memory_map(&joypad->gb->memory,&joypad->register_descriptor,0xFF00);
 }
 
 

@@ -130,14 +130,14 @@ typedef struct _gb_apu_t {
     uint64_t last_clock_cycle;
     uint64_t cycles;
     
-    gb_memory_handler_t square1_register_handler;
-    gb_memory_handler_t square2_register_handler;
-    gb_memory_handler_t wave_register_handler;
-    gb_memory_handler_t noise_register_handler;
-    gb_memory_handler_t register_handler;
-    gb_memory_handler_t wave_ram_handler;
-    gb_memory_handler_t pcm12_register_handler;
-    gb_memory_handler_t pcm34_register_handler;
+    gb_memory_descriptor_t square1_register_descriptor;
+    gb_memory_descriptor_t square2_register_descriptor;
+    gb_memory_descriptor_t wave_register_descriptor;
+    gb_memory_descriptor_t noise_register_descriptor;
+    gb_memory_descriptor_t register_descriptor;
+    gb_memory_descriptor_t wave_ram_descriptor;
+    gb_memory_descriptor_t pcm12_register_descriptor;
+    gb_memory_descriptor_t pcm34_register_descriptor;
 
     gb_ring_buffer_t ring_buffer;
     

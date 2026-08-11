@@ -19,7 +19,7 @@ bool gb_mbc2_init(gb_cartridge_t* cartridge,uint8_t flags){
     cartridge->mapper.save_state = gb_mbc2_save_state;
     cartridge->mapper.load_state = gb_mbc2_load_state;
 
-    cartridge->rom0_handler.write = gb_mbc2_write_register;
+    cartridge->rom0_descriptor.write = gb_mbc2_write_register;
 
     gb_cartridge_set_rom0_bank(cartridge,0x00);
 
@@ -51,12 +51,12 @@ void gb_mbc2_write_register(void* data,uint8_t value,uint16_t address){
     else{
         mbc2->ram_enabled = (value & 0x0F) == 0x0A;
         if(mbc2->ram_enabled){
-            cartridge->ram_handler.write = gb_mbc2_write_ram;
-            cartridge->ram_handler.read = gb_mbc2_read_ram;
+            cartridge->ram_descriptor.write = gb_mbc2_write_ram;
+            cartridge->ram_descriptor.read = gb_mbc2_read_ram;
         }
         else{
-            cartridge->ram_handler.write = gb_memory_write_empty;
-            cartridge->ram_handler.read = gb_memory_read_empty;
+            cartridge->ram_descriptor.write = gb_memory_write_empty;
+            cartridge->ram_descriptor.read = gb_memory_read_empty;
         }
     }
 }
@@ -75,8 +75,8 @@ void gb_mbc2_reset(gb_cartridge_t* cartridge){
     gb_mbc2_t* mbc2 = (gb_mbc2_t*)cartridge->mapper.data;
 
     mbc2->ram_enabled = false;
-    cartridge->ram_handler.write = gb_memory_write_empty;
-    cartridge->ram_handler.read = gb_memory_read_empty;
+    cartridge->ram_descriptor.write = gb_memory_write_empty;
+    cartridge->ram_descriptor.read = gb_memory_read_empty;
 
     mbc2->rom_bank = 0x01;
     gb_cartridge_set_rom1_bank(cartridge,mbc2->rom_bank);
@@ -95,12 +95,12 @@ void gb_mbc2_load_state(gb_cartridge_t* cartridge,gb_state_t* state){
     gb_state_read(state,mbc2->ram_enabled);
 
     if(mbc2->ram_enabled){
-        cartridge->ram_handler.write = gb_mbc2_write_ram;
-        cartridge->ram_handler.read = gb_mbc2_read_ram;
+        cartridge->ram_descriptor.write = gb_mbc2_write_ram;
+        cartridge->ram_descriptor.read = gb_mbc2_read_ram;
     }
     else{
-        cartridge->ram_handler.write = gb_memory_write_empty;
-        cartridge->ram_handler.read = gb_memory_read_empty;
+        cartridge->ram_descriptor.write = gb_memory_write_empty;
+        cartridge->ram_descriptor.read = gb_memory_read_empty;
     }
 
     gb_state_read(state,mbc2->rom_bank);

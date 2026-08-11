@@ -38,8 +38,8 @@ typedef struct _gb_palette_t {
     gb_rgb_t bg_cram_converted[gb_cgb_colors];
     gb_rgb_t obj_cram_converted[gb_cgb_colors];
 
-    gb_memory_handler_t dmg_register_handler;
-    gb_memory_handler_t cgb_register_handler;
+    gb_memory_descriptor_t dmg_register_descriptor;
+    gb_memory_descriptor_t cgb_register_descriptor;
 } gb_palette_t;
 
 extern const gb_rgb_t dmg_colors[gb_dmg_colors];

@@ -12,13 +12,13 @@ const gb_rgb_t dmg_colors[gb_dmg_colors] = {
 void gb_palette_init(gb_palette_t* palette,gb_t* gb){
     palette->gb = gb;
 
-    palette->dmg_register_handler = (gb_memory_handler_t){
+    palette->dmg_register_descriptor = (gb_memory_descriptor_t){
         gb_palette_write_dmg_register,
         gb_palette_read_dmg_register,
         palette
     };
     
-    palette->cgb_register_handler = (gb_memory_handler_t){
+    palette->cgb_register_descriptor = (gb_memory_descriptor_t){
         gb_palette_write_cgb_register,
         gb_palette_read_cgb_register,
         palette
@@ -352,9 +352,9 @@ uint8_t gb_palette_read_cgb_register(void* data,uint16_t address){
 void gb_palette_map(gb_palette_t* palette){
     gb_memory_t* memory = &palette->gb->memory;
 
-    gb_memory_map_in_range(memory,&palette->dmg_register_handler,0xFF47,0xFF49);
+    gb_memory_map_in_range(memory,&palette->dmg_register_descriptor,0xFF47,0xFF49);
 
-    gb_memory_map_in_range(memory,&palette->cgb_register_handler,0xFF68,0xFF6B);
+    gb_memory_map_in_range(memory,&palette->cgb_register_descriptor,0xFF68,0xFF6B);
 }
 
 

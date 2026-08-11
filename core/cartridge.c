@@ -11,19 +11,19 @@ static const uint8_t nintendo_logo[0x30] = {
 void gb_cartridge_init(gb_cartridge_t* cartridge,gb_t* gb){
     cartridge->gb = gb;
 
-    cartridge->rom0_handler = (gb_memory_handler_t){
+    cartridge->rom0_descriptor = (gb_memory_descriptor_t){
         gb_memory_write_empty,
         gb_cartridge_read_rom0,
         cartridge
     };
 
-    cartridge->rom1_handler = (gb_memory_handler_t){
+    cartridge->rom1_descriptor = (gb_memory_descriptor_t){
         gb_memory_write_empty,
         gb_cartridge_read_rom1,
         cartridge
     };
 
-    cartridge->ram_handler = (gb_memory_handler_t){
+    cartridge->ram_descriptor = (gb_memory_descriptor_t){
         gb_memory_write_empty,
         gb_memory_read_empty,
         cartridge
@@ -114,11 +114,11 @@ void gb_cartridge_remove(gb_cartridge_t* cartridge){
 
     cartridge->rom_crc32 = 0x00;
     
-    cartridge->rom0_handler.write = gb_memory_write_empty;
-    cartridge->rom0_handler.read = gb_cartridge_read_rom0;
+    cartridge->rom0_descriptor.write = gb_memory_write_empty;
+    cartridge->rom0_descriptor.read = gb_cartridge_read_rom0;
     
-    cartridge->rom1_handler.write = gb_memory_write_empty;
-    cartridge->rom1_handler.read = gb_cartridge_read_rom1;
+    cartridge->rom1_descriptor.write = gb_memory_write_empty;
+    cartridge->rom1_descriptor.read = gb_cartridge_read_rom1;
 
     cartridge->rom0_ptr = NULL;
     cartridge->rom1_ptr = NULL;
@@ -131,8 +131,8 @@ void gb_cartridge_remove(gb_cartridge_t* cartridge){
     }
 
     cartridge->ram_size = 0x00;
-    cartridge->ram_handler.write = gb_memory_write_empty;
-    cartridge->ram_handler.read = gb_memory_read_empty;
+    cartridge->ram_descriptor.write = gb_memory_write_empty;
+    cartridge->ram_descriptor.read = gb_memory_read_empty;
     cartridge->ram_ptr = NULL;
     cartridge->ram_bank_mask = 0x00;
     cartridge->ram_address_mask = 0x00;
@@ -364,8 +364,8 @@ bool gb_no_mbc_init(gb_cartridge_t* cartridge,uint8_t flags){
             
             gb_cartridge_set_ram_bank(cartridge,0x00);
 
-            cartridge->ram_handler.write = gb_cartridge_write_ram;
-            cartridge->ram_handler.read = gb_cartridge_read_ram;
+            cartridge->ram_descriptor.write = gb_cartridge_write_ram;
+            cartridge->ram_descriptor.read = gb_cartridge_read_ram;
         }
     }
 
@@ -397,9 +397,9 @@ uint8_t gb_cartridge_read_ram(void* data,uint16_t address){
 
 void gb_cartridge_map(gb_cartridge_t* cartridge){
     gb_memory_t* memory = &cartridge->gb->memory;
-    gb_memory_map_in_range(memory,&cartridge->rom0_handler,0x0000,0x3FFF);
-    gb_memory_map_in_range(memory,&cartridge->rom1_handler,0x4000,0x7FFF);
-    gb_memory_map_in_range(memory,&cartridge->ram_handler,0xA000,0xBFFF); 
+    gb_memory_map_in_range(memory,&cartridge->rom0_descriptor,0x0000,0x3FFF);
+    gb_memory_map_in_range(memory,&cartridge->rom1_descriptor,0x4000,0x7FFF);
+    gb_memory_map_in_range(memory,&cartridge->ram_descriptor,0xA000,0xBFFF); 
 }
 
 

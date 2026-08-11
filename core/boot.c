@@ -4,13 +4,13 @@
 void gb_boot_init(gb_boot_t* boot,gb_t* gb){
     boot->gb = gb;
     
-    boot->rom_handler = (gb_memory_handler_t){
+    boot->rom_descriptor = (gb_memory_descriptor_t){
         gb_memory_write_empty,
         gb_memory_read_empty,
         boot
     };
 
-    boot->bank_register_handler = (gb_memory_handler_t){
+    boot->bank_register_descriptor = (gb_memory_descriptor_t){
         gb_boot_write_bank_register,
         gb_boot_read_bank_register,
         boot
@@ -84,7 +84,7 @@ void gb_boot_update_roms(gb_boot_t* boot){
 
 void gb_boot_map_register(gb_boot_t* boot){
     gb_memory_t* memory = &boot->gb->memory;
-    gb_memory_map(memory,&boot->bank_register_handler,0xFF50);
+    gb_memory_map(memory,&boot->bank_register_descriptor,0xFF50);
 }
 
 void gb_boot_map(gb_boot_t* boot){
@@ -92,15 +92,15 @@ void gb_boot_map(gb_boot_t* boot){
 
     boot->mapped = true;
 
-    gb_memory_map_in_range(memory,&boot->rom_handler,0x0000,0x00FF);
+    gb_memory_map_in_range(memory,&boot->rom_descriptor,0x0000,0x00FF);
 
     if(boot->gb->is_cgb){
-        gb_memory_map_in_range(memory,&boot->rom_handler,0x0200,0x08FF);
+        gb_memory_map_in_range(memory,&boot->rom_descriptor,0x0200,0x08FF);
 
-        boot->rom_handler.read = gb_boot_cgb_read_rom;
+        boot->rom_descriptor.read = gb_boot_cgb_read_rom;
     }
     else{
-        boot->rom_handler.read = gb_boot_dmg_read_rom;
+        boot->rom_descriptor.read = gb_boot_dmg_read_rom;
     }
 }
 
@@ -109,10 +109,10 @@ void gb_boot_unmap(gb_boot_t* boot){
 
     boot->mapped = false;
 
-    gb_memory_map_in_range(memory,&boot->gb->cartridge.rom0_handler,0x0000,0x00FF);
+    gb_memory_map_in_range(memory,&boot->gb->cartridge.rom0_descriptor,0x0000,0x00FF);
     
     if(boot->gb->is_cgb){
-        gb_memory_map_in_range(memory,&boot->gb->cartridge.rom0_handler,0x0200,0x08FF);
+        gb_memory_map_in_range(memory,&boot->gb->cartridge.rom0_descriptor,0x0200,0x08FF);
     }
 }
 

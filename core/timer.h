@@ -15,7 +15,7 @@ typedef struct _gb_timer_t {
     bool tima_reload_request;
     bool tima_reloaded;
     
-    gb_memory_handler_t register_handler;
+    gb_memory_descriptor_t register_descriptor;
 } gb_timer_t;
 
 

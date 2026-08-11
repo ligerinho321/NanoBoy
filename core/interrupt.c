@@ -4,13 +4,13 @@
 void gb_interrupt_init(gb_interrupt_t* interrupt,gb_t* gb){
     interrupt->gb = gb;
 
-    interrupt->flag_register_handler = (gb_memory_handler_t){
+    interrupt->flag_register_descriptor = (gb_memory_descriptor_t){
         gb_interrupt_write_flag_register,
         gb_interrupt_read_flag_register,
         interrupt
     };
 
-    interrupt->enable_register_handler = (gb_memory_handler_t){
+    interrupt->enable_register_descriptor = (gb_memory_descriptor_t){
         gb_interrupt_write_enable_register,
         gb_interrupt_read_enable_register,
         interrupt
@@ -66,8 +66,8 @@ uint8_t gb_interrupt_get_vector(gb_interrupt_t* interrupt){
 
 void gb_interrupt_map_registers(gb_interrupt_t* interrupt){
     gb_memory_t* memory = &interrupt->gb->memory;
-    gb_memory_map(memory,&interrupt->flag_register_handler,0xFF0F);
-    gb_memory_map(memory,&interrupt->enable_register_handler,0xFFFF);
+    gb_memory_map(memory,&interrupt->flag_register_descriptor,0xFF0F);
+    gb_memory_map(memory,&interrupt->enable_register_descriptor,0xFFFF);
 }
 
 

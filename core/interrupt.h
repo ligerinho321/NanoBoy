@@ -24,8 +24,8 @@ typedef struct _gb_interrupt_t {
     uint8_t enable;
     uint8_t flag;
 
-    gb_memory_handler_t enable_register_handler;
-    gb_memory_handler_t flag_register_handler;
+    gb_memory_descriptor_t enable_register_descriptor;
+    gb_memory_descriptor_t flag_register_descriptor;
 } gb_interrupt_t;
 
 

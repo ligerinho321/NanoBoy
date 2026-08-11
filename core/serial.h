@@ -16,7 +16,7 @@ typedef struct _gb_serial_t {
 
     int timer;
     
-    gb_memory_handler_t register_handler;
+    gb_memory_descriptor_t register_descriptor;
 
     gb_serial_callback_t callback;
     void* data;

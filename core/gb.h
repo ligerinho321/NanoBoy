@@ -60,10 +60,10 @@ typedef struct _gb_t {
     gb_printer_t printer;
     gb_frame_timer_t frame_timer;
     
-    gb_memory_handler_t key0_register_handler;
-    gb_memory_handler_t key1_register_handler;
-    gb_memory_handler_t opri_register_handler;
-    gb_memory_handler_t undocumented_register_handler;
+    gb_memory_descriptor_t key0_register_descriptor;
+    gb_memory_descriptor_t key1_register_descriptor;
+    gb_memory_descriptor_t opri_register_descriptor;
+    gb_memory_descriptor_t undocumented_register_descriptor;
 } gb_t;
 
 

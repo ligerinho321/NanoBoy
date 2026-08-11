@@ -13,16 +13,16 @@ typedef struct _gb_memory_t {
     uint8_t wram[gb_wram_length];
     uint8_t* wram_bank_ptr;
     uint8_t wram_bank;
-    gb_memory_handler_t wram0_handler;
-    gb_memory_handler_t wram1_handler;
-    gb_memory_handler_t wbk_register_handler;
+    gb_memory_descriptor_t wram0_descriptor;
+    gb_memory_descriptor_t wram1_descriptor;
+    gb_memory_descriptor_t wbk_register_descriptor;
         
     uint8_t hram[gb_hram_length];
-    gb_memory_handler_t hram_handler;
+    gb_memory_descriptor_t hram_descriptor;
 
-    gb_memory_handler_t empty_handler;
+    gb_memory_descriptor_t empty_descriptor;
 
-    gb_memory_handler_t* bus[0x10000];
+    gb_memory_descriptor_t* bus[0x10000];
     gb_cheat_code_t* codes[0x10000];
 } gb_memory_t;
 
@@ -30,17 +30,17 @@ typedef struct _gb_memory_t {
     (m)->bus[a] = h;
 
 #define gb_memory_unmap(m,a)\
-    gb_memory_map(m,&(m)->empty_handler,a)
+    gb_memory_map(m,&(m)->empty_descriptor,a)
 
 #define gb_memory_map_in_range(m,h,s,e){\
-    gb_memory_handler_t** _s = (m)->bus + (s);\
-    gb_memory_handler_t** _e = (m)->bus + (e);\
-    gb_memory_handler_t* _h = h;\
+    gb_memory_descriptor_t** _s = (m)->bus + (s);\
+    gb_memory_descriptor_t** _e = (m)->bus + (e);\
+    gb_memory_descriptor_t* _h = h;\
     while(_s <= _e) *_s++ = _h;\
 }
 
 #define gb_memory_unmap_in_range(m,s,e)\
-    gb_memory_map_in_range(m,&(m)->empty_handler,s,e)
+    gb_memory_map_in_range(m,&(m)->empty_descriptor,s,e)
 
 
 #ifdef __cplusplus

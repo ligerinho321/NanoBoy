@@ -14,25 +14,25 @@ gb_t* gb_new(){
     gb->is_cgb_pending = gb->is_cgb;
     gb->speed = 1.0f;
     
-    gb->key0_register_handler = (gb_memory_handler_t){
+    gb->key0_register_descriptor = (gb_memory_descriptor_t){
         gb_write_key0_register,
         gb_memory_read_empty,
         gb
     };
 
-    gb->key1_register_handler = (gb_memory_handler_t){
+    gb->key1_register_descriptor = (gb_memory_descriptor_t){
         gb_write_key1_register,
         gb_read_key1_register,
         gb
     };
 
-    gb->opri_register_handler = (gb_memory_handler_t){
+    gb->opri_register_descriptor = (gb_memory_descriptor_t){
         gb_write_opri_register,
         gb_read_opri_register,
         gb
     };
 
-    gb->undocumented_register_handler = (gb_memory_handler_t){
+    gb->undocumented_register_descriptor = (gb_memory_descriptor_t){
         gb_write_undocumented_register,
         gb_read_undocumented_register,
         gb
@@ -445,16 +445,16 @@ void gb_map(gb_t* gb){
     gb_cartridge_map(&gb->cartridge);
 
     //KEY0
-    gb_memory_map(&gb->memory,&gb->key0_register_handler,0xFF4C);
+    gb_memory_map(&gb->memory,&gb->key0_register_descriptor,0xFF4C);
 
     //KEY1
-    gb_memory_map(&gb->memory,&gb->key1_register_handler,0xFF4D);
+    gb_memory_map(&gb->memory,&gb->key1_register_descriptor,0xFF4D);
 
     //OPRI
-    gb_memory_map(&gb->memory,&gb->opri_register_handler,0xFF6C);
+    gb_memory_map(&gb->memory,&gb->opri_register_descriptor,0xFF6C);
 
     //Undocumented registers
-    gb_memory_map_in_range(&gb->memory,&gb->undocumented_register_handler,0xFF72,0xFF75);
+    gb_memory_map_in_range(&gb->memory,&gb->undocumented_register_descriptor,0xFF72,0xFF75);
 }
 
 
