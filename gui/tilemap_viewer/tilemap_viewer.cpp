@@ -13,7 +13,7 @@ tilemap_viewer_t::tilemap_viewer_t(gb_t* gb,SDL_Renderer* renderer):gb(gb),bg_pa
     border_color = ImGui::ColorConvertFloat4ToU32(style.Colors[ImGuiCol_Border]);
     border_hovered_color = ImGui::ColorConvertFloat4ToU32(style.Colors[ImGuiCol_NavCursor]);
 
-    input_scalar_width = get_input_scalar_width();
+    input_scalar_width = get_input_scalar_width(8);
 
     update_tilemap_size();
 }
@@ -27,22 +27,19 @@ tilemap_viewer_t::~tilemap_viewer_t(){
 
 
 void tilemap_viewer_t::callback(void* data){
+    tilemap_viewer_t* tilemap_viewer = (tilemap_viewer_t*)data;
+    gb_t* gb = tilemap_viewer->gb;
 
-    tilemap_viewer_t* tmv = (tilemap_viewer_t*)data;
-
-    gb_t* gb = tmv->gb;
-
-    tmv->cgb_mode = gb->cgb_mode;
+    tilemap_viewer->cgb_mode = gb->cgb_mode;
     
-    tmv->tiledata_area = gb->ppu.lcdc.tiledata_area;
+    tilemap_viewer->tiledata_area = gb->ppu.lcdc.tiledata_area;
     
-    tmv->scx = gb->ppu.scx;
-    tmv->scy = gb->ppu.scy;
+    tilemap_viewer->scx = gb->ppu.scx;
+    tilemap_viewer->scy = gb->ppu.scy;
 
-    tmv->bg_palette.bgp = gb->palette.bgp;
-    memcpy(tmv->bg_palette.colors,gb->palette.bg_cram_converted,sizeof(tmv->bg_palette.colors));
+    tilemap_viewer->bg_palette.update_data(&gb->palette);
 
-    memcpy(tmv->vram,gb->ppu.vram,sizeof(tmv->vram));
+    memcpy(tilemap_viewer->vram,gb->ppu.vram,sizeof(tilemap_viewer->vram));
 }
 
 
@@ -135,21 +132,24 @@ void tilemap_viewer_t::event(){
 }
 
 
-void tilemap_viewer_t::render_grid(ImVec2 tilemap_start){
+void tilemap_viewer_t::render_grid(ImVec2 tilemap_start,ImVec2 tilemap_end){
 
     ImDrawList* draw_list = ImGui::GetWindowDrawList();
 
-    for(int i = 0; i < 33; ++i){
+    for(int row = 0; row < gb_tilemap_rows + 1; ++row){
         draw_list->AddLineH(
             tilemap_start.x,
-            tilemap_start.x + tilemap_texture_width * tilemap_scale,
-            tilemap_start.y + i * gb_tile_size * tilemap_scale,
+            tilemap_end.x,
+            tilemap_start.y + row * gb_tile_size * tilemap_scale,
             grid_color
         );
+    }
+
+    for(int col = 0; col < gb_tilemap_columns + 1; ++col){
         draw_list->AddLineV(
-            tilemap_start.x + i * gb_tile_size * tilemap_scale,
+            tilemap_start.x + col * gb_tile_size * tilemap_scale,
             tilemap_start.y,
-            tilemap_start.y + tilemap_texture_height * tilemap_scale,
+            tilemap_end.y,
             grid_color
         );
     }
@@ -434,7 +434,7 @@ void tilemap_viewer_t::render_tilemap(const char* str_id,bool tilemap){
         ImVec2 tilemap_start = ImGui::GetItemRectMin();
         ImVec2 tilemap_end = ImGui::GetItemRectMax();
 
-        if(show_tile_grid) render_grid(tilemap_start);
+        if(show_tile_grid) render_grid(tilemap_start,tilemap_end);
         
         if(show_scroll_overlay) render_scroll_overlay(tilemap_start,tilemap_end);
 
@@ -447,16 +447,17 @@ void tilemap_viewer_t::render_tilemap(const char* str_id,bool tilemap){
             uint8_t col = (uint8_t)((mouse.x - tilemap_start.x) / tile_size);
             uint8_t row = (uint8_t)((mouse.y - tilemap_start.y) / tile_size);
 
-            ImVec2 tile_start(
+            ImVec2 p_min(
                 tilemap_start.x + (col * tile_size),
                 tilemap_start.y + (row * tile_size)
             );
-            ImVec2 tile_end(
-                tile_start.x + tile_size,
-                tile_start.y + tile_size
+
+            ImVec2 p_max(
+                p_min.x + tile_size,
+                p_min.y + tile_size
             );
 
-            ImGui::GetWindowDrawList()->AddRect(tile_start,tile_end,border_hovered_color,0.0f,0,2.0f);
+            ImGui::GetWindowDrawList()->AddRect(p_min,p_max,border_hovered_color,0.0f,0,2.0f);
 
             render_tile_tooltip(tilemap,col,row);
         }
@@ -476,7 +477,7 @@ void tilemap_viewer_t::render(){
 
     if(ImGui::Begin("Tilemap Viewer",&_open)){
 
-        if(ImGui::BeginTable("LayoutTable",2)){
+        if(ImGui::BeginTable("TilemapViewerTable",2)){
 
             ImGui::TableSetupColumn("Left",ImGuiTableColumnFlags_WidthStretch);
             ImGui::TableSetupColumn("Right",ImGuiTableColumnFlags_WidthFixed);
@@ -502,9 +503,9 @@ void tilemap_viewer_t::render(){
 
             ImGui::TableNextColumn();
 
-            ImGui::Checkbox("Show Tile Grid",&show_tile_grid);
+            ImGui::Checkbox("Show tile grid",&show_tile_grid);
 
-            ImGui::Checkbox("Shwo Scroll Overlay",&show_scroll_overlay);
+            ImGui::Checkbox("Shwo scroll overlay",&show_scroll_overlay);
 
             ImGui::SetNextItemWidth(input_scalar_width);
             if(ImGui::InputScalar("Refresh on scanline",ImGuiDataType_U8,&callback_handler.scanline,&input_scalar_step,&input_scalar_step_fast)){

@@ -5,6 +5,7 @@
 enum{
     gb_wram_length = 0x8000,
     gb_hram_length = 0x7F,
+    gb_bus_length = 0x10000
 };
 
 typedef struct _gb_memory_t {
@@ -22,8 +23,8 @@ typedef struct _gb_memory_t {
 
     gb_memory_descriptor_t empty_descriptor;
 
-    gb_memory_descriptor_t* bus[0x10000];
-    gb_cheat_code_t* codes[0x10000];
+    gb_memory_descriptor_t* bus[gb_bus_length];
+    gb_cheat_code_t* codes[gb_bus_length];
 } gb_memory_t;
 
 #define gb_memory_map(m,h,a)\

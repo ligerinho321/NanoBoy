@@ -1,7 +1,7 @@
 #include <gui/palette_viewer/palette_viewer.hpp>
 
 palette_viewer_t::palette_viewer_t(gb_t* gb,SDL_Renderer* renderer):gb(gb),bg_palette(renderer),obj_palette(renderer){
-    input_scalar_width = get_input_scalar_width();
+    input_scalar_width = get_input_scalar_width(8);
 
     ImGuiStyle& style = ImGui::GetStyle();
 
@@ -15,24 +15,16 @@ palette_viewer_t::~palette_viewer_t(){
 
 
 void palette_viewer_t::callback(void* data){
-    palette_viewer_t* pv = (palette_viewer_t*)data;
-    gb_t* gb = pv->gb;
+    palette_viewer_t* palette_viewer = (palette_viewer_t*)data;
+    gb_t* gb = palette_viewer->gb;
 
-    bg_palette_t& bg_palette = pv->bg_palette;
-    obj_palette_t& obj_palette = pv->obj_palette;
+    palette_viewer->cgb_mode = gb->cgb_mode;
 
-    pv->cgb_mode = pv->gb->cgb_mode;
-    
-    bg_palette.bgp = gb->palette.bgp;
-    
-    obj_palette.obp[0] = gb->palette.obp[0];
-    obj_palette.obp[1] = gb->palette.obp[1];
+    palette_viewer->bg_palette.update_data(&gb->palette);
+    palette_viewer->obj_palette.update_data(&gb->palette);
 
-    memcpy(bg_palette.colors,gb->palette.bg_cram_converted,sizeof(bg_palette.colors));
-    memcpy(obj_palette.colors,gb->palette.obj_cram_converted,sizeof(obj_palette.colors));
-
-    memcpy(pv->bg_cram,gb->palette.bg_cram,sizeof(pv->bg_cram));
-    memcpy(pv->obj_cram,gb->palette.obj_cram,sizeof(pv->obj_cram));
+    memcpy(palette_viewer->bg_cram,gb->palette.bg_cram,sizeof(palette_viewer->bg_cram));
+    memcpy(palette_viewer->obj_cram,gb->palette.obj_cram,sizeof(palette_viewer->obj_cram));
 }
 
 
@@ -199,7 +191,7 @@ void palette_viewer_t::render(){
 
     if(ImGui::Begin("Palette Viewer",&_open)){
 
-        if(ImGui::BeginTable("PaletteTable",2)){
+        if(ImGui::BeginTable("PaletteViewerTable",2)){
 
             ImGui::TableSetupColumn("BackgroundColumn",ImGuiTableColumnFlags_WidthFixed);
             ImGui::TableSetupColumn("ObjectColumn",ImGuiTableColumnFlags_WidthFixed);

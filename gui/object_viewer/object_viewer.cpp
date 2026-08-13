@@ -6,7 +6,7 @@ object_viewer_t::object_viewer_t(gb_t* gb,SDL_Renderer *renderer):gb(gb),obj_pal
 
     load_bg_texture();
 
-    input_scalar_width = get_input_scalar_width();
+    input_scalar_width = get_input_scalar_width(8);
 
     ImGuiStyle& style = ImGui::GetStyle();
 
@@ -39,7 +39,6 @@ object_viewer_t::~object_viewer_t(){
 void object_viewer_t::callback(void* data){
     object_viewer_t* object_viewer = (object_viewer_t*)data;
     gb_t* gb = object_viewer->gb;
-    obj_palette_t& obj_palette = object_viewer->obj_palette;
 
     object_viewer->cgb_mode = gb->cgb_mode;
     
@@ -49,10 +48,7 @@ void object_viewer_t::callback(void* data){
     
     object_viewer->object_texture_uv1.y = object_viewer->object_size ? 1.0f : 0.5f;
 
-    obj_palette.obp[0] = gb->palette.obp[0];
-    obj_palette.obp[1] = gb->palette.obp[1];
-
-    memcpy(obj_palette.colors,gb->palette.obj_cram_converted,sizeof(obj_palette.colors));
+    object_viewer->obj_palette.update_data(&gb->palette);
     
     memcpy(object_viewer->oam,gb->ppu.oam,sizeof(object_viewer->oam));
     
@@ -481,7 +477,7 @@ void object_viewer_t::render(){
         obj_palette.update_texture(gb->is_cgb,cgb_mode);
         update_objects();
 
-        if(ImGui::BeginTable("ObjectTable1",2,ImGuiTableFlags_None)){
+        if(ImGui::BeginTable("ObjectViewerTable",2)){
 
             ImGui::TableSetupColumn("Left",ImGuiTableColumnFlags_WidthStretch);
             ImGui::TableSetupColumn("Right",ImGuiTableColumnFlags_WidthFixed);

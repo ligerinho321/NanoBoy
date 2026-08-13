@@ -56,7 +56,7 @@ private:
 
     void event();
     
-    void render_grid(ImVec2 tilemap_start);
+    void render_grid(ImVec2 tilemap_start,ImVec2 tilemap_end);
     void render_scroll_overlay(ImVec2 tilemap_start,ImVec2 tilemap_end);
     void render_tile_tooltip(bool tilemap,uint8_t col,uint8_t row);
     void render_tilemap(const char* str_id,bool tilemap);

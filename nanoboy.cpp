@@ -81,9 +81,8 @@ nanoboy_t::nanoboy_t(){
     printer = new printer_t(gb,renderer);
 
     tilemap_viewer = new tilemap_viewer_t(gb,renderer);
-
+    tile_viewer = new tile_viewer_t(gb,renderer);
     object_viewer = new object_viewer_t(gb,renderer);
-    
     palette_viewer = new palette_viewer_t(gb,renderer);
 
     wave_form = new wave_form_t(gb);
@@ -103,6 +102,7 @@ nanoboy_t::~nanoboy_t(){
     delete wave_form;
     delete palette_viewer;
     delete object_viewer;
+    delete tile_viewer;
     delete tilemap_viewer;
     delete printer;
     delete cheats;
@@ -157,11 +157,13 @@ void nanoboy_t::init_directories(){
     saves_path = main_folder_path / "saves";
     savestates_path = main_folder_path / "savestates";
     cheats_path = main_folder_path / "cheats";
+    screenshot_path = main_folder_path / "screenshot";
 
     std::filesystem::create_directories(main_folder_path);
     std::filesystem::create_directories(saves_path);
     std::filesystem::create_directories(savestates_path);
     std::filesystem::create_directories(cheats_path);
+    std::filesystem::create_directories(screenshot_path);
 }
 
 void nanoboy_t::init_sdl(){
@@ -359,6 +361,22 @@ void nanoboy_t::load_imgui_ini_settings(){
 }
 
 
+void nanoboy_t::take_screenshot(){
+    char timestamp[64] = {0};
+    
+    time_t current_time = time(nullptr);
+    struct tm* lt = localtime(&current_time);
+    
+    strftime(timestamp,sizeof(timestamp),"%d%m%Y_%H%M%S",lt);
+    
+    std::filesystem::path path = screenshot_path / (rom_name + "_" + timestamp + ".png");
+
+    if(!stbi_write_png(path.u8string().c_str(),gb_screen_width,gb_screen_height,gb_screen_bytes_per_pixel,gb_get_render_buffer(gb),gb_screen_pitch)){
+        gb_printf_error("stbi_write_png failed");
+    }
+}
+
+
 void nanoboy_t::insert_cartridge(std::filesystem::path path){
     
     remove_cartridge();
@@ -451,6 +469,9 @@ void nanoboy_t::event(){
                         else if(event.key.keysym.scancode == SDL_SCANCODE_MINUS){
                             gb_thread_safe_set_speed(gb,gb->speed - gb_speed_step);
                         }
+                        else if(event.key.keysym.scancode == SDL_SCANCODE_F12){
+                            take_screenshot();
+                        }
                     }
                 }
                 break;
@@ -481,6 +502,10 @@ void nanoboy_t::render_main_menu_bar(){
         
         if(ImGui::MenuItem("Open File")){
             file_selector->set_open(true);
+        }
+
+        if(ImGui::MenuItem("Take Screenshot","F12",nullptr,gb->cartridge_inserted)){
+            take_screenshot();
         }
 
         ImGui::Separator();
@@ -573,6 +598,9 @@ void nanoboy_t::render_main_menu_bar(){
         if(ImGui::MenuItem("Tilemap Viewer",nullptr,nullptr,gb->cartridge_inserted)){
             tilemap_viewer->set_open(true);
         }
+        if(ImGui::MenuItem("Tile Viewer",nullptr,nullptr,gb->cartridge_inserted)){
+            tile_viewer->open();
+        }
         if(ImGui::MenuItem("Object Viewer",nullptr,nullptr,gb->cartridge_inserted)){
             object_viewer->set_open(true);
         }
@@ -609,6 +637,7 @@ void nanoboy_t::imgui_render(){
     printer->render();
     
     tilemap_viewer->render();
+    tile_viewer->render();
     object_viewer->render();
     palette_viewer->render();
 

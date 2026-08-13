@@ -2,11 +2,11 @@
 
 #include <core/gb.h>
 
-#include <gui/cJSON/cJSON.h>
-
-#include <imgui/imgui.h>
-#include <imgui/imgui_impl_sdl2.h>
-#include <imgui/imgui_impl_sdlrenderer2.h>
+#include <third_party/cJSON/cJSON.h>
+#include <third_party/stb_image_write/stb_image_write.h>
+#include <third_party/imgui/imgui.h>
+#include <third_party/imgui/imgui_impl_sdl2.h>
+#include <third_party/imgui/imgui_impl_sdlrenderer2.h>
 
 #include <SDL2/SDL.h>
 
@@ -109,6 +109,11 @@ struct bg_palette_t : public palette_t {
     gb_rgb_t get_cgb_dmg_color(uint8_t palette_index,uint8_t color_index) const noexcept override {
         return colors[get_dmg_address_color(palette_index,color_index)];
     }
+
+    void update_data(gb_palette_t* palette){
+        bgp = palette->bgp;
+        memcpy(colors,palette->bg_cram_converted,sizeof(colors));
+    }
 };
 
 struct obj_palette_t : public palette_t {
@@ -143,12 +148,18 @@ struct obj_palette_t : public palette_t {
     gb_rgb_t get_cgb_dmg_color(uint8_t palette_index,uint8_t color_index) const noexcept override {
         return colors[get_cgb_dmg_address_color(palette_index,color_index)];
     }
+
+    void update_data(gb_palette_t* palette){
+        obp[0] = palette->obp[0];
+        obp[1] = palette->obp[1];
+        memcpy(colors,palette->obj_cram_converted,sizeof(colors)); 
+    }
 };
 
 
-inline float get_input_scalar_width(){
+inline float get_input_scalar_width(int digit_count){
     ImGuiStyle& style = ImGui::GetStyle();
-    return ImGui::CalcTextSize("0000").x + style.FramePadding.x * 2.0f + (ImGui::GetFrameHeight() + style.ItemInnerSpacing.x) * 2.0f;
+    return ImGui::CalcTextSize("0").x * digit_count + style.FramePadding.x * 2.0f + (ImGui::GetFrameHeight() + style.ItemInnerSpacing.x) * 2.0f;
 }
 
 inline bool mouse_in_rect(ImVec2 m,ImVec2 rmin,ImVec2 rmax){

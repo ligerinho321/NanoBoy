@@ -82,19 +82,23 @@ target_sources(
 target_sources(
     NanoBoy
     PRIVATE
-    imgui/imgui_demo.cpp
-    imgui/imgui_draw.cpp
-    imgui/imgui_impl_sdl2.cpp
-    imgui/imgui_impl_sdlrenderer2.cpp
-    imgui/imgui_tables.cpp
-    imgui/imgui_widgets.cpp
-    imgui/imgui.cpp
+
+    third_party/cJSON/cJSON.c
+
+    third_party/stb_image_write/stb_image_write.c
+    
+    third_party/imgui/imgui_demo.cpp
+    third_party/imgui/imgui_draw.cpp
+    third_party/imgui/imgui_impl_sdl2.cpp
+    third_party/imgui/imgui_impl_sdlrenderer2.cpp
+    third_party/imgui/imgui_tables.cpp
+    third_party/imgui/imgui_widgets.cpp
+    third_party/imgui/imgui.cpp
 )
 
 target_sources(
     NanoBoy
     PRIVATE
-    gui/cJSON/cJSON.c
     gui/cheats/cheats.cpp
     gui/file_dialog/file_base_dialog.cpp
     gui/file_dialog/file_save_dialog.cpp
@@ -104,6 +108,7 @@ target_sources(
     gui/printer/printer.cpp
     gui/savestate/savestate.cpp
     gui/screen/screen.cpp
+    gui/tile_viewer/tile_viewer.cpp
     gui/boot_settings/boot_settings.cpp
     gui/input_settings/input_settings.cpp
     gui/tilemap_viewer/tilemap_viewer.cpp

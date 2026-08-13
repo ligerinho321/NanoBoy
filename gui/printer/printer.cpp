@@ -1,8 +1,5 @@
 #include <gui/printer/printer.hpp>
 
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include <gui/printer/stb_image_write.h>
-
 const char* image_formats[] = {
     "PNG\0.png",
     "BMP\0.bmp",
@@ -58,22 +55,22 @@ void printer_t::file_save_callback(void* userdata,std::filesystem::path path){
 
         if(!strcasecmp(extension.c_str(),".png")){
             if(!stbi_write_png(path.u8string().c_str(),printer_t::texture_width,printer->texture_height,printer_t::texture_bytes_per_pixel,pixels,pitch)){
-                printf("stbi_write_png: failed\n");
+                gb_printf_error("stbi_write_png failed\n");
             }
         }
         else if(!strcasecmp(extension.c_str(),".bmp")){
             if(!stbi_write_bmp(path.u8string().c_str(),printer_t::texture_width,printer->texture_height,printer_t::texture_bytes_per_pixel,pixels)){
-                printf("stbi_write_bmp: failed\n");
+                gb_printf_error("stbi_write_bmp failed\n");
             }
         }
         else if(!strcasecmp(extension.c_str(),".tga")){
             if(!stbi_write_tga(path.u8string().c_str(),printer_t::texture_width,printer->texture_height,printer_t::texture_bytes_per_pixel,pixels)){
-                printf("stbi_write_tga: failed\n");
+                gb_printf_error("stbi_write_tga failed\n");
             }
         }
         else if(!strcasecmp(extension.c_str(),".jpg")){
             if(!stbi_write_jpg(path.u8string().c_str(),printer_t::texture_width,printer->texture_height,printer_t::texture_bytes_per_pixel,pixels,100)){
-                printf("stbi_write_jpg: failed\n");
+                gb_printf_error("stbi_write_jpg failed\n");
             }
         }
 

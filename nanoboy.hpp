@@ -9,6 +9,7 @@
 #include <gui/printer/printer.hpp>
 #include <gui/savestate/savestate.hpp>
 #include <gui/screen/screen.hpp>
+#include <gui/tile_viewer/tile_viewer.hpp>
 #include <gui/boot_settings/boot_settings.hpp>
 #include <gui/input_settings/input_settings.hpp>
 #include <gui/tilemap_viewer/tilemap_viewer.hpp>
@@ -21,6 +22,7 @@ private:
     std::filesystem::path saves_path;
     std::filesystem::path savestates_path;
     std::filesystem::path cheats_path;
+    std::filesystem::path screenshot_path;
 
     std::filesystem::path rom_path;
     std::string rom_name;
@@ -63,6 +65,8 @@ private:
     void save_imgui_ini_settings();
     void load_imgui_ini_settings();
 
+    void take_screenshot();
+    
     void pause_audio_device(bool on){
         if(on){
             SDL_PauseAudioDevice(audio_device,true);
@@ -95,6 +99,7 @@ public:
     printer_t* printer = nullptr;
 
     tilemap_viewer_t* tilemap_viewer = nullptr;
+    tile_viewer_t* tile_viewer = nullptr;
     object_viewer_t* object_viewer = nullptr;
     palette_viewer_t* palette_viewer = nullptr;
     
