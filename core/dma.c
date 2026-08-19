@@ -71,6 +71,8 @@ bool gb_oam_dma_bus_conflict(gb_dma_t* dma,uint16_t address){
 
 
 void gb_oam_dma_write_register(void* data,uint8_t value,uint16_t address){
+    gb_unused(address);
+    
     gb_dma_t* dma = (gb_dma_t*)data;
 
     dma->oam_src = value;
@@ -85,7 +87,10 @@ void gb_oam_dma_write_register(void* data,uint8_t value,uint16_t address){
 }
 
 uint8_t gb_oam_dma_read_register(void* data,uint16_t address){
+    gb_unused(address);
+    
     gb_dma_t* dma = (gb_dma_t*)data;
+
     return dma->oam_src;
 }
 

@@ -39,7 +39,7 @@ static void gb_boot_dmg_update_rom(gb_boot_t* boot){
 
     fread(boot->dmg_rom,1,sizeof(boot->dmg_rom),file);
 
-    boot->dmg_rom_crc32 = crc32(boot->dmg_rom,size);
+    boot->dmg_rom_crc32 = gb_crc32(boot->dmg_rom,size);
 
     boot->dmg_rom_inserted = true;
 
@@ -68,7 +68,7 @@ static void gb_boot_cgb_update_rom(gb_boot_t* boot){
 
     fread(boot->cgb_rom,1,sizeof(boot->cgb_rom),file);
 
-    boot->cgb_rom_crc32 = crc32(boot->cgb_rom,sizeof(boot->cgb_rom));
+    boot->cgb_rom_crc32 = gb_crc32(boot->cgb_rom,sizeof(boot->cgb_rom));
 
     boot->cgb_rom_inserted = true;
 
@@ -118,17 +118,24 @@ void gb_boot_unmap(gb_boot_t* boot){
 
 
 void gb_boot_write_bank_register(void* data,uint8_t value,uint16_t address){
+    gb_unused(address);
+
     gb_boot_t* boot = (gb_boot_t*)data;
+    
     if(boot->mapped && (value & 0x01)){
         gb_boot_unmap(boot);
     }
 }
 
 uint8_t gb_boot_read_bank_register(void* data,uint16_t address){
+    gb_unused(address);
+
     gb_boot_t* boot = (gb_boot_t*)data;
+
     if(boot->mapped){
         return 0xFE | !boot->mapped;
     }
+    
     return 0xFF;
 }
 

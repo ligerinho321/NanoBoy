@@ -1,6 +1,6 @@
 #pragma once
 
-#include "utils/utils.h"
+#include "utils.h"
 
 typedef enum _gb_oam_dma_state_t {
     gb_oam_dma_state_none,

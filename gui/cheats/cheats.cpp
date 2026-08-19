@@ -222,7 +222,7 @@ void cheats_t::load_cheat_codes(cheat_t* cheat,bool thread_safe){
 
             uint8_t nv,ahh,ahl,al,hvh,h,hvl;
             
-            gb_cheat_code_t code{0};
+            gb_cheat_code_t code{};
 
             while(it != end){
                 if(sscanf(it->str().c_str(),"%2hhx%1hhx-%2hhx%1hhx-%1hhx%1hhx%1hhx",&nv,&ahl,&al,&ahh,&hvh,&h,&hvl) != 7){
@@ -252,7 +252,7 @@ void cheats_t::load_cheat_codes(cheat_t* cheat,bool thread_safe){
 
             uint8_t type,value,addr_hi,addr_lo;
 
-            gb_cheat_code_t code{0};
+            gb_cheat_code_t code{};
 
             while(it != end){
                 if(sscanf(it->str().c_str(),"%2hhx%2hhx%2hhx%2hhx",&type,&value,&addr_lo,&addr_hi) != 4){
@@ -465,7 +465,7 @@ void cheats_t::render_popup_modal(){
     }
 
     ImGui::AlignTextToFramePadding();
-    ImGui::TextUnformatted("Format");
+    ImGui::TextUnformatted("Format:");
     ImGui::SameLine(0.0f,style.ItemInnerSpacing.x);
     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
     ImGui::Combo("##FormatCombo",&format_type,format_type_names,2);
@@ -516,21 +516,17 @@ void cheats_t::render_popup_modal(){
     const char* ok = "Ok";
     const char* cancel = "Cancel";
 
-    float button_ok_width = ImGui::CalcTextSize(ok).x + style.FramePadding.x * 2.0f;
-    float button_cancel_width = ImGui::CalcTextSize(cancel).x + style.FramePadding.x * 2.0f;
+    float ok_button_width = ImGui::CalcTextSize(ok).x + style.FramePadding.x * 2.0f;
+    float cancel_button_width = ImGui::CalcTextSize(cancel).x + style.FramePadding.x * 2.0f;
 
-    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - button_ok_width -  button_cancel_width - style.ItemSpacing.x);
+    ImGui::SetCursorPosX((ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x) - (ok_button_width +  cancel_button_width + style.ItemSpacing.x));
 
     if(ImGui::Button(ok)){
-        switch(popup_modal_type){
-            case popup_add_cheat_type:{
-                add_cheat(true);
-                break;
-            }
-            case popup_edit_cheat_type:{
-                edit_cheat(true);
-                break;
-            }
+        if(popup_modal_type == popup_add_cheat_type){
+            add_cheat(true);
+        }
+        else{
+            edit_cheat(true);
         }
     }
 
@@ -576,12 +572,12 @@ void cheats_t::render(){
 
             ImGui::TableHeadersRow();
 
-            int index = 0;
+            int id = 0;
             cheat_t* cheat = cheats;
             
             while(cheat != nullptr){
 
-                ImGui::PushID(index++);
+                ImGui::PushID(id++);
 
                 ImGui::TableNextRow();
 

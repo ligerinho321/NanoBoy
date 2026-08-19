@@ -1,6 +1,6 @@
 #pragma once
 
-#include "utils/utils.h"
+#include "utils.h"
 
 typedef struct _gb_t gb_t;
 
@@ -57,9 +57,6 @@ extern "C" {
 
 bool gb_savestate_serialize(gb_t* gb,const char* filename);
 bool gb_savestate_deserialize(gb_t* gb,const char* filename);
-
-bool gb_savestate_thread_safe_serialize(gb_t* gb,const char* filename);
-bool gb_savestate_thread_safe_deserialize(gb_t* gb,const char* filename);
 
 bool gb_savestate_get_info(const char* filename,gb_savestate_info_t* info);
 

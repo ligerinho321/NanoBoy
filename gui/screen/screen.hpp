@@ -11,7 +11,7 @@ private:
 
     SDL_Texture* texture = nullptr;
     
-    SDL_Rect embedded_rect{0};
+    SDL_Rect embedded_rect = {};
 
     bool floating = false;
     bool aspect_ratio = false;

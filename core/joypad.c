@@ -1,7 +1,7 @@
 #include "joypad.h"
 #include "gb.h"
 
-static const char* button_names[] = {
+const char* gb_joypad_button_names[8] = {
     "Down",
     "Up",
     "Left",
@@ -23,22 +23,14 @@ void gb_joypad_init(gb_joypad_t* joypad,gb_t* gb){
 }
 
 
-const char* gb_joypad_get_button_name(int button){
-    if(button < 0 || button >= gb_button_count){
-        return "";
-    }
-    return button_names[button];
+void gb_joypad_set_callback(gb_t* gb,gb_joypad_callback_t callback,void* data){
+    gb->joypad.callback = callback;
+    gb->joypad.callback_data = data;
 }
 
-
-void gb_joypad_set_callback(gb_joypad_t* joypad,gb_joypad_callback_t callback,void* data){
-    joypad->callback = callback;
-    joypad->callback_data = data;
-}
-
-void gb_joypad_remove_callback(gb_joypad_t* joypad){
-    joypad->callback = NULL;
-    joypad->callback_data = NULL;
+void gb_joypad_remove_callback(gb_t* gb){
+    gb->joypad.callback = NULL;
+    gb->joypad.callback_data = NULL;
 }
 
 
@@ -68,12 +60,17 @@ void gb_joypad_update(gb_joypad_t* joypad){
 
 
 void gb_joypad_write_register(void* data,uint8_t value,uint16_t address){
+    gb_unused(address);
+
     gb_joypad_t* joypad = (gb_joypad_t*)data;
+
     joypad->select_buttons = !(value & 0x20);
     joypad->select_directions = !(value & 0x10);
 }
 
 uint8_t gb_joypad_read_register(void* data,uint16_t address){
+    gb_unused(address);
+    
     gb_joypad_t* joypad = (gb_joypad_t*)data;
 
     uint8_t value = 0xFF;

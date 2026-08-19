@@ -59,7 +59,7 @@ bool gb_savestate_serialize(gb_t* gb,const char* filename){
 
     gb_state_header_t state_header = {0};
     memcpy(state_header.magic,gb_state_header_magic,4);
-    state_header.decompressed_crc32 = crc32(state.data,state.length);
+    state_header.decompressed_crc32 = gb_crc32(state.data,state.length);
     state_header.compressed_size = state_compress_result;
 
     size_t screen_cbuff_size = ZSTD_compressBound(gb_screen_length);
@@ -216,7 +216,7 @@ bool gb_savestate_deserialize(gb_t* gb,const char* filename){
     state.capacity = dsize;
     state.length = result;
 
-    if(crc32(state.data,state.length) != state_header.decompressed_crc32) goto fail;
+    if(gb_crc32(state.data,state.length) != state_header.decompressed_crc32) goto fail;
 
     gb->is_cgb = header.is_cgb;
     
@@ -247,6 +247,8 @@ bool gb_savestate_deserialize(gb_t* gb,const char* filename){
     gb_memory_load_state(&gb->memory,&state);
     gb_cartridge_load_state(&gb->cartridge,&state);
 
+    gb->breakpoint_manager.last_check_address = (uint16_t)-1;
+    
     free(state_cbuff);
     free(state_dbuff);
     
@@ -264,24 +266,9 @@ bool gb_savestate_deserialize(gb_t* gb,const char* filename){
 }
 
 
-bool gb_savestate_thread_safe_serialize(gb_t* gb,const char* filename){
-    gb_thread_stop(gb);
-    bool result = gb_savestate_serialize(gb,filename);
-    gb_thread_start(gb);
-    return result;
-}
-
-bool gb_savestate_thread_safe_deserialize(gb_t* gb,const char* filename){
-    gb_thread_stop(gb);
-    bool result = gb_savestate_deserialize(gb,filename);
-    gb_thread_start(gb);
-    return result;
-}
-
-
 bool gb_savestate_get_info(const char* filename,gb_savestate_info_t* info){
     
-    static char screen_dbuff[gb_screen_length] = {0};
+    static uint8_t screen_dbuff[gb_screen_length] = {0};
 
     FILE* file = fopen(filename,"rb");
 
@@ -313,7 +300,7 @@ bool gb_savestate_get_info(const char* filename,gb_savestate_info_t* info){
     if(memcmp(screen_header.magic,gb_screenshot_header_magic,4)) goto fail;
 
 
-    if(size < ftell(file) + screen_header.compressed_size) goto fail;
+    if(size < (size_t)(ftell(file) + screen_header.compressed_size)) goto fail;
 
 
     screen_cbuff = (uint8_t*)malloc(screen_header.compressed_size);

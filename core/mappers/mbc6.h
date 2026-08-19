@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../utils/utils.h"
+#include "../utils.h"
 
 typedef struct _gb_cartridge_t gb_cartridge_t;
 
@@ -36,6 +36,7 @@ typedef struct _gb_mbc6_t {
     
     uint16_t rom_bank_mask;
     uint8_t ram_bank_mask;
+    uint16_t ram_address_mask;
 
     bool ram_enabled;
     
@@ -78,6 +79,9 @@ uint8_t gb_mbc6_read_rom_or_flash(void* data,uint16_t address);
 
 void gb_mbc6_write_ram(void* data,uint8_t value,uint16_t address);
 uint8_t gb_mbc6_read_ram(void* data,uint16_t address);
+
+size_t gb_mbc6_rom_absolute_address(gb_cartridge_t* cartridge,uint16_t relative_address);
+size_t gb_mbc6_ram_absolute_address(gb_cartridge_t* cartridge,uint16_t relative_address);
 
 void gb_mbc6_reset(gb_cartridge_t* cartridge);
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "utils/utils.h"
+#include "utils.h"
 
 typedef struct _gb_infrared_t {
     gb_t* gb;

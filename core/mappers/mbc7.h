@@ -1,11 +1,11 @@
 #pragma once
 
-#include "../utils/utils.h"
+#include "../utils.h"
 
 typedef struct _gb_cartridge_t gb_cartridge_t;
 
 enum{
-    gb_eeprom93lc56_ram_size = 0x100,
+    gb_eeprom93lc56_ram_length = 0x100,
     gb_eeprom93lc56_ram_bank_mask = 0x00,
     gb_eeprom93lc56_ram_address_mask = 0xFF
 };
@@ -63,6 +63,8 @@ void gb_mbc7_write_register_1(void* data,uint8_t value,uint16_t address);
 
 void gb_mbc7_write_register_2(void* data,uint8_t value,uint16_t address);
 uint8_t gb_mbc7_read_register_2(void* data,uint16_t address);
+
+size_t gb_mbc7_rom_absolute_address(gb_cartridge_t* cartridge,uint16_t relative_address);
 
 void gb_mbc7_reset(gb_cartridge_t* cartridge);
 

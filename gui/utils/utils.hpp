@@ -48,12 +48,12 @@ struct palette_t{
         texture_access = SDL_TEXTUREACCESS_STREAMING
     };
 
-    SDL_Texture* texture = nullptr;
-    bool is_obj = false;
+    SDL_Texture* texture;
+    bool is_obj;
 
     palette_t(SDL_Renderer* renderer,bool _is_obj):
-    is_obj(_is_obj),
-    texture(SDL_CreateTexture(renderer,texture_format,texture_access,texture_max_width,texture_max_height))
+    texture(SDL_CreateTexture(renderer,texture_format,texture_access,texture_max_width,texture_max_height)),
+    is_obj(_is_obj)
     {}
 
     virtual ~palette_t(){
@@ -74,18 +74,21 @@ struct palette_t{
     virtual gb_rgb_t get_cgb_dmg_color(uint8_t palette_index,uint8_t color_index) const noexcept = 0;
 
 
+    virtual void update_data(gb_palette_t* palette) noexcept = 0;
+
     void update_texture(bool is_cgb,bool cgb_mode);
 };
 
 struct bg_palette_t : public palette_t {
     uint8_t bgp = 0;
-    gb_rgb_t colors[gb_cgb_colors] = {0};
+    gb_rgb_t colors[gb_cgb_colors] = {};
 
     bg_palette_t(SDL_Renderer* renderer):palette_t(renderer,false){}
 
     void clear();
 
     uint8_t get_dmg_address_color(uint8_t palette_index, uint8_t color_index) const noexcept override {
+        gb_unused(palette_index);
         return (bgp >> ((color_index & 0x03) << 0x01)) & 0x03;
     }
 
@@ -110,15 +113,15 @@ struct bg_palette_t : public palette_t {
         return colors[get_dmg_address_color(palette_index,color_index)];
     }
 
-    void update_data(gb_palette_t* palette){
+    void update_data(gb_palette_t* palette) noexcept override {
         bgp = palette->bgp;
         memcpy(colors,palette->bg_cram_converted,sizeof(colors));
     }
 };
 
 struct obj_palette_t : public palette_t {
-    uint8_t obp[2] = {0};
-    gb_rgb_t colors[gb_cgb_colors] = {0};
+    uint8_t obp[2] = {};
+    gb_rgb_t colors[gb_cgb_colors] = {};
 
     obj_palette_t(SDL_Renderer* renderer):palette_t(renderer,true){}
 
@@ -149,7 +152,7 @@ struct obj_palette_t : public palette_t {
         return colors[get_cgb_dmg_address_color(palette_index,color_index)];
     }
 
-    void update_data(gb_palette_t* palette){
+    void update_data(gb_palette_t* palette) noexcept override {
         obp[0] = palette->obp[0];
         obp[1] = palette->obp[1];
         memcpy(colors,palette->obj_cram_converted,sizeof(colors)); 

@@ -22,15 +22,6 @@ private:
     };
 
     enum{
-        source_cpu,
-        source_rom,
-        source_vram,
-        source_ram,
-        source_wram,
-        source_hram,
-    };
-
-    enum{
         layout_8x8,
         layout_8x16,
         layout_16x16
@@ -43,21 +34,19 @@ private:
     bool cgb_mode;
 
     std::array<uint8_t,tile_viewer_t::data_capacity> data;
-    uint32_t data_length;
+    size_t data_length;
 
     bool obj_palette_selected = false;
     uint8_t palette_index = 0;
     bg_palette_t bg_palette;
     obj_palette_t obj_palette;
 
-    int current_source = 0;
+    int current_memory_type = 0;
     int current_layout = 0;
 
-    uint32_t address_offset = 0;
+    size_t address_offset = 0;
 
     float input_scalar_width = 0.0f;
-    int input_scalar_step = 1;
-    int size_input_scalar_step = 2;
 
     const float min_scale = 1.0f;
     const float max_scale = 10.0f;
@@ -77,7 +66,7 @@ private:
 
     gb_ppu_handler_t callback_handler = {ppu_callback,this,gb_vblank_scanline,0,nullptr};
 
-    bool _open = false;
+    bool open = false;
 
     static void ppu_callback(void* userdata);
 
@@ -105,24 +94,11 @@ public:
 
     void render();
 
-
-    void open(){
-        if(_open) return;
-
-        _open = true;
-
-        gb_thread_safe_add_ppu_handler(gb,&callback_handler);
-    }
-
-    void close(){
-        if(!_open) return;
-
-        _open = false;
-
-        gb_thread_safe_remove_ppu_handler(gb,&callback_handler);
-    }
+    void clear();
+    
+    void set_open(bool _open) noexcept;
 
     bool get_open() const noexcept {
-        return _open;
+        return open;
     }
 };

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "utils/utils.h"
+#include "utils.h"
 
 enum{
     gb_boot_dmg_rom_size = 256,

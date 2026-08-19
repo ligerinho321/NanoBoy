@@ -1,6 +1,6 @@
 #pragma once
 
-#include "utils/utils.h"
+#include "utils.h"
 
 enum{
     gb_dmg_bg_palettes = 1,

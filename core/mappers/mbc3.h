@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../utils/utils.h"
+#include "../utils.h"
 
 typedef struct _gb_cartridge_t gb_cartridge_t;
 
@@ -42,6 +42,9 @@ uint8_t gb_mbc3_rtc_read_register(void* data,uint16_t address);
 void gb_mbc3_rtc_update_timer(gb_cartridge_t* cartridge);
 void gb_mbc3_rtc_save(gb_cartridge_t* cartridge,const char* path);
 void gb_mbc3_rtc_load(gb_cartridge_t* cartridge,const char* path);
+
+size_t gb_mbc3_rom_absolute_address(gb_cartridge_t* cartridge,uint16_t relative_address);
+size_t gb_mbc3_ram_absolute_address(gb_cartridge_t* cartridge,uint16_t relative_address);
 
 void gb_mbc3_reset(gb_cartridge_t* cartridge);
 

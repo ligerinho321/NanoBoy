@@ -42,13 +42,11 @@ private:
 public:
     printer_t(gb_t* _gb,SDL_Renderer* _renderer);
 
-    ~printer_t(){
-        if(texture != nullptr){
-            SDL_DestroyTexture(texture);
-        }
-    }
+    ~printer_t();
 
     void render();
+    
+    void clear();
 
     void set_open(bool _open) noexcept;
 

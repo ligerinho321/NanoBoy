@@ -30,12 +30,12 @@ void gb_ppu_init(gb_ppu_t* ppu,gb_t* gb){
 }
 
 
-void gb_ppu_add_handler(gb_ppu_t* ppu,gb_ppu_handler_t* handler){
-    gb_list_add_element(ppu->handlers,handler,gb_ppu_handler_t);
+void gb_ppu_add_handler(gb_t* gb,gb_ppu_handler_t* handler){
+    gb_list_add_element(gb->ppu.handlers,handler,gb_ppu_handler_t);
 }
 
-void gb_ppu_remove_handler(gb_ppu_t* ppu,gb_ppu_handler_t* handler){
-    gb_list_remove_element(ppu->handlers,handler,gb_ppu_handler_t);
+void gb_ppu_remove_handler(gb_t* gb,gb_ppu_handler_t* handler){
+    gb_list_remove_element(gb->ppu.handlers,handler,gb_ppu_handler_t);
 }
 
 
@@ -141,6 +141,8 @@ static inline void gb_ppu_vblank_scanline(gb_ppu_t* ppu){
                 gb_ppu_swap_frame_buffer(ppu);
 
                 ++ppu->frame_count;
+
+                gb_frame_timer_clock(&ppu->gb->frame_timer);
 
                 gb_joypad_update(&ppu->gb->joypad);
 
@@ -505,8 +507,9 @@ void gb_ppu_clock(gb_ppu_t* ppu,int cycles){
 
             ++ppu->frame_count;
 
-            gb_joypad_update(&ppu->gb->joypad);
+            gb_frame_timer_clock(&ppu->gb->frame_timer);
 
+            gb_joypad_update(&ppu->gb->joypad);
         }
     }
 }
@@ -531,6 +534,10 @@ uint8_t gb_ppu_read_vram(void* data,uint16_t address){
         return ppu->vram_bank_ptr[address & 0x1FFF];
     }
     return 0xFF;
+}
+
+size_t gb_ppu_vram_absolute_address(gb_ppu_t* ppu,uint16_t relative_address){
+    return (ppu->vram_bank ? 0x2000 : 0x0000) | (relative_address & 0x1FFF);
 }
 
 
@@ -564,8 +571,6 @@ void gb_ppu_write_register(void* data,uint8_t value,uint16_t address){
 
                 ppu->vram_blocked = false;
                 ppu->oam_blocked = false;
-
-                ppu->first_frame = true;
             }
             else if(!ppu->lcdc.lcd_enabled && lcd_enabled){
 
@@ -688,6 +693,8 @@ uint8_t gb_ppu_read_register(void* data,uint16_t address){
 
 
 void gb_ppu_write_vbk_register(void* data,uint8_t value,uint16_t address){
+    gb_unused(address);
+
     gb_ppu_t* ppu = (gb_ppu_t*)data;
     gb_t* gb = ppu->gb;
 
@@ -698,6 +705,8 @@ void gb_ppu_write_vbk_register(void* data,uint8_t value,uint16_t address){
 }
 
 uint8_t gb_ppu_read_vbk_register(void* data,uint16_t address){
+    gb_unused(address);
+
     gb_ppu_t* ppu = (gb_ppu_t*)data;
     gb_t* gb = ppu->gb;
     
@@ -720,6 +729,11 @@ uint8_t gb_ppu_read_oam(void* data,uint16_t address){
         return ppu->oam[address & 0xFF];
     }
     return 0xFF;
+}
+
+size_t gb_ppu_oam_absolute_address(gb_ppu_t* ppu,uint16_t relative_address){
+    gb_unused(ppu);
+    return relative_address & 0xFF;
 }
 
 
@@ -769,11 +783,11 @@ void gb_ppu_init_vram_after_skip_boot_dmg(gb_ppu_t* ppu){
 
     // ®
 
-    static const uint8_t more_vram[0x08] = {
+    static const uint8_t more_vram[8] = {
         0x3C,0x42,0xB9,0xA5,0xB9,0xA5,0x42,0x3C
     };
 
-    for(int i = 0; i < sizeof(more_vram); ++i){
+    for(int i = 0; i < 8; ++i){
         ppu->vram[0x0190 + i * 0x02] = more_vram[i];
     }
 

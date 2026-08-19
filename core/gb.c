@@ -53,6 +53,7 @@ gb_t* gb_new(){
     gb_cartridge_init(&gb->cartridge,gb);
     gb_printer_init(&gb->printer,gb);
     gb_frame_timer_init(&gb->frame_timer);
+    gb_breakpoint_manager_init(&gb->breakpoint_manager,gb);
 
     gb_map(gb);
 
@@ -94,102 +95,28 @@ void gb_remove_cartridge(gb_t* gb){
 }
 
 
-void gb_thread_safe_connect_printer(gb_t* gb,gb_printer_callback_t callback,void* userdata){
-    gb_thread_stop(gb);
-    gb_connect_printer(gb,callback,userdata);
-    gb_thread_start(gb);
-}
-
-void gb_thread_safe_disconnect_printer(gb_t* gb){
-    gb_thread_stop(gb);
-    gb_disconnect_printer(gb);
-    gb_thread_start(gb);
-}
-
-
-void gb_thread_safe_set_joypad_callback(gb_t* gb,gb_joypad_callback_t callback,void* data){
-    gb_thread_stop(gb);
-    gb_joypad_set_callback(&gb->joypad,callback,data);
-    gb_thread_start(gb);
-}
-
-void gb_thread_safe_remove_joypad_callback(gb_t* gb){
-    gb_thread_stop(gb);
-    gb_joypad_remove_callback(&gb->joypad);
-    gb_thread_start(gb);
-}
-
-
-void gb_thread_safe_add_apu_handler(gb_t* gb,gb_apu_handler_t* handler){
-    gb_thread_stop(gb);
-    gb_add_apu_handler(gb,handler);
-    gb_thread_start(gb);
-}
-
-void gb_thread_safe_remove_apu_handler(gb_t* gb,gb_apu_handler_t* handler){
-    gb_thread_stop(gb);
-    gb_remove_apu_handler(gb,handler);
-    gb_thread_start(gb);
-}
-
-
-void gb_thread_safe_add_ppu_handler(gb_t* gb,gb_ppu_handler_t* handler){
-    gb_thread_stop(gb);
-    gb_ppu_add_handler(&gb->ppu,handler);
-    gb_thread_start(gb);
-}
-
-void gb_thread_safe_remove_ppu_handler(gb_t* gb,gb_ppu_handler_t* handler){
-    gb_thread_stop(gb);
-    gb_ppu_remove_handler(&gb->ppu,handler);
-    gb_thread_start(gb);
-}
-
-
-void gb_thread_safe_set_speed(gb_t* gb,float new_speed){
+void gb_set_speed(gb_t* gb,float new_speed){
     if(new_speed == gb->speed || new_speed < gb_speed_min || new_speed > gb_speed_max) return;
-    
-    gb_thread_stop(gb);
 
     gb->speed = new_speed;
     
     gb_apu_update_rates(&gb->apu);
-    
-    gb_thread_start(gb);
 }
 
-void gb_thread_safe_set_execution_mode(gb_t* gb,bool multi_thread){
-    if(gb->multi_thread == multi_thread) return;
-    
-    gb_thread_stop(gb);
 
-    gb->multi_thread = multi_thread;
-    
-    gb_thread_start(gb);
-}
-
-void gb_thread_safe_set_paused(gb_t* gb,bool paused){
+void gb_pause(gb_t* gb,bool paused){
     if(gb->paused == paused) return;
-    
-    gb_thread_stop(gb);
-    
+
     gb->paused = paused;
 
     if(gb->paused){
         gb_frame_timer_stop(&gb->frame_timer);
     }
     else{
+        gb->breakpoint_manager.last_check_address = gb->cpu.pc;
+
         gb_frame_timer_start(&gb->frame_timer);
     }
-    
-    gb_thread_start(gb);
-}
-
-
-void gb_thread_safe_reset(gb_t *gb){
-    gb_thread_stop(gb);
-    gb_reset(gb);
-    gb_thread_start(gb);
 }
 
 
@@ -215,7 +142,7 @@ void gb_half_machine_cycle(gb_t* gb){
 
     gb_ppu_clock(&gb->ppu,cycles);
 
-    if((gb->cycle & 0x03) == 0x03){
+    if(!(gb->cycle & 0x03)){
 
         gb_timer_clock(&gb->timer);
 
@@ -245,52 +172,54 @@ void gb_machine_cycle(gb_t* gb){
 
 
 void gb_execute_frame(gb_t* gb){
-    if(!gb->cartridge_inserted || gb->multi_thread || gb->paused) return;
+    if(!gb->cartridge_inserted || gb->paused || (gb->multi_thread && !gb->breakpoint_manager.enabled)) return;
 
     uint64_t frame = gb->ppu.frame_count;
     gb_cpu_t* cpu = &gb->cpu;
 
-    while(frame == gb->ppu.frame_count){
-        gb_cpu_execute(cpu);
-    }
-
-    gb_frame_timer_clock(&gb->frame_timer);
-}
-
-
-static inline void gb_execute(gb_t* gb){
-    gb_ppu_t* ppu = &gb->ppu;
-    gb_cpu_t* cpu = &gb->cpu;
-    gb_frame_timer_t* frame_timer = &gb->frame_timer;
-    uint64_t frame = 0;
-    
-    while(gb_atomic_load_explicit(&gb->thread_running,gb_memory_order_relaxed)){
-        
-        frame = ppu->frame_count;
-
-        while(frame == ppu->frame_count){
-            gb_cpu_execute(cpu);  
-        }
-        
-        gb_frame_timer_clock(frame_timer);
+    while(frame == gb->ppu.frame_count && !gb->paused){
+        cpu->execute(cpu);
     }
 }
+
+void gb_execute_step(gb_t* gb){
+    if(!gb->cartridge_inserted || (gb->multi_thread && !gb->breakpoint_manager.enabled)) return;
+
+    gb_pause(gb,true);
+
+    gb->breakpoint_manager.last_check_address = gb->cpu.pc;
+
+    gb->cpu.execute(&gb->cpu);
+}
+
 
 #ifdef _WIN32
 DWORD WINAPI gb_thread_function(void* data){
-    gb_execute((gb_t*)data);
+    gb_t* gb = (gb_t*)data;
+    gb_cpu_t* cpu = &gb->cpu;
+    
+    while(gb_atomic_load_explicit(&gb->thread_running,gb_memory_order_relaxed)){
+        cpu->execute(cpu);
+    }
+
     return 0;
 }
 #else
 void* gb_thread_function(void* data){
-    gb_execute((gb_t*)data);
+    gb_t* gb = (gb_t*)data;
+    gb_cpu_t* cpu = &gb->cpu;
+    
+    while(gb_atomic_load_explicit(&gb->thread_running,gb_memory_order_relaxed)){
+        cpu->execute(cpu);
+    }
+
     pthread_exit(NULL);
 }
 #endif
 
 
 void gb_thread_stop(gb_t* gb){
-    if(!gb->cartridge_inserted || gb->paused) return;
+    if(!gb->cartridge_inserted || gb->paused || gb->breakpoint_manager.enabled) return;
 
     if(!gb->multi_thread || !gb_atomic_load_explicit(&gb->thread_running,gb_memory_order_relaxed)) return;
 
@@ -306,7 +235,7 @@ void gb_thread_stop(gb_t* gb){
 }
 
 void gb_thread_start(gb_t* gb){
-    if(!gb->cartridge_inserted || gb->paused) return;
+    if(!gb->cartridge_inserted || gb->paused || gb->breakpoint_manager.enabled) return;
 
     if(!gb->multi_thread || gb_atomic_load_explicit(&gb->thread_running,gb_memory_order_relaxed)) return;
 
@@ -340,6 +269,8 @@ void gb_switch_speed(gb_t* gb){
 
 
 void gb_write_key0_register(void* data,uint8_t value,uint16_t address){
+    gb_unused(address);
+
     gb_t* gb = (gb_t*)data;
 
     if(!(gb->is_cgb && gb->boot.mapped)) return;
@@ -349,6 +280,8 @@ void gb_write_key0_register(void* data,uint8_t value,uint16_t address){
 
 
 void gb_write_key1_register(void* data,uint8_t value,uint16_t address){
+    gb_unused(address);
+
     gb_t* gb = (gb_t*)data;
 
     if(!(gb->is_cgb && (gb->cgb_mode || gb->boot.mapped))) return;
@@ -357,6 +290,8 @@ void gb_write_key1_register(void* data,uint8_t value,uint16_t address){
 }
 
 uint8_t gb_read_key1_register(void* data,uint16_t address){
+    gb_unused(address);
+
     gb_t* gb = (gb_t*)data;
 
     if(!(gb->is_cgb && (gb->cgb_mode || gb->boot.mapped))) return 0xFF;
@@ -366,6 +301,8 @@ uint8_t gb_read_key1_register(void* data,uint16_t address){
 
 
 void gb_write_opri_register(void* data,uint8_t value,uint16_t address){
+    gb_unused(address);
+
     gb_t* gb = (gb_t*)data;
 
     if(!(gb->is_cgb && (gb->cgb_mode || gb->boot.mapped))) return;
@@ -374,6 +311,8 @@ void gb_write_opri_register(void* data,uint8_t value,uint16_t address){
 }
 
 uint8_t gb_read_opri_register(void* data,uint16_t address){
+    gb_unused(address);
+    
     gb_t* gb = (gb_t*)data;
 
     if(!(gb->is_cgb && (gb->cgb_mode || gb->boot.mapped))) return 0xFF;
@@ -480,7 +419,7 @@ void gb_reset(gb_t* gb){
 
     memset(gb->undocumented_registers,0x00,sizeof(gb->undocumented_registers));
 
-    gb->cycle = (uint64_t)-1;
+    gb->cycle = 0;
 
     gb_cpu_reset(&gb->cpu);
     gb_ppu_reset(&gb->ppu);
@@ -495,6 +434,8 @@ void gb_reset(gb_t* gb){
     gb_memory_reset(&gb->memory);
     gb_cartridge_reset(&gb->cartridge);
     gb_printer_reset(&gb->printer);
+
+    gb->breakpoint_manager.last_check_address = (uint16_t)-1;
 
     if(skip_boot){
         gb_boot_unmap(&gb->boot);
@@ -512,11 +453,16 @@ void gb_reset(gb_t* gb){
     else{
         gb_boot_map(&gb->boot);
     }
-
 }
 
 
 void gb_delete(gb_t* gb){
+
+    gb_thread_stop(gb);
+
+    gb_remove_cartridge(gb);
+    
     gb_apu_free(&gb->apu);
+
     free(gb);
 }

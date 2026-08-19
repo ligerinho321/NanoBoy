@@ -57,6 +57,9 @@ typedef bool gb_atomic_bool_t;
 
 
 
+#define gb_unused(x) ((void)x)
+
+
 #define gb_min(x,y)({\
     gb_auto _x_tmp = x;\
     gb_auto _y_tmp = y;\
@@ -68,6 +71,7 @@ typedef bool gb_atomic_bool_t;
     gb_auto _y_tmp = y;\
     _x_tmp > _y_tmp ? _x_tmp : _y_tmp;\
 })
+
 
 #define gb_list_add_element(list,element,type)\
     type* current = list;\
@@ -101,8 +105,10 @@ typedef bool gb_atomic_bool_t;
         current = current->next;\
     }
 
+
 #define gb_printf_errno(f) fprintf(stderr,"function: %s line: %d %s: %s\n",__func__,__LINE__,#f,strerror(errno))
 #define gb_printf_error(e) fprintf(stderr,"function: %s line: %d error: %s\n",__func__,__LINE__,e)
+
 
 #define gb_speed_step 0.25f
 #define gb_speed_min 1.0f
@@ -112,7 +118,14 @@ typedef bool gb_atomic_bool_t;
 
 enum {
     gb_clock_rate = 4194304,
-    
+
+    gb_bus_length = 0x10000,
+    gb_vram_length = 0x4000,
+    gb_wram_length = 0x8000,
+    gb_oam_length = 0xA0,
+    gb_hram_length = 0x7F,
+
+    gb_oam_objects = gb_oam_length / 4,
     gb_object_width = 8,
     gb_object_min_height = 8,
     gb_object_max_height = 16,
@@ -153,8 +166,10 @@ enum {
     gb_ring_buffer_size = gb_audio_mixer_buffer_samples * gb_audio_bytes_per_sample * gb_ring_buffer_frames
 };
 
+
 typedef struct _gb_t gb_t;
 typedef struct _gb_state_t gb_state_t;
+
 
 typedef struct _gb_apu_handler_t {
     void (*callback)(void*);
@@ -178,11 +193,34 @@ typedef struct _gb_cheat_code_t {
     struct _gb_cheat_code_t* next;
 } gb_cheat_code_t;
 
+
 typedef struct _gb_memory_descriptor_t {
     void (*write)(void*,uint8_t,uint16_t);
     uint8_t (*read)(void*,uint16_t);
     void* data;
 } gb_memory_descriptor_t;
+
+
+typedef struct _gb_ring_buffer_t {
+    uint8_t *data;
+    size_t size;
+    gb_atomic_size_t write;
+    gb_atomic_size_t read;
+} gb_ring_buffer_t;
+
+void gb_ring_buffer_init(gb_ring_buffer_t* rb,size_t size);
+
+size_t gb_ring_buffer_writeable(gb_ring_buffer_t* rb);
+
+size_t gb_ring_buffer_readable(gb_ring_buffer_t* rb);
+
+size_t gb_ring_buffer_write(gb_ring_buffer_t* rb,const uint8_t* src,size_t len);
+
+size_t gb_ring_buffer_read(gb_ring_buffer_t* rb,uint8_t* dst,size_t len);
+
+void gb_ring_buffer_clear(gb_ring_buffer_t* rb);
+
+void gb_ring_buffer_free(gb_ring_buffer_t* rb);
 
 
 typedef struct _gb_frame_timer_t {
@@ -197,7 +235,6 @@ typedef struct _gb_frame_timer_t {
 #endif
 } gb_frame_timer_t;
 
-
 void gb_frame_timer_init(gb_frame_timer_t* frame_timer);
 
 void gb_frame_timer_clock(gb_frame_timer_t* frame_timer);
@@ -208,12 +245,10 @@ void gb_frame_timer_stop(gb_frame_timer_t* frame_timer);
 
 float gb_frame_timer_get_fps(gb_frame_timer_t* frame_timer);
 
-
 bool gb_save_file(const char* path,void* data,size_t len);
 bool gb_load_file(const char* path,void** data,size_t* len);
 
-
-uint32_t crc32(const uint8_t* buffer,uint32_t len);
+uint32_t gb_crc32(const uint8_t* buffer,uint32_t len);
 
 #ifdef __cplusplus
 }

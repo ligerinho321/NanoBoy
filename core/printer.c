@@ -267,17 +267,17 @@ void gb_printer_remove_callback(gb_printer_t* printer){
 }
 
 
-void gb_printer_set_padding_enabled(gb_printer_t* printer,bool enabled){
-    gb_atomic_store_explicit(&printer->padding_enabled,enabled,gb_memory_order_relaxed);
+void gb_printer_set_padding_enabled(gb_t* gb,bool enabled){
+    gb_atomic_store_explicit(&gb->printer.padding_enabled,enabled,gb_memory_order_relaxed);
 }
 
-bool gb_printer_get_padding_enabled(gb_printer_t* printer){
-    return gb_atomic_load_explicit(&printer->padding_enabled,gb_memory_order_relaxed);
+bool gb_printer_get_padding_enabled(gb_t* gb){
+    return gb_atomic_load_explicit(&gb->printer.padding_enabled,gb_memory_order_relaxed);
 }
 
 
-void gb_printer_accelerate(gb_printer_t* printer){
-    gb_atomic_store_explicit(&printer->accelerate,true,gb_memory_order_relaxed);
+void gb_printer_accelerate(gb_t* gb){
+    gb_atomic_store_explicit(&gb->printer.accelerate,true,gb_memory_order_relaxed);
 }
 
 

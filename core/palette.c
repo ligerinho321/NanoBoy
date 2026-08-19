@@ -125,11 +125,11 @@ void gb_palette_cgb_dmg_colorization(gb_palette_t* palette){
     uint8_t palette_id = 0x00;
 
     uint8_t old_licensee_code = gb_cartridge_old_licensee_code(cartridge);
-    const char* new_licensee_code = gb_cartridge_new_licensee_code(cartridge);
+    const char* new_licensee_code = (const char*)gb_cartridge_new_licensee_code(cartridge);
 
     if(old_licensee_code == 0x01 || (old_licensee_code == 0x33 && !memcmp(new_licensee_code,"01",0x02))){
         
-        const char* title = gb_cartridge_title(cartridge);
+        const char* title = (const char*)gb_cartridge_title(cartridge);
 
         uint8_t title_checksum = 0x00;
         

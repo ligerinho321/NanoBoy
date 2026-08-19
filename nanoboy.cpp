@@ -19,14 +19,10 @@ static void joypad_callback(void* data,gb_joypad_state_t* state){
 }
 
 static void audio_callback(void* userdata,uint8_t* data,int len){
-    gb_apu_t* apu = (gb_apu_t*)userdata;
-
-    size_t readable = gb_ring_buffer_readable(&apu->ring_buffer);
-
-    readable = gb_min(len,readable);
-
-    if(readable > 0){
-        gb_ring_buffer_read(&apu->ring_buffer,data,readable);
+    gb_t* gb = (gb_t*)userdata;
+    size_t result = gb_read_samples(gb,data,len);
+    if(result < (size_t)len){
+        memset(data + result,0,(size_t)len - result);
     }
 }
 
@@ -48,7 +44,7 @@ static void file_selector_callback(void* userdata,std::filesystem::path path){
 nanoboy_t::nanoboy_t(){
     
     gb = gb_new();
-    gb_thread_safe_set_joypad_callback(gb,joypad_callback,this);
+    gb_joypad_set_callback(gb,joypad_callback,this);
 
     init_directories();
     init_sdl();
@@ -64,7 +60,6 @@ nanoboy_t::nanoboy_t(){
     SDL_SetWindowPosition(window,SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED);
 
     boot_settings = new boot_settings_t(gb);
-
     input_settings = new input_settings_t();
 
     file_selector = new file_selector_t();
@@ -80,11 +75,11 @@ nanoboy_t::nanoboy_t(){
 
     printer = new printer_t(gb,renderer);
 
+    debugger = new debugger_t(gb);
     tilemap_viewer = new tilemap_viewer_t(gb,renderer);
     tile_viewer = new tile_viewer_t(gb,renderer);
     object_viewer = new object_viewer_t(gb,renderer);
     palette_viewer = new palette_viewer_t(gb,renderer);
-
     wave_form = new wave_form_t(gb);
 
     running = true;
@@ -104,6 +99,7 @@ nanoboy_t::~nanoboy_t(){
     delete object_viewer;
     delete tile_viewer;
     delete tilemap_viewer;
+    delete debugger;
     delete printer;
     delete cheats;
     delete screen;
@@ -174,13 +170,13 @@ void nanoboy_t::init_sdl(){
 
     renderer = SDL_CreateRenderer(window,-1,SDL_RENDERER_ACCELERATED);
 
-    SDL_AudioSpec audio_spec = {0};
+    SDL_AudioSpec audio_spec = {};
     audio_spec.freq = gb_audio_sample_rate;
     audio_spec.format = AUDIO_S16;
     audio_spec.channels = gb_audio_channels;
     audio_spec.samples = 512;
     audio_spec.callback = audio_callback;
-    audio_spec.userdata = &gb->apu;
+    audio_spec.userdata = gb;
 
     audio_device = SDL_OpenAudioDevice(nullptr,0,&audio_spec,nullptr,0);
 }
@@ -396,9 +392,9 @@ void nanoboy_t::insert_cartridge(std::filesystem::path path){
 
     cheats->load(get_rom_cheat_path().c_str(),false);
 
-    gb_thread_start(gb);
+    SDL_PauseAudioDevice(audio_device,false);
 
-    pause_audio_device(false);
+    gb_thread_start(gb);
 }
 
 void nanoboy_t::remove_cartridge(){
@@ -407,7 +403,7 @@ void nanoboy_t::remove_cartridge(){
 
     gb_thread_stop(gb);
 
-    pause_audio_device(true);
+    SDL_PauseAudioDevice(audio_device,true);
 
     gb_save_ram(gb,get_rom_save_path().c_str());
     
@@ -418,7 +414,10 @@ void nanoboy_t::remove_cartridge(){
     cheats->save(get_rom_cheat_path().c_str());
     cheats->clear(false);
 
+    printer->clear();
+
     tilemap_viewer->clear();
+    tile_viewer->clear();
     object_viewer->clear();
     palette_viewer->clear();
 
@@ -432,6 +431,34 @@ void nanoboy_t::remove_cartridge(){
     gb_remove_cartridge(gb);
 
     SDL_SetWindowTitle(window,"NanoBoy");
+}
+
+void nanoboy_t::set_speed(float speed){
+    gb_thread_stop(gb);
+
+    gb_set_speed(gb,speed);
+
+    gb_thread_start(gb);
+}
+
+void nanoboy_t::pause(){
+    gb_thread_stop(gb);
+
+    gb_pause(gb,!gb->paused);
+
+    gb_thread_start(gb);
+}
+
+void nanoboy_t::reset(){
+    gb_thread_stop(gb);
+
+    SDL_LockAudioDevice(audio_device);
+
+    gb_reset(gb);
+
+    SDL_UnlockAudioDevice(audio_device);
+
+    gb_thread_start(gb);
 }
 
 
@@ -455,19 +482,18 @@ void nanoboy_t::event(){
                 if(gb->cartridge_inserted){
                     if(SDL_GetModState() & KMOD_CTRL){
                         if(event.key.keysym.scancode == SDL_SCANCODE_R){
-                            gb_thread_safe_reset(gb);
+                            reset();
                         }
                     }
                     else{
                         if(event.key.keysym.scancode == SDL_SCANCODE_ESCAPE){
-                            gb_thread_safe_set_paused(gb,!gb->paused);
-                            pause_audio_device(gb->paused);
+                            pause();
                         }
                         else if(event.key.keysym.scancode == SDL_SCANCODE_EQUALS){
-                            gb_thread_safe_set_speed(gb,gb->speed + gb_speed_step);
+                            set_speed(gb->speed + gb_speed_step);
                         }
                         else if(event.key.keysym.scancode == SDL_SCANCODE_MINUS){
-                            gb_thread_safe_set_speed(gb,gb->speed - gb_speed_step);
+                            set_speed(gb->speed - gb_speed_step);
                         }
                         else if(event.key.keysym.scancode == SDL_SCANCODE_F12){
                             take_screenshot();
@@ -524,20 +550,19 @@ void nanoboy_t::render_main_menu_bar(){
     if(ImGui::BeginMenu("Game")){
         
         if(ImGui::MenuItem("Pause","Esq",nullptr,gb->cartridge_inserted)){
-            gb_thread_safe_set_paused(gb,!gb->paused);
-            pause_audio_device(gb->paused);
+            pause();
         }
 
         if(ImGui::MenuItem("Reset","Ctrl+R",nullptr,gb->cartridge_inserted)){
-            gb_thread_safe_reset(gb);
+            reset();
         }
 
         if(ImGui::MenuItem("Increase speed","=",nullptr,gb->cartridge_inserted)){
-            gb_thread_safe_set_speed(gb,gb->speed + gb_speed_step);
+            set_speed(gb->speed + gb_speed_step);
         }
         
         if(ImGui::MenuItem("Decrease speed","-",nullptr,gb->cartridge_inserted)){
-            gb_thread_safe_set_speed(gb,gb->speed - gb_speed_step);
+            set_speed(gb->speed - gb_speed_step);
         }
         
         if(ImGui::MenuItem("Cheats",nullptr,nullptr,gb->cartridge_inserted)){
@@ -561,12 +586,10 @@ void nanoboy_t::render_main_menu_bar(){
 
         if(ImGui::BeginMenu("Model")){
             
-            bool is_cgb = gb->is_cgb_pending;
-
-            if(ImGui::MenuItem("Game Boy (DMG)",nullptr,!is_cgb)){
+            if(ImGui::MenuItem("Game Boy (DMG)",nullptr,!gb->is_cgb_pending) && gb->is_cgb_pending){
                 gb->is_cgb_pending = false;
             }
-            if(ImGui::MenuItem("Game Boy Color (CGB)",nullptr,is_cgb)){
+            if(ImGui::MenuItem("Game Boy Color (CGB)",nullptr,gb->is_cgb_pending) && !gb->is_cgb_pending){
                 gb->is_cgb_pending = true;
             }
 
@@ -574,11 +597,13 @@ void nanoboy_t::render_main_menu_bar(){
         }
 
         if(ImGui::BeginMenu("Execution Mode")){
-            if(ImGui::MenuItem("Single Thread",nullptr,!gb->multi_thread)){
-                gb_thread_safe_set_execution_mode(gb,false);
+            if(ImGui::MenuItem("Single Thread",nullptr,!gb->multi_thread) && gb->multi_thread){
+                gb_thread_stop(gb);
+                gb->multi_thread = false;
             }
-            if(ImGui::MenuItem("Multi Thread",nullptr,gb->multi_thread)){
-                gb_thread_safe_set_execution_mode(gb,true);
+            if(ImGui::MenuItem("Multi Thread",nullptr,gb->multi_thread) && !gb->multi_thread){
+                gb->multi_thread = true;
+                gb_thread_start(gb);
             }
             ImGui::EndMenu();
         }
@@ -595,11 +620,14 @@ void nanoboy_t::render_main_menu_bar(){
     }
 
     if(ImGui::BeginMenu("Debug")){
+        if(ImGui::MenuItem("Debugger",nullptr,nullptr,gb->cartridge_inserted)){
+            debugger->set_open(true);
+        }
         if(ImGui::MenuItem("Tilemap Viewer",nullptr,nullptr,gb->cartridge_inserted)){
             tilemap_viewer->set_open(true);
         }
         if(ImGui::MenuItem("Tile Viewer",nullptr,nullptr,gb->cartridge_inserted)){
-            tile_viewer->open();
+            tile_viewer->set_open(true);
         }
         if(ImGui::MenuItem("Object Viewer",nullptr,nullptr,gb->cartridge_inserted)){
             object_viewer->set_open(true);
@@ -636,11 +664,11 @@ void nanoboy_t::imgui_render(){
     cheats->render();
     printer->render();
     
+    debugger->render();
     tilemap_viewer->render();
     tile_viewer->render();
     object_viewer->render();
     palette_viewer->render();
-
     wave_form->render();
 
     ImGui::Render();

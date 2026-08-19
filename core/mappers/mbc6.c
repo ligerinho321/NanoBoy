@@ -14,10 +14,12 @@ bool gb_mbc6_init(gb_cartridge_t* cartridge,uint8_t flags){
     
     memset(mbc6,0x00,sizeof(gb_mbc6_t));
 
-    mbc6->rom_bank_mask = (cartridge->rom_size / 0x2000) - 0x01;
+    mbc6->rom_bank_mask = (cartridge->rom_length / 0x2000) - 0x01;
     mbc6->ram_bank_mask = 0x00;
 
     cartridge->mapper.data = mbc6;
+    cartridge->mapper.rom_absolute_address = gb_mbc6_rom_absolute_address;
+    cartridge->mapper.ram_absolute_address = gb_mbc6_ram_absolute_address;
     cartridge->mapper.reset = gb_mbc6_reset;
     cartridge->mapper.save_state = gb_mbc6_save_state;
     cartridge->mapper.load_state = gb_mbc6_load_state;
@@ -33,8 +35,13 @@ bool gb_mbc6_init(gb_cartridge_t* cartridge,uint8_t flags){
             return false;
         }
 
-        if(cartridge->ram_size > 0x1000){
-            mbc6->ram_bank_mask = (cartridge->ram_size / 0x1000) - 0x01;
+        if(cartridge->ram_length == 0x800){
+            mbc6->ram_bank_mask = 0x00;
+            mbc6->ram_address_mask = 0x07FF;
+        }
+        else if(cartridge->ram_length >= 0x2000){
+            mbc6->ram_bank_mask = (cartridge->ram_length >> 0x0C) - 0x01;
+            mbc6->ram_address_mask = 0x0FFF;
         }
     }
 
@@ -45,7 +52,7 @@ bool gb_mbc6_init(gb_cartridge_t* cartridge,uint8_t flags){
 static void gb_mbc6_update_mapping(gb_cartridge_t* cartridge){
     gb_mbc6_t* mbc6 = (gb_mbc6_t*)cartridge->mapper.data;
 
-    if(cartridge->ram_size > 0){
+    if(cartridge->ram_length > 0){
 
         mbc6->ram_0_ptr = cartridge->ram + ((mbc6->ram_bank_0 & mbc6->ram_bank_mask) << 0x0C);
 
@@ -77,7 +84,7 @@ void gb_mbc6_write_register(void* data,uint8_t value,uint16_t address){
     if(address < 0x0400){
         mbc6->ram_enabled = (value & 0x0F) == 0x0A;
 
-        if(cartridge->ram_size > 0x00){
+        if(cartridge->ram_length > 0x00){
             if(mbc6->ram_enabled){
                 cartridge->ram_descriptor.write = gb_mbc6_write_ram;
                 cartridge->ram_descriptor.read = gb_mbc6_read_ram;
@@ -386,6 +393,7 @@ uint8_t gb_mbc6_read_rom_or_flash(void* data,uint16_t address){
                     //0xc2, if read from sector 0; 0x00, if read from sectors 1-7
                     uint8_t bank = (address < 0x6000) ? mbc6->rom_or_flash_bank_0 : mbc6->rom_or_flash_bank_1;
                     value = (bank < 0x10) ? 0xC2 : 0x00;
+                    break;
                 }
                 case 0x03:{
                     value = 0xFF;
@@ -419,11 +427,11 @@ void gb_mbc6_write_ram(void* data,uint8_t value,uint16_t address){
     gb_mbc6_t* mbc6 = (gb_mbc6_t*)cartridge->mapper.data;
     //0xA000-0xAFFF
     if(address < 0xB000){
-        mbc6->ram_0_ptr[address & 0x0FFF] = value;
+        mbc6->ram_0_ptr[address & mbc6->ram_address_mask] = value;
     }
     //0xB000-0xBFFF
     else{
-        mbc6->ram_1_ptr[address & 0x0FFF] = value;
+        mbc6->ram_1_ptr[address & mbc6->ram_address_mask] = value;
     }
 }
 
@@ -432,11 +440,59 @@ uint8_t gb_mbc6_read_ram(void* data,uint16_t address){
     gb_mbc6_t* mbc6 = (gb_mbc6_t*)cartridge->mapper.data;
     //0xA000-0xAFFF
     if(address < 0xB000){
-        return mbc6->ram_0_ptr[address & 0x0FFF];
+        return mbc6->ram_0_ptr[address & mbc6->ram_address_mask];
     }
     //0xB000-0xBFFF
     else{
-        return mbc6->ram_1_ptr[address & 0x0FFF];
+        return mbc6->ram_1_ptr[address & mbc6->ram_address_mask];
+    }
+}
+
+
+size_t gb_mbc6_rom_absolute_address(gb_cartridge_t* cartridge,uint16_t relative_address){
+    gb_mbc6_t* mbc6 = (gb_mbc6_t*)cartridge->mapper.data;
+
+    //$0000-$3FFF
+    if((relative_address & 0x7FFF) < 0x4000){
+        return relative_address & 0x3FFF;
+    }
+    else{
+        //$4000-$5FFF
+        if((relative_address & 0x3FFF) < 0x2000){
+            if(!mbc6->flash_bank_0_enabled){
+                return ((mbc6->rom_or_flash_bank_0 & mbc6->rom_bank_mask) << 0x0D) | (relative_address & 0x1FFF);
+            }
+            else{
+                return (size_t)-1;
+            }
+        }
+        //$6000-$7FFF
+        else{
+            if(!mbc6->flash_bank_1_enabled){
+                return ((mbc6->rom_or_flash_bank_1 & mbc6->rom_bank_mask) << 0x0D) | (relative_address & 0x1FFF);
+            }
+            else{
+                return (size_t)-1;
+            }
+        }
+    }
+}
+
+size_t gb_mbc6_ram_absolute_address(gb_cartridge_t* cartridge,uint16_t relative_address){
+    gb_mbc6_t* mbc6 = (gb_mbc6_t*)cartridge->mapper.data;
+
+    if(mbc6->ram_enabled && cartridge->ram_length > 0){
+        //$A000-$AFFF
+        if((relative_address & 0x1FFF) < 0x1000){
+            return ((mbc6->ram_bank_0 & mbc6->ram_bank_mask) << 0x0C) | (relative_address & mbc6->ram_address_mask);
+        }
+        //$B000-$BFFF
+        else{
+            return ((mbc6->ram_bank_1 & mbc6->ram_bank_mask) << 0x0C) | (relative_address & mbc6->ram_address_mask);
+        }
+    }
+    else{
+        return (size_t)-1;
     }
 }
 
@@ -446,7 +502,7 @@ void gb_mbc6_reset(gb_cartridge_t* cartridge){
 
     mbc6->ram_enabled = false;
 
-    if(cartridge->ram_size > 0x00){
+    if(cartridge->ram_length > 0x00){
         cartridge->ram_descriptor.write = gb_memory_write_empty;
         cartridge->ram_descriptor.read = gb_memory_read_empty;
     }
@@ -512,7 +568,7 @@ void gb_mbc6_load_state(gb_cartridge_t* cartridge,gb_state_t* state){
 
     gb_state_read(state,mbc6->ram_enabled);
 
-    if(cartridge->ram_size > 0x00){
+    if(cartridge->ram_length > 0x00){
         if(mbc6->ram_enabled){
             cartridge->ram_descriptor.write = gb_mbc6_write_ram;
             cartridge->ram_descriptor.read = gb_mbc6_read_ram;

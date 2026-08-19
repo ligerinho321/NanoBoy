@@ -4,7 +4,7 @@ void palette_t::update_texture(bool is_cgb,bool cgb_mode){
     
     int rows = cgb_mode ? gb_cgb_palettes : (is_obj ? gb_dmg_obj_palettes : gb_dmg_bg_palettes);
 
-    gb_rgb_t color = {0};
+    gb_rgb_t color{};
 
     uint8_t* pixels = nullptr;
     int pitch = 0;

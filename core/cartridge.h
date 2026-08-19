@@ -1,6 +1,6 @@
 #pragma once
 
-#include "utils/utils.h"
+#include "utils.h"
 #include "mappers/mbc1.h"
 #include "mappers/mbc2.h"
 #include "mappers/mbc3.h"
@@ -32,7 +32,7 @@ typedef struct _gb_cartridge_t {
     uint8_t* header;
 
     uint8_t* rom;
-    size_t rom_size;
+    size_t rom_length;
     uint32_t rom_crc32;
     gb_memory_descriptor_t rom0_descriptor;
     gb_memory_descriptor_t rom1_descriptor;
@@ -41,7 +41,7 @@ typedef struct _gb_cartridge_t {
     uint16_t rom_bank_mask;
 
     uint8_t* ram;
-    size_t ram_size;
+    size_t ram_length;
     gb_memory_descriptor_t ram_descriptor;
     uint8_t* ram_ptr;
     uint8_t ram_bank_mask;
@@ -50,6 +50,8 @@ typedef struct _gb_cartridge_t {
 
     struct{
         void* data;
+        size_t (*rom_absolute_address)(struct _gb_cartridge_t*,uint16_t);
+        size_t (*ram_absolute_address)(struct _gb_cartridge_t*,uint16_t);
         void (*rtc_update_timer)(struct _gb_cartridge_t*);
         void (*rtc_save)(struct _gb_cartridge_t*,const char*);
         void (*rtc_load)(struct _gb_cartridge_t*,const char*);
@@ -101,7 +103,7 @@ void gb_cartridge_load_ram(gb_cartridge_t* cartridge,const char* path);
 bool gb_cartridge_verify_nintendo_logo(uint8_t* header);
 bool gb_cartridge_verify_header_checksum(uint8_t* header);
 
-size_t gb_cartridge_get_rom_size(uint8_t* header);
+size_t gb_cartridge_get_rom_length(uint8_t* header);
 
 bool gb_cartridge_init_ram(gb_cartridge_t* cartridge,bool battery);
 bool gb_cartridge_init_mapper(gb_cartridge_t* cartridge);
@@ -116,6 +118,8 @@ uint8_t gb_cartridge_read_ram(void* data,uint16_t address);
 
 void gb_cartridge_map(gb_cartridge_t* cartridge);
 
+size_t gb_cartridge_rom_absolute_address(gb_cartridge_t* cartridge,uint16_t relative_address);
+size_t gb_cartridge_ram_absolute_address(gb_cartridge_t* cartridge,uint16_t relative_address);
 void gb_cartridge_update_rtc_timer(gb_cartridge_t* cartridge);
 void gb_cartridge_save_rtc(gb_cartridge_t* cartridge,const char* path);
 void gb_cartridge_load_rtc(gb_cartridge_t* cartridge,const char* path);

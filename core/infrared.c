@@ -13,6 +13,8 @@ void gb_infrared_init(gb_infrared_t* infrared,gb_t* gb){
 
 
 void gb_infrared_write_register(void* data,uint8_t value,uint16_t address){
+    gb_unused(address);
+
     gb_infrared_t* infrared = (gb_infrared_t*)data;
     gb_t* gb = infrared->gb;
 
@@ -23,6 +25,8 @@ void gb_infrared_write_register(void* data,uint8_t value,uint16_t address){
 }
 
 uint8_t gb_infrared_read_register(void* data,uint16_t address){
+    gb_unused(address);
+    
     gb_infrared_t* infrared = (gb_infrared_t*)data;
     gb_t* gb = infrared->gb;
     

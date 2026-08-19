@@ -13,6 +13,11 @@ wave_form_t::wave_form_t(gb_t* _gb):gb(_gb){
 }
 
 
+wave_form_t::~wave_form_t(){
+    set_open(false,true);
+}
+
+
 void wave_form_t::channel_callback(void* userdata){
     wave_form_t* wave_form = (wave_form_t*)userdata;
     gb_apu_t* apu = &wave_form->gb->apu;
@@ -63,7 +68,7 @@ void wave_form_t::file_save_callback(void* userdata,std::filesystem::path path){
 
     FILE* file = fopen(path.u8string().c_str(),"wb");
     if(!file){
-        gb_printf_error(fopen);
+        gb_printf_errno(fopen);
         return;
     }
 
@@ -142,14 +147,18 @@ void wave_form_t::pause_recording(bool _paused) noexcept {
 
     paused = _paused;
 
+    gb_thread_stop(gb);
+
     if(paused){
-        gb_thread_safe_remove_apu_handler(gb,&recording_handler);
+        gb_apu_remove_handler(gb,&recording_handler);
 
         last_time = time(NULL);
     }
     else{
-        gb_thread_safe_add_apu_handler(gb,&recording_handler);
+        gb_apu_add_handler(gb,&recording_handler);
     }
+
+    gb_thread_start(gb);
 }
 
 
@@ -269,10 +278,12 @@ void wave_form_t::render(){
             }
             else{
                 recording = true;
-                
+
                 paused = false;
 
-                gb_thread_safe_add_apu_handler(gb,&recording_handler);
+                gb_thread_stop(gb);
+                gb_apu_add_handler(gb,&recording_handler);
+                gb_thread_start(gb);
             }
         }
 
@@ -418,7 +429,7 @@ void wave_form_t::clear(){
     wave.count = 0;
     noise.count = 0;
 
-    gb_remove_apu_handler(gb,&recording_handler);
+    gb_apu_remove_handler(gb,&recording_handler);
     
     clear_recording();
 }
@@ -431,18 +442,29 @@ void wave_form_t::set_open(bool _open,bool force_discarding) noexcept {
     if(_open){
         open = true;
 
-        gb_thread_safe_add_apu_handler(gb,&channel_handler);
+        gb_thread_stop(gb);
+        
+        gb_apu_add_handler(gb,&channel_handler);
+        
+        gb_thread_start(gb);
     }
     else{
-        pause_recording(true);
-
         if(recording && !force_discarding){
+
             request_open_popup_modal = true;
+
+            pause_recording(true);
         }
         else{
             open = false;
 
-            gb_thread_safe_remove_apu_handler(gb,&channel_handler);
+            gb_thread_stop(gb);
+
+            gb_apu_remove_handler(gb,&channel_handler);
+
+            gb_apu_remove_handler(gb,&recording_handler);
+
+            gb_thread_start(gb);
 
             clear_recording();
         }

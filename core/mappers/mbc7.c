@@ -14,23 +14,24 @@ bool gb_mbc7_init(gb_cartridge_t* cartridge,uint8_t flags){
     memset(mbc7,0x00,sizeof(gb_mbc7_t));
 
     cartridge->mapper.data = mbc7;
+    cartridge->mapper.rom_absolute_address = gb_mbc7_rom_absolute_address;
     cartridge->mapper.reset = gb_mbc7_reset;
     cartridge->mapper.save_state = gb_mbc7_save_state;
     cartridge->mapper.load_state = gb_mbc7_load_state;
 
-    uint8_t* ram = (uint8_t*)malloc(gb_eeprom93lc56_ram_size);
+    uint8_t* ram = (uint8_t*)malloc(gb_eeprom93lc56_ram_length);
     
     if(!ram){
         gb_printf_errno(malloc);
         return false;
     }
 
-    memset(ram,0x00,gb_eeprom93lc56_ram_size);
+    memset(ram,0x00,gb_eeprom93lc56_ram_length);
 
     mbc7->eeprom.ram = ram;
 
     cartridge->ram = ram;
-    cartridge->ram_size = gb_eeprom93lc56_ram_size;
+    cartridge->ram_length = gb_eeprom93lc56_ram_length;
     cartridge->ram_bank_mask = gb_eeprom93lc56_ram_bank_mask;
     cartridge->ram_address_mask = gb_eeprom93lc56_ram_address_mask;
     cartridge->ram_has_battery = flags & gb_cartridge_battery;
@@ -141,6 +142,20 @@ uint8_t gb_mbc7_read_register_2(void* data,uint16_t address){
     }
 
     return value;
+}
+
+
+size_t gb_mbc7_rom_absolute_address(gb_cartridge_t* cartridge,uint16_t relative_address){
+    gb_mbc7_t* mbc7 = (gb_mbc7_t*)cartridge->mapper.data;
+
+    //$0000-$3FFF
+    if((relative_address & 0x7FFF) < 0x4000){
+        return relative_address & 0x3FFF;
+    }
+    //$4000-$7FFF
+    else{
+        return ((mbc7->rom_bank & cartridge->rom_bank_mask) << 0x0E) | (relative_address & 0x3FFF);
+    }
 }
 
 
@@ -278,7 +293,7 @@ void gb_eeprom93lc56_write(gb_eeprom93lc56_t* eeprom,uint8_t value){
                             //ERAL
                             case 0x80:{
                                 if(eeprom->write_enabled){
-                                    memset(eeprom->ram,0xFF,gb_eeprom93lc56_ram_size);
+                                    memset(eeprom->ram,0xFF,gb_eeprom93lc56_ram_length);
                                 }
                                 eeprom->state = gb_eeprom93lc56_idle_state;
                                 break;
@@ -314,7 +329,7 @@ void gb_eeprom93lc56_write(gb_eeprom93lc56_t* eeprom,uint8_t value){
             eeprom->write_data |= eeprom->di;
             if(++eeprom->write_count >= 0x10){
                 if(eeprom->write_enabled){
-                    for(int i = 0x00; i < gb_eeprom93lc56_ram_size; i += 0x02){
+                    for(int i = 0x00; i < gb_eeprom93lc56_ram_length; i += 0x02){
                         eeprom->ram[i + 0x00] = eeprom->write_data & 0xFF;
                         eeprom->ram[i + 0x01] = eeprom->write_data >> 0x08;
                     }
@@ -328,7 +343,7 @@ void gb_eeprom93lc56_write(gb_eeprom93lc56_t* eeprom,uint8_t value){
                 eeprom->read_data <<= 0x01;
             }
             if(++eeprom->read_count >= 0x10){
-                eeprom->state = eeprom->state = gb_eeprom93lc56_idle_state;
+                eeprom->state = gb_eeprom93lc56_idle_state;
             }
             break;
         }
@@ -388,7 +403,7 @@ void gb_eeprom93lc56_save_state(gb_eeprom93lc56_t* eeprom,gb_state_t* state){
     gb_state_write(state,eeprom->read_count);
     gb_state_write(state,eeprom->write_data);
     gb_state_write(state,eeprom->write_count);
-    gb_state_write_ex(state,eeprom->ram,gb_eeprom93lc56_ram_size);
+    gb_state_write_ex(state,eeprom->ram,gb_eeprom93lc56_ram_length);
 }
 
 void gb_eeprom93lc56_load_state(gb_eeprom93lc56_t* eeprom,gb_state_t* state){
@@ -403,5 +418,5 @@ void gb_eeprom93lc56_load_state(gb_eeprom93lc56_t* eeprom,gb_state_t* state){
     gb_state_read(state,eeprom->read_count);
     gb_state_read(state,eeprom->write_data);
     gb_state_read(state,eeprom->write_count);
-    gb_state_read_ex(state,eeprom->ram,gb_eeprom93lc56_ram_size);
+    gb_state_read_ex(state,eeprom->ram,gb_eeprom93lc56_ram_length);
 }

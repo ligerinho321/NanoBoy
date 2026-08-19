@@ -1,9 +1,18 @@
 #include "cpu.h"
 #include "gb.h"
 
+const char* gb_cpu_state_names[3] = {
+    "Running",
+    "Halted",
+    "Stopped"
+};
+
 #define gb_cpu_set_flag(flag,state) (state) ? (cpu->f |= (flag)) : (cpu->f &= ~(flag))
 
+#define gb_cpu_irq_pending(cpu) ((cpu)->ime && ((cpu)->gb->interrupt.enable & (cpu)->gb->interrupt.flag))
+
 #define gb_cpu_cycle(cpu) gb_machine_cycle((cpu)->gb)
+
 
 void gb_cpu_init(gb_cpu_t* cpu,gb_t* gb){
     cpu->gb = gb;
@@ -485,9 +494,11 @@ static inline void gb_cpu_rst(gb_cpu_t* cpu,uint8_t target){
 
 static inline void gb_cpu_halt(gb_cpu_t* cpu){
     if(cpu->ime || !(cpu->gb->interrupt.enable & cpu->gb->interrupt.flag)){
-        cpu->state = gb_cpu_halted_state;
+        gb_cpu_set_state(cpu,gb_cpu_halted_state);
     }
-    cpu->halt_fetch = true;
+    else{
+        cpu->halt_bug = true;
+    }
 }
 
 static inline void gb_cpu_stop(gb_cpu_t* cpu){
@@ -502,8 +513,7 @@ static inline void gb_cpu_stop(gb_cpu_t* cpu){
             //STOP is a 2byte opcode, HALT mode is entered, DIV is not reset
             gb_cpu_read_byte(cpu,cpu->pc++);
 
-            cpu->state = gb_cpu_halted_state;
-            cpu->halt_fetch = true;
+            gb_cpu_set_state(cpu,gb_cpu_halted_state);
         }
     }
     else{
@@ -516,19 +526,18 @@ static inline void gb_cpu_stop(gb_cpu_t* cpu){
                 //STOP is a 2byte opcode, HALT mode is entered, DIV is reset, CPU speed changes
                 gb_cpu_read_byte(cpu,cpu->pc++);
                 
-                cpu->state = gb_cpu_halted_state;
-                cpu->halt_fetch = true;
-
-                gb_switch_speed(gb);
+                gb_cpu_set_state(cpu,gb_cpu_halted_state);
 
                 //Unless an interrupt ocurrs before the, HALT mode whill exit automatically after about 0x20000 T-cycles
                 cpu->halt_cycles = 0x20000 >> 0x02;
+
+                gb_switch_speed(gb);
             }
         }
         else{
             if(interrupt_pending){
                 //STOP is a 1byte opcode, STOP mode is entered, DIV is reset
-                cpu->state = gb_cpu_stopped_state;
+                gb_cpu_set_state(cpu,gb_cpu_stopped_state);
 
                 gb_timer_set_div(&gb->timer,0);
             }
@@ -536,7 +545,7 @@ static inline void gb_cpu_stop(gb_cpu_t* cpu){
                 //STOP is a 2byte opcode, STOP mode is entered, DIV is reset
                 gb_cpu_read_byte(cpu,cpu->pc++);
 
-                cpu->state = gb_cpu_stopped_state;
+                gb_cpu_set_state(cpu,gb_cpu_stopped_state);
 
                 gb_timer_set_div(&gb->timer,0);
             }
@@ -544,8 +553,26 @@ static inline void gb_cpu_stop(gb_cpu_t* cpu){
     }
 }
 
+static inline void gb_cpu_irq(gb_cpu_t* cpu){
+    cpu->pc--;
+    
+    gb_cpu_cycle(cpu);
+    gb_cpu_cycle(cpu);
+
+    gb_cpu_write_byte(cpu,cpu->pc >> 0x08,--cpu->sp);
+    
+    uint8_t vector = gb_interrupt_get_vector(&cpu->gb->interrupt);
+    
+    gb_cpu_write_byte(cpu,cpu->pc & 0xFF,--cpu->sp);
+
+    cpu->pc = vector;
+    
+    cpu->ime = false;
+}
+
 
 static inline void gb_cpu_prefix(gb_cpu_t* cpu,uint8_t prefix){
+
     switch(prefix){
         //RLC B
         case 0x00: gb_cpu_rlc(cpu,&cpu->b); break;
@@ -1077,8 +1104,8 @@ static inline void gb_cpu_prefix(gb_cpu_t* cpu,uint8_t prefix){
     }
 }
 
+static inline void gb_cpu_opcode(gb_cpu_t* cpu){
 
-static inline void gb_cpu_execute_opcode(gb_cpu_t* cpu){
     switch(cpu->opcode){
         //NOP
         case 0x00: break;
@@ -1611,82 +1638,111 @@ static inline void gb_cpu_execute_opcode(gb_cpu_t* cpu){
 }
 
 
-void gb_cpu_execute(gb_cpu_t* cpu){
-    switch(cpu->state){
-        case gb_cpu_running_state:{
+static void gb_cpu_running(gb_cpu_t* cpu){
 
-            if(cpu->ime && (cpu->gb->interrupt.enable & cpu->gb->interrupt.flag)){
-                cpu->pc--;
-                
-                gb_cpu_cycle(cpu);
-                gb_cpu_cycle(cpu);
+    if(gb_breakpoint_manager_check(&cpu->gb->breakpoint_manager,cpu->pc)){
+        return;
+    }
 
-                gb_cpu_write_byte(cpu,cpu->pc >> 0x08,--cpu->sp);
-                
-                uint8_t vector = gb_interrupt_get_vector(&cpu->gb->interrupt);
-                
-                gb_cpu_write_byte(cpu,cpu->pc & 0xFF,--cpu->sp);
+    cpu->opcode = gb_cpu_read_byte(cpu,cpu->pc);
 
-                cpu->pc = vector;
-                
-                cpu->ime = false;
-            }
-            else{
-                if(cpu->ime_pending){
-                    cpu->ime_pending = false;
-                    cpu->ime = true;
-                }
-                gb_cpu_execute_opcode(cpu);
-            }
+    if(!cpu->halt_bug){
+        cpu->pc++;
+    }
+    else{
+        cpu->halt_bug = false;
+    }
 
-            cpu->opcode = gb_cpu_read_byte(cpu,cpu->pc);
-
-            if(!cpu->halt_fetch){
-                cpu->pc++;
-            }
-            else{
-                cpu->halt_fetch = false;
-            }
-
-            break;
+    if(gb_cpu_irq_pending(cpu)){
+        gb_cpu_irq(cpu);
+    }
+    else{
+        if(cpu->ime_pending){
+            cpu->ime_pending = false;
+            cpu->ime = true;
         }
-        case gb_cpu_halted_state:{
+        gb_cpu_opcode(cpu);
+    }
+}
 
-            gb_cpu_cycle(cpu);
+static void gb_cpu_halted(gb_cpu_t* cpu){
 
-            if((cpu->gb->interrupt.enable & cpu->gb->interrupt.flag) || (cpu->halt_cycles && --cpu->halt_cycles == 0x00)){
-                cpu->halt_cycles = 0x00;
-                
-                cpu->state = gb_cpu_running_state;
+    if(gb_breakpoint_manager_check(&cpu->gb->breakpoint_manager,cpu->pc)){
+        return;
+    }
 
-                cpu->opcode = gb_memory_cpu_read(&cpu->gb->memory,cpu->pc++);
-            }
+    gb_cpu_cycle(cpu);
 
-            break;
+    if((cpu->gb->interrupt.enable & cpu->gb->interrupt.flag) || (cpu->halt_cycles && --cpu->halt_cycles == 0x00)){
+        
+        gb_cpu_set_state(cpu,gb_cpu_running_state);
+
+        cpu->opcode = gb_memory_cpu_read(&cpu->gb->memory,cpu->pc++);
+
+        if(gb_cpu_irq_pending(cpu)){
+            gb_cpu_irq(cpu);
         }
-        case gb_cpu_stopped_state:{
-            
-            gb_cpu_cycle(cpu);
-
-            if(gb_joypad_is_any_button_pressed(&cpu->gb->joypad)){
-                cpu->state = gb_cpu_running_state;
+        else{
+            if(cpu->ime_pending){
+                cpu->ime_pending = false;
+                cpu->ime = true;
             }
-
-            break;
+            gb_cpu_opcode(cpu);
         }
-        default:{
-            gb_printf_error("invalid cpu state");
-            cpu->state = gb_cpu_running_state;
-            break;
+    }
+}
+
+static void gb_cpu_stopped(gb_cpu_t* cpu){
+    
+    if(gb_breakpoint_manager_check(&cpu->gb->breakpoint_manager,cpu->pc)){
+        return;
+    }
+
+    gb_cpu_cycle(cpu);
+
+    if(gb_joypad_is_any_button_pressed(&cpu->gb->joypad)){
+        
+        gb_cpu_set_state(cpu,gb_cpu_running_state);
+
+        cpu->opcode = gb_memory_cpu_read(&cpu->gb->memory,cpu->pc++);
+
+        if(gb_cpu_irq_pending(cpu)){
+            gb_cpu_irq(cpu);
+        }
+        else{
+            if(cpu->ime_pending){
+                cpu->ime_pending = false;
+                cpu->ime = true;
+            }
+            gb_cpu_opcode(cpu);
         }
     }
 }
 
 
+void gb_cpu_set_state(gb_cpu_t* cpu,uint8_t state){
+    switch(state){
+        case gb_cpu_running_state:
+            cpu->state = gb_cpu_running_state;
+            cpu->execute = gb_cpu_running;
+            break;
+        case gb_cpu_halted_state:
+            cpu->state = gb_cpu_halted_state;
+            cpu->halt_cycles = 0;
+            cpu->execute = gb_cpu_halted;
+            break;
+        case gb_cpu_stopped_state:
+            cpu->state = gb_cpu_stopped_state;
+            cpu->execute = gb_cpu_stopped;
+            break;
+    }
+}
+
+
 void gb_cpu_reset(gb_cpu_t* cpu){
-    cpu->state = gb_cpu_running_state;
+    gb_cpu_set_state(cpu,gb_cpu_running_state);
     cpu->opcode = 0x00;
-    cpu->halt_fetch = false;
+    cpu->halt_bug = false;
     cpu->halt_cycles = 0x00;
     cpu->ime_pending = false;
     cpu->ime = false;
@@ -1729,6 +1785,7 @@ void gb_cpu_skip_boot(gb_cpu_t* cpu){
 void gb_cpu_save_state(gb_cpu_t* cpu,gb_state_t* state){
     gb_state_write(state,cpu->state);
     gb_state_write(state,cpu->opcode);
+    gb_state_write(state,cpu->halt_cycles);
     gb_state_write(state,cpu->ime_pending);
     gb_state_write(state,cpu->ime);
     gb_state_write(state,cpu->af);
@@ -1741,7 +1798,10 @@ void gb_cpu_save_state(gb_cpu_t* cpu,gb_state_t* state){
 
 void gb_cpu_load_state(gb_cpu_t* cpu,gb_state_t* state){
     gb_state_read(state,cpu->state);
+    gb_cpu_set_state(cpu,cpu->state);
+
     gb_state_read(state,cpu->opcode);
+    gb_state_read(state,cpu->halt_cycles);
     gb_state_read(state,cpu->ime_pending);
     gb_state_read(state,cpu->ime);
     gb_state_read(state,cpu->af);

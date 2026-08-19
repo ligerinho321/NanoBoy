@@ -1,6 +1,6 @@
 #pragma once
 
-#include "utils/utils.h"
+#include "utils.h"
 
 typedef enum _gb_joypad_button_t {
     gb_button_down,
@@ -13,6 +13,8 @@ typedef enum _gb_joypad_button_t {
     gb_button_a,
     gb_button_count
 } gb_joypad_button_t;
+
+extern const char* gb_joypad_button_names[8];
 
 typedef struct gb_joypad_state_t {
     bool down : 1;
@@ -51,10 +53,8 @@ extern "C" {
 
 void gb_joypad_init(gb_joypad_t* joypad,gb_t* gb);
 
-const char* gb_joypad_get_button_name(int button);
-
-void gb_joypad_set_callback(gb_joypad_t* joypad,gb_joypad_callback_t callback,void* data);
-void gb_joypad_remove_callback(gb_joypad_t* joypad);
+void gb_joypad_set_callback(gb_t* gb,gb_joypad_callback_t callback,void* data);
+void gb_joypad_remove_callback(gb_t* gb);
 
 void gb_joypad_update(gb_joypad_t* joypad);
 

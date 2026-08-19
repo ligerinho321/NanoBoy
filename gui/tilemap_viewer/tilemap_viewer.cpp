@@ -19,7 +19,7 @@ tilemap_viewer_t::tilemap_viewer_t(gb_t* gb,SDL_Renderer* renderer):gb(gb),bg_pa
 }
 
 tilemap_viewer_t::~tilemap_viewer_t(){
-    gb_thread_safe_remove_ppu_handler(gb,&callback_handler);
+    set_open(false);
 
     SDL_DestroyTexture(tilemap_texture[0]);
     SDL_DestroyTexture(tilemap_texture[1]);
@@ -49,7 +49,7 @@ void tilemap_viewer_t::update_tilemap_texture(uint8_t map_index){
     uint8_t* map = vram + base_address;
     uint8_t* map_attribute = vram + (0x2000 | base_address);
 
-    gb_rgb_t color{0};
+    gb_rgb_t color{};
 
     uint8_t* pixels = nullptr;
     int pitch = 0;
@@ -238,8 +238,6 @@ void tilemap_viewer_t::render_scroll_overlay(ImVec2 tilemap_start,ImVec2 tilemap
 }
 
 void tilemap_viewer_t::render_tile_tooltip(bool tilemap,uint8_t col,uint8_t row){
-
-    ImVec2 start = ImGui::GetItemRectMin();
 
     if(!ImGui::BeginTooltip()) return;
 
@@ -549,10 +547,14 @@ void tilemap_viewer_t::set_open(bool _open) noexcept {
     
     open = _open;
 
+    gb_thread_stop(gb);
+
     if(open){
-        gb_thread_safe_add_ppu_handler(gb,&callback_handler);
+        gb_ppu_add_handler(gb,&callback_handler);
     }
     else{
-        gb_thread_safe_remove_ppu_handler(gb,&callback_handler);
+        gb_ppu_remove_handler(gb,&callback_handler);
     }
+
+    gb_thread_start(gb);
 }

@@ -10,7 +10,7 @@ palette_viewer_t::palette_viewer_t(gb_t* gb,SDL_Renderer* renderer):gb(gb),bg_pa
 }
 
 palette_viewer_t::~palette_viewer_t(){
-    gb_thread_safe_remove_ppu_handler(gb,&callback_handler);
+    set_open(false);
 }
 
 
@@ -73,7 +73,7 @@ void palette_viewer_t::render_tooltip_color(palette_t& palette,uint8_t* cram,uin
         ImGui::TableNextColumn();
         ImGui::Text("$%02X",col);
 
-        gb_rgb_t color{0};
+        gb_rgb_t color{};
 
         if(gb->is_cgb){
 
@@ -245,10 +245,14 @@ void palette_viewer_t::set_open(bool _open) noexcept {
 
     open = _open;
     
+    gb_thread_stop(gb);
+
     if(open){
-        gb_thread_safe_add_ppu_handler(gb,&callback_handler);
+        gb_ppu_add_handler(gb,&callback_handler);
     }
     else{
-        gb_thread_safe_remove_ppu_handler(gb,&callback_handler);
+        gb_ppu_remove_handler(gb,&callback_handler);
     }
+
+    gb_thread_start(gb);
 }

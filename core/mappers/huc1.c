@@ -14,6 +14,8 @@ bool gb_huc1_init(gb_cartridge_t* cartridge,uint8_t flags){
     memset(huc1,0x00,sizeof(gb_huc1_t));
 
     cartridge->mapper.data = huc1;
+    cartridge->mapper.rom_absolute_address = gb_huc1_rom_absolute_address;
+    cartridge->mapper.ram_absolute_address = gb_huc1_ram_absolute_address;
     cartridge->mapper.reset = gb_huc1_reset;
     cartridge->mapper.save_state = gb_huc1_save_state;
     cartridge->mapper.load_state = gb_huc1_load_state;
@@ -45,7 +47,7 @@ void gb_huc1_write_register_0(void* data,uint8_t value,uint16_t address){
             cartridge->ram_descriptor.write = gb_huc1_write_ir_register;
             cartridge->ram_descriptor.read = gb_huc1_read_ir_register;
         }
-        else if(cartridge->ram_size > 0){
+        else if(cartridge->ram_length > 0){
             cartridge->ram_descriptor.write = gb_cartridge_write_ram;
             cartridge->ram_descriptor.read = gb_cartridge_read_ram;
         }
@@ -70,7 +72,7 @@ void gb_huc1_write_register_1(void* data,uint8_t value,uint16_t address){
     if(address < 0x6000){
         huc1->ram_bank = value & 0x03;
 
-        if(cartridge->ram_size > 0){
+        if(cartridge->ram_length > 0){
             gb_cartridge_set_ram_bank(cartridge,huc1->ram_bank);
         }
     }
@@ -78,12 +80,43 @@ void gb_huc1_write_register_1(void* data,uint8_t value,uint16_t address){
 
 
 void gb_huc1_write_ir_register(void* data,uint8_t value,uint16_t address){
+    gb_unused(data);
+    gb_unused(value);
+    gb_unused(address);
     //Write to this region to control the IR transmitter. $01 turns it on, $00 turns it off.
 }
 
 uint8_t gb_huc1_read_ir_register(void* data,uint16_t address){
+    gb_unused(data);
+    gb_unused(address);
     // Read from this region to see either $C1 (saw light) or $C0 (did not see light).
     return 0xC0;
+}
+
+
+size_t gb_huc1_rom_absolute_address(gb_cartridge_t* cartridge,uint16_t relative_address){
+    gb_huc1_t* huc1 = (gb_huc1_t*)cartridge->mapper.data;
+
+    //$0000-$3FFF
+    if((relative_address & 0x7FFF) < 0x4000){
+        return relative_address & 0x3FFF;
+    }
+    //$4000-$7FFF
+    else{
+        return ((huc1->rom_bank & cartridge->rom_bank_mask) << 0x0E) | (relative_address & 0x3FFF);
+    }
+}
+
+size_t gb_huc1_ram_absolute_address(gb_cartridge_t* cartridge,uint16_t relative_address){
+    gb_huc1_t* huc1 = (gb_huc1_t*)cartridge->mapper.data;
+
+    //$A000-$BFFF
+    if(!huc1->ir_enabled && cartridge->ram_length > 0){
+        return ((huc1->ram_bank & cartridge->ram_bank_mask) << 0x0D) | (relative_address & cartridge->ram_address_mask);
+    }
+    else{
+        return (size_t)-1;
+    }
 }
 
 
@@ -97,7 +130,7 @@ void gb_huc1_reset(gb_cartridge_t* cartridge){
 
     huc1->ram_bank = 0x00;
 
-    if(cartridge->ram_size > 0){
+    if(cartridge->ram_length > 0){
         cartridge->ram_descriptor.write = gb_cartridge_write_ram;
         cartridge->ram_descriptor.read = gb_cartridge_read_ram;
 
@@ -127,7 +160,7 @@ void gb_huc1_load_state(gb_cartridge_t* cartridge,gb_state_t* state){
         cartridge->ram_descriptor.write = gb_huc1_write_ir_register;
         cartridge->ram_descriptor.read = gb_huc1_read_ir_register;
     }
-    else if(cartridge->ram_size > 0){
+    else if(cartridge->ram_length > 0){
         cartridge->ram_descriptor.write = gb_cartridge_write_ram;
         cartridge->ram_descriptor.read = gb_cartridge_read_ram;
     }
@@ -142,7 +175,7 @@ void gb_huc1_load_state(gb_cartridge_t* cartridge,gb_state_t* state){
 
     gb_state_read(state,huc1->ram_bank);
 
-    if(cartridge->ram_size > 0){
+    if(cartridge->ram_length > 0){
         gb_cartridge_set_ram_bank(cartridge,huc1->ram_bank);
     }
 }

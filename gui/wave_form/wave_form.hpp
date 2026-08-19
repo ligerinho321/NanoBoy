@@ -14,10 +14,10 @@ private:
 
     file_save_dialog_t file_save;
 
-    channel_frame_t square1 = {0};
-    channel_frame_t square2 = {0};
-    channel_frame_t wave = {0};
-    channel_frame_t noise = {0};
+    channel_frame_t square1 = {};
+    channel_frame_t square2 = {};
+    channel_frame_t wave = {};
+    channel_frame_t noise = {};
 
     std::vector<uint8_t> output;
     std::atomic<size_t> output_size;
@@ -28,8 +28,8 @@ private:
     bool paused = false;
     bool recording = false;
 
-    gb_apu_handler_t channel_handler{channel_callback,this};
-    gb_apu_handler_t recording_handler{recording_callback,this};
+    gb_apu_handler_t channel_handler{channel_callback,this,nullptr};
+    gb_apu_handler_t recording_handler{recording_callback,this,nullptr};
 
     bool request_open_popup_modal = false;
     bool popup_modal_open = false;
@@ -52,10 +52,7 @@ public:
 
     wave_form_t(gb_t* _gb);
 
-    ~wave_form_t(){
-        gb_thread_safe_remove_apu_handler(gb,&channel_handler);
-        gb_thread_safe_remove_apu_handler(gb,&recording_handler);
-    }
+    ~wave_form_t();
 
     void render();
 

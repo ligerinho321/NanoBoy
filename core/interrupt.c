@@ -19,23 +19,35 @@ void gb_interrupt_init(gb_interrupt_t* interrupt,gb_t* gb){
 
 
 void gb_interrupt_write_flag_register(void* data,uint8_t value,uint16_t address){
+    gb_unused(address);
+
     gb_interrupt_t* interrupt = (gb_interrupt_t*)data;
+    
     interrupt->flag = value & 0x1F;
 }
 
 uint8_t gb_interrupt_read_flag_register(void* data,uint16_t address){
+    gb_unused(address);
+
     gb_interrupt_t* interrupt = (gb_interrupt_t*)data;
+    
     return 0xE0 | (interrupt->flag & 0x1F);
 }
 
 
 void gb_interrupt_write_enable_register(void* data,uint8_t value,uint16_t address){
+    gb_unused(address);
+
     gb_interrupt_t* interrupt = (gb_interrupt_t*)data;
+    
     interrupt->enable = value;
 }
 
 uint8_t gb_interrupt_read_enable_register(void* data,uint16_t address){
+    gb_unused(address);
+    
     gb_interrupt_t* interrupt = (gb_interrupt_t*)data;
+
     return interrupt->enable;
 }
 

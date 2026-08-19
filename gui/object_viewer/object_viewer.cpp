@@ -23,15 +23,16 @@ object_viewer_t::object_viewer_t(gb_t* gb,SDL_Renderer *renderer):gb(gb),obj_pal
 
     update_bg_metrics();
 
-    for(int i = 0; i < objects_sorted.size(); ++i){
+    for(int i = 0; i < gb_oam_objects; ++i){
         objects[i].init(i,renderer);
         objects_sorted[i] = &objects[i];
     }
 }
 
 object_viewer_t::~object_viewer_t(){
-    gb_thread_safe_remove_ppu_handler(gb,&callback_handler);
     
+    set_open(false);
+
     SDL_DestroyTexture(bg_texture);
 }
 
@@ -131,7 +132,7 @@ void object_viewer_t::update_bg_metrics(){
 void object_viewer_t::update_object_texture(object_t& object){
     uint8_t* pixels = nullptr;
     int pitch = 0;
-    gb_rgb_t color{0};
+    gb_rgb_t color{};
 
     uint8_t object_height = object_size ? gb_object_max_height : gb_object_min_height;
 
@@ -571,10 +572,14 @@ void object_viewer_t::set_open(bool _open) noexcept {
     
     open = _open;
 
+    gb_thread_stop(gb);
+
     if(open){
-        gb_thread_safe_add_ppu_handler(gb,&callback_handler);
+        gb_ppu_add_handler(gb,&callback_handler);
     }
     else{
-        gb_thread_safe_remove_ppu_handler(gb,&callback_handler);
+        gb_ppu_remove_handler(gb,&callback_handler);
     }
+
+    gb_thread_start(gb);
 }

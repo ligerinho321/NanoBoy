@@ -37,7 +37,7 @@ savestate_t::savestate_t(gb_t* gb,SDL_Renderer* renderer):gb(gb){
 
 void savestate_t::load(std::filesystem::path path,std::string rom_name){
     
-    for(int i = 0; i < slots.size(); ++i){
+    for(int i = 0; i < savestate_t::number_of_slots; ++i){
         slots[i].path = path / (rom_name + "_" + std::to_string(i + 1) + ".ss");
     }
 
@@ -56,12 +56,21 @@ void savestate_t::unload(){
 
 
 void savestate_t::save_slot(slot_t& slot){    
-    gb_savestate_thread_safe_serialize(gb,slot.path.u8string().c_str());
+    gb_thread_stop(gb);
+
+    gb_savestate_serialize(gb,slot.path.u8string().c_str());
+    
+    gb_thread_start(gb);
+
     update_slots();
 }
 
 void savestate_t::load_slot(slot_t& slot){
-    gb_savestate_thread_safe_deserialize(gb,slot.path.u8string().c_str());
+    gb_thread_stop(gb);
+
+    gb_savestate_deserialize(gb,slot.path.u8string().c_str());
+
+    gb_thread_start(gb);
 }
 
 void savestate_t::delete_slot(slot_t& slot){
@@ -98,7 +107,7 @@ void savestate_t::update_slots(){
 
         slot.last_write_time = last_write_time;
 
-        gb_savestate_info_t info = {0};
+        gb_savestate_info_t info{};
 
         if(!gb_savestate_get_info(slot.path.u8string().c_str(),&info)) continue;
 

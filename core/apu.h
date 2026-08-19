@@ -1,8 +1,7 @@
 #pragma once
 
-#include "utils/utils.h"
-#include "utils/blip_buf.h"
-#include "utils/ring_buffer.h"
+#include "utils.h"
+#include "third_party/blip_buf.h"
 
 typedef struct _gb_apu_t gb_apu_t;
 
@@ -52,8 +51,7 @@ typedef struct _gb_apu_square_t {
     uint8_t duty;
     uint8_t duty_pos;
     uint16_t frequency;
-    int timer;
-    int output;
+    uint32_t timer;
 } gb_apu_square_t;
 
 typedef struct _gb_apu_wave_t {
@@ -65,11 +63,10 @@ typedef struct _gb_apu_wave_t {
     gb_apu_length_counter_t length_counter;
     uint8_t volume_code;
     uint16_t frequency;
-    int timer;
+    uint32_t timer;
     uint8_t sample_buffer;
     uint8_t ram_pos;
     uint8_t ram[0x10];
-    int output;
 } gb_apu_wave_t;
 
 typedef struct _gb_apu_noise_t {
@@ -83,8 +80,7 @@ typedef struct _gb_apu_noise_t {
     bool width_mode;
     uint8_t divisor_code;
     uint16_t lfsr;
-    int timer;
-    int output;
+    uint32_t timer;
 } gb_apu_noise_t;
 
 typedef struct _gb_apu_channel_frame_t {
@@ -153,6 +149,8 @@ typedef struct _gb_apu_t {
 } gb_apu_t;
 
 
+#define gb_read_samples(gb,data,len) gb_ring_buffer_read(&gb->apu.ring_buffer,data,len);
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -165,8 +163,8 @@ void gb_apu_mixer_frame_reset(gb_apu_mixer_frame_t* mixer_frame);
 
 void gb_apu_init(gb_apu_t* apu,gb_t* gb);
 
-void gb_apu_add_handler(gb_apu_t* apu,gb_apu_handler_t* handler);
-void gb_apu_remove_handler(gb_apu_t* apu,gb_apu_handler_t* handler);
+void gb_apu_add_handler(gb_t* gb,gb_apu_handler_t* handler);
+void gb_apu_remove_handler(gb_t* gb,gb_apu_handler_t* handler);
 
 void gb_apu_update_rates(gb_apu_t* apu);
 
@@ -197,7 +195,6 @@ void gb_apu_write_square_register(void* data,uint8_t value,uint16_t address);
 uint8_t gb_apu_read_square_register(void* data,uint16_t address);
 
 uint8_t gb_apu_square_raw_output(gb_apu_square_t* square);
-void gb_apu_square_update_output(gb_apu_square_t* square);
 int gb_apu_square_output(gb_apu_square_t* square);
 
 void gb_apu_square_reset(gb_apu_square_t* square,bool hardware);
@@ -215,7 +212,6 @@ void gb_apu_write_wave_ram(void* data,uint8_t value,uint16_t address);
 uint8_t gb_apu_read_wave_ram(void* data,uint16_t address);
 
 uint8_t gb_apu_wave_raw_output(gb_apu_wave_t* wave);
-void gb_apu_wave_update_output(gb_apu_wave_t* wave);
 int gb_apu_wave_output(gb_apu_wave_t* wave);
 
 void gb_apu_wave_reset(gb_apu_wave_t* wave,bool hardware);
@@ -230,7 +226,6 @@ void gb_apu_write_noise_register(void* data,uint8_t value,uint16_t address);
 uint8_t gb_apu_read_noise_register(void* data,uint16_t address);
 
 uint8_t gb_apu_noise_raw_output(gb_apu_noise_t* noise);
-void gb_apu_noise_update_output(gb_apu_noise_t* noise);
 int gb_apu_noise_output(gb_apu_noise_t* noise);
 
 void gb_apu_noise_reset(gb_apu_noise_t* noise,bool hardware);

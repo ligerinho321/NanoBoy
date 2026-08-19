@@ -1,12 +1,6 @@
 #pragma once
 
-#include "utils/utils.h"
-
-enum{
-    gb_wram_length = 0x8000,
-    gb_hram_length = 0x7F,
-    gb_bus_length = 0x10000
-};
+#include "utils.h"
 
 typedef struct _gb_memory_t {
     gb_t *gb;
@@ -69,10 +63,12 @@ uint8_t gb_memory_read_wram0(void* data,uint16_t address);
 void gb_memory_write_wram1(void* data,uint8_t value,uint16_t address);
 uint8_t gb_memory_read_wram1(void* data,uint16_t address);
 void gb_memory_map_wram(gb_memory_t* memory);
+size_t gb_memory_wram_absolute_address(gb_memory_t* memory,uint16_t relative_address);
 
 void gb_memory_write_hram(void* data,uint8_t value,uint16_t address);
 uint8_t gb_memory_read_hram(void* data,uint16_t address);
 void gb_memory_map_hram(gb_memory_t* memory);
+size_t gb_memory_hram_absolute_address(gb_memory_t* memory,uint16_t relative_address);
 
 void gb_memory_write_wbk_register(void* data,uint8_t value,uint16_t address);
 uint8_t gb_memory_read_wbk_register(void* data,uint16_t address);

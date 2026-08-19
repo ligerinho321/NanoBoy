@@ -74,7 +74,8 @@ std::uintmax_t file_base_dialog_t::number_of_entries_in_directory(const std::fil
     uintmax_t n = 0;
     std::error_code error;
 
-    for(auto& entry : std::filesystem::directory_iterator(directory,std::filesystem::directory_options::skip_permission_denied,error)){
+    for(const auto& entry : std::filesystem::directory_iterator(directory,std::filesystem::directory_options::skip_permission_denied,error)){
+        gb_unused(entry);
         n++;
     }
 

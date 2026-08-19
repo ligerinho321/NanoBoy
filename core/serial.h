@@ -1,6 +1,6 @@
 #pragma once
 
-#include "utils/utils.h"
+#include "utils.h"
 
 typedef bool (*gb_serial_callback_t)(void* data,bool bit);
 

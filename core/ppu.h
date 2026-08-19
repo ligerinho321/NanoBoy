@@ -1,12 +1,6 @@
 #pragma once
 
-#include "utils/utils.h"
-
-enum{
-    gb_vram_length = 0x4000,
-    gb_oam_length = 0xA0,
-    gb_oam_objects = gb_oam_length / 4,
-};
+#include "utils.h"
 
 typedef enum _gb_ppu_mode_t {
     gb_ppu_hblank_mode = 0x00,
@@ -167,11 +161,12 @@ void gb_ppu_clock(gb_ppu_t* ppu,int cycles);
 
 const uint8_t* gb_ppu_get_render_buffer(gb_ppu_t* ppu);
 
-void gb_ppu_add_handler(gb_ppu_t* ppu,gb_ppu_handler_t* handler);
-void gb_ppu_remove_handler(gb_ppu_t* ppu,gb_ppu_handler_t* handler);
+void gb_ppu_add_handler(gb_t* gb,gb_ppu_handler_t* handler);
+void gb_ppu_remove_handler(gb_t* gb,gb_ppu_handler_t* handler);
 
 void gb_ppu_write_vram(void* data,uint8_t value,uint16_t address);
 uint8_t gb_ppu_read_vram(void* data,uint16_t address);
+size_t gb_ppu_vram_absolute_address(gb_ppu_t* ppu,uint16_t relative_address);
 
 void gb_ppu_write_register(void* data,uint8_t value,uint16_t address);
 uint8_t gb_ppu_read_register(void* data,uint16_t address);
@@ -181,6 +176,7 @@ uint8_t gb_ppu_read_vbk_register(void* data,uint16_t address);
 
 void gb_ppu_write_oam(void* data,uint8_t value,uint16_t address);
 uint8_t gb_ppu_read_oam(void* data,uint16_t address);
+size_t gb_ppu_oam_absolute_address(gb_ppu_t* ppu,uint16_t relative_address);
 
 void gb_ppu_map(gb_ppu_t* ppu);
 

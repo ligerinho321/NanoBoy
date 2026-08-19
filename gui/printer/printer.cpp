@@ -14,7 +14,15 @@ printer_t::printer_t(gb_t* _gb,SDL_Renderer* _renderer):gb(_gb),renderer(_render
     file_save.set_extensions(image_formats,image_formats_count);
     file_save.set_callback(file_save_callback,this);
 
-    gb_set_printer_padding_enabled(gb,padding_enabled);
+    gb_printer_set_padding_enabled(gb,padding_enabled);
+}
+
+printer_t::~printer_t(){
+    set_open(false);
+
+    if(texture != nullptr){
+        SDL_DestroyTexture(texture);
+    }
 }
 
 
@@ -100,7 +108,7 @@ void printer_t::update(){
 
     uint8_t* pixels = nullptr;
     int pitch = 0;
-    SDL_Rect rect = {0};
+    SDL_Rect rect{};
 
     if(!texture_height) goto end;
 
@@ -140,8 +148,6 @@ void printer_t::update(){
 }
 
 
-
-
 void printer_t::render(){
 
     if(!open) return;
@@ -179,7 +185,7 @@ void printer_t::render(){
         ImGui::EndChild();
 
         if(ImGui::Checkbox("Padding",&padding_enabled)){
-            gb_set_printer_padding_enabled(gb,padding_enabled);
+            gb_printer_set_padding_enabled(gb,padding_enabled);
         }
 
         ImGui::SameLine();
@@ -194,15 +200,7 @@ void printer_t::render(){
         ImGui::SameLine();
 
         if(ImGui::Button("Clear")){
-            mutex.lock();
-            
-            texture_height = 0;
-
-            buffer.clear();
-            
-            update_texture.store(false,std::memory_order_relaxed);
-
-            mutex.unlock();
+            clear();
         }
 
         ImGui::EndDisabled();
@@ -210,7 +208,7 @@ void printer_t::render(){
         ImGui::SameLine();
 
         if(ImGui::Button("Accelerate")){
-            gb_accelerate_printer(gb);
+            gb_printer_accelerate(gb);
         }
 
         file_save.render();
@@ -221,21 +219,32 @@ void printer_t::render(){
 }
 
 
+void printer_t::clear(){
+    mutex.lock();
+
+    texture_height = 0;
+
+    buffer.clear();
+
+    update_texture.store(false,std::memory_order_relaxed);
+
+    mutex.unlock();
+}
+
+
 void printer_t::set_open(bool _open) noexcept {
     if(open == _open) return;
 
     open = _open;
 
+    gb_thread_stop(gb);
+
     if(open){
-        gb_thread_safe_connect_printer(gb,gb_printer_callback,this);
+        gb_connect_printer(gb,gb_printer_callback,this);
     }
     else{
-        gb_thread_safe_disconnect_printer(gb);
-
-        texture_height = 0;
-
-        buffer.clear();
-
-        update_texture.store(false,std::memory_order_relaxed);
+        gb_disconnect_printer(gb);
     }
+
+    gb_thread_start(gb);
 }

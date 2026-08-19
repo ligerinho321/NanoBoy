@@ -11,7 +11,7 @@ message("CMAKE_CXX_COMPILER: ${CMAKE_CXX_COMPILER}")
 
 add_executable(NanoBoy)
 
-#target_compile_options(NanoBoy PRIVATE -Wall -Wextra)
+target_compile_options(NanoBoy PRIVATE -Wall -Wextra)
 
 set_target_properties(
     NanoBoy
@@ -47,7 +47,11 @@ message("CXX_EXTENSIONS: ${cxx_extensions}")
 target_sources(
     NanoBoy
     PRIVATE
-    
+
+    core/debugger/breakpoint_manager.c
+    core/debugger/disassembler.c
+    core/debugger/memory_type.c
+
     core/mappers/mbc1.c
     core/mappers/mbc2.c
     core/mappers/mbc3.c
@@ -57,10 +61,8 @@ target_sources(
     core/mappers/mmm01.c
     core/mappers/huc1.c
 
-    core/utils/blip_buf.c
-    core/utils/ring_buffer.c
-    core/utils/utils.c
-
+    core/third_party/blip_buf.c
+    
     core/apu.c
     core/boot.c
     core/cartridge.c
@@ -77,6 +79,7 @@ target_sources(
     core/savestate.c
     core/serial.c
     core/timer.c
+    core/utils.c
 )
 
 target_sources(
@@ -99,7 +102,9 @@ target_sources(
 target_sources(
     NanoBoy
     PRIVATE
+    gui/boot_settings/boot_settings.cpp
     gui/cheats/cheats.cpp
+    gui/debugger/debugger.cpp
     gui/file_dialog/file_base_dialog.cpp
     gui/file_dialog/file_save_dialog.cpp
     gui/file_dialog/file_selector_dialog.cpp
@@ -109,7 +114,6 @@ target_sources(
     gui/savestate/savestate.cpp
     gui/screen/screen.cpp
     gui/tile_viewer/tile_viewer.cpp
-    gui/boot_settings/boot_settings.cpp
     gui/input_settings/input_settings.cpp
     gui/tilemap_viewer/tilemap_viewer.cpp
     gui/utils/utils.cpp

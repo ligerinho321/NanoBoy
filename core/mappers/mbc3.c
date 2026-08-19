@@ -18,6 +18,9 @@ bool gb_mbc3_init(gb_cartridge_t* cartridge,uint8_t flags){
 
     cartridge->mapper.data = mbc3;
 
+    cartridge->mapper.rom_absolute_address = gb_mbc3_rom_absolute_address;
+    cartridge->mapper.ram_absolute_address = gb_mbc3_ram_absolute_address;
+
     if(mbc3->has_rtc){        
         cartridge->mapper.rtc_update_timer = gb_mbc3_rtc_update_timer;
         cartridge->mapper.rtc_save = gb_mbc3_rtc_save;
@@ -51,7 +54,7 @@ void gb_mbc3_update_ram_or_rtc_mapping(gb_cartridge_t* cartridge){
 
     if(mbc3->ram_or_rtc_bank <= 0x07){
 
-        if(cartridge->ram_size > 0x00){
+        if(cartridge->ram_length > 0x00){
             
             gb_cartridge_set_ram_bank(cartridge,mbc3->ram_or_rtc_bank);
 
@@ -90,7 +93,7 @@ void gb_mbc3_write_register_0(void* data,uint8_t value,uint16_t address){
     gb_mbc3_t* mbc3 = (gb_mbc3_t*)cartridge->mapper.data;
     //0x0000-0x1FFF
     if(address < 0x2000){
-        if(!cartridge->ram_size && !mbc3->has_rtc) return;
+        if(!cartridge->ram_length && !mbc3->has_rtc) return;
 
         mbc3->ram_or_rtc_enabled = (value & 0x0F) == 0x0A;
 
@@ -109,7 +112,7 @@ void gb_mbc3_write_register_1(void* data,uint8_t value,uint16_t address){
     gb_mbc3_t* mbc3 = (gb_mbc3_t*)cartridge->mapper.data;
     //0x4000-0x5FFF
     if(address < 0x6000){
-        if(!cartridge->ram_size && !mbc3->has_rtc) return;
+        if(!cartridge->ram_length && !mbc3->has_rtc) return;
 
         mbc3->ram_or_rtc_bank = value & 0x0F;
 
@@ -134,6 +137,7 @@ void gb_mbc3_write_register_1(void* data,uint8_t value,uint16_t address){
 
 
 void gb_mbc3_rtc_write_register(void* data,uint8_t value,uint16_t address){
+    gb_unused(address);
     
     gb_cartridge_t* cartridge = (gb_cartridge_t*)data;
     gb_mbc3_t* mbc3 = (gb_mbc3_t*)cartridge->mapper.data;
@@ -166,6 +170,7 @@ void gb_mbc3_rtc_write_register(void* data,uint8_t value,uint16_t address){
 }
 
 uint8_t gb_mbc3_rtc_read_register(void* data,uint16_t address){
+    gb_unused(address);
 
     gb_cartridge_t* cartridge = (gb_cartridge_t*)data;
     gb_mbc3_t* mbc3 = (gb_mbc3_t*)cartridge->mapper.data;
@@ -288,6 +293,32 @@ void gb_mbc3_rtc_load(gb_cartridge_t* cartridge,const char* path){
 }
 
 
+size_t gb_mbc3_rom_absolute_address(gb_cartridge_t* cartridge,uint16_t relative_address){
+    gb_mbc3_t* mbc3 = (gb_mbc3_t*)cartridge->mapper.data;
+
+    //$0000-$3FFF
+    if((relative_address & 0x7FFF) < 0x4000){
+        return relative_address & 0x3FFF;
+    }
+    //$4000-$7FFF
+    else{
+        return ((mbc3->rom_bank & cartridge->rom_bank_mask) << 0x0E) | (relative_address & 0x3FFF);
+    }
+}
+
+size_t gb_mbc3_ram_absolute_address(gb_cartridge_t* cartridge,uint16_t relative_address){
+    gb_mbc3_t* mbc3 = (gb_mbc3_t*)cartridge->mapper.data;
+
+    //$A000-$BFFF
+    if(mbc3->ram_or_rtc_enabled && mbc3->ram_or_rtc_bank <= 0x07 && cartridge->ram_length > 0){
+        return ((mbc3->ram_or_rtc_bank & cartridge->ram_bank_mask) << 0x0D) | (relative_address & cartridge->ram_address_mask);
+    }
+    else{
+        return (size_t)-1;
+    }
+}
+
+
 void gb_mbc3_reset(gb_cartridge_t* cartridge){
 
     gb_mbc3_t* mbc3 = (gb_mbc3_t*)cartridge->mapper.data;
@@ -295,7 +326,7 @@ void gb_mbc3_reset(gb_cartridge_t* cartridge){
     mbc3->rom_bank = 0x01;
     gb_cartridge_set_rom1_bank(cartridge,mbc3->rom_bank);
 
-    if(cartridge->ram_size > 0x00 || mbc3->has_rtc){
+    if(cartridge->ram_length > 0x00 || mbc3->has_rtc){
         mbc3->ram_or_rtc_enabled = false;
         mbc3->ram_or_rtc_bank = 0x00;
         gb_mbc3_update_ram_or_rtc_mapping(cartridge);
@@ -308,12 +339,13 @@ void gb_mbc3_reset(gb_cartridge_t* cartridge){
     }
 }
 
+
 void gb_mbc3_save_state(gb_cartridge_t* cartridge,gb_state_t* state){
     gb_mbc3_t* mbc3 = (gb_mbc3_t*)cartridge->mapper.data;
 
     gb_state_write(state,mbc3->rom_bank);
 
-    if(cartridge->ram_size > 0x00 || mbc3->has_rtc){
+    if(cartridge->ram_length > 0x00 || mbc3->has_rtc){
         gb_state_write(state,mbc3->ram_or_rtc_enabled);
         gb_state_write(state,mbc3->ram_or_rtc_bank);
     }
@@ -333,7 +365,7 @@ void gb_mbc3_load_state(gb_cartridge_t* cartridge,gb_state_t* state){
     gb_state_read(state,mbc3->rom_bank);
     gb_cartridge_set_rom1_bank(cartridge,mbc3->rom_bank);
 
-    if(cartridge->ram_size > 0x00 || mbc3->has_rtc){
+    if(cartridge->ram_length > 0x00 || mbc3->has_rtc){
         gb_state_read(state,mbc3->ram_or_rtc_enabled);
         gb_state_read(state,mbc3->ram_or_rtc_bank);
         gb_mbc3_update_ram_or_rtc_mapping(cartridge);

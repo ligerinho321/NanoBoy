@@ -1,6 +1,6 @@
 #pragma once
 
-#include "utils/utils.h"
+#include "utils.h"
 
 enum{
     gb_printer_palette_colors = 0x04,
@@ -113,10 +113,10 @@ void gb_printer_init(gb_printer_t* printer,gb_t* gb);
 void gb_printer_set_callback(gb_printer_t* printer,gb_printer_callback_t callback,void* userdata);
 void gb_printer_remove_callback(gb_printer_t* printer);
 
-void gb_printer_set_padding_enabled(gb_printer_t* printer,bool enabled);
-bool gb_printer_get_padding_enabled(gb_printer_t* printer);
+void gb_printer_set_padding_enabled(gb_t* gb,bool enabled);
+bool gb_printer_get_padding_enabled(gb_t* gb);
 
-void gb_printer_accelerate(gb_printer_t* printer);
+void gb_printer_accelerate(gb_t* gb);
 
 void gb_printer_clock(gb_printer_t* printer,int cycles);
 

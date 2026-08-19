@@ -1,17 +1,5 @@
 #include <gui/tile_viewer/tile_viewer.hpp>
 
-static const char* sources[] = {
-    "CPU Bus",
-    "Cartridge ROM",
-    "Video RAM",
-    "Cartridge RAM",
-    "Work RAM",
-    "High RAM"
-};
-
-static const int sources_count = sizeof(sources) / sizeof(sources[0]);
-
-
 static const char* layouts[] = {
     "8x8",
     "8x16",
@@ -19,6 +7,13 @@ static const char* layouts[] = {
 };
 
 static const int layouts_count = sizeof(layouts) / sizeof(layouts[0]);
+
+
+static const size_t address_offset_step = 1;
+static const int columns_step = 2;
+static const int rows_step = 2;
+static const uint8_t refresh_on_scanline_step = 1;
+static const uint16_t refresh_on_cycle_step = 1;
 
 
 tile_viewer_t::tile_viewer_t(gb_t* gb,SDL_Renderer* renderer):gb(gb),bg_palette(renderer),obj_palette(renderer){
@@ -37,7 +32,7 @@ tile_viewer_t::tile_viewer_t(gb_t* gb,SDL_Renderer* renderer):gb(gb),bg_palette(
 }
 
 tile_viewer_t::~tile_viewer_t(){
-    gb_thread_safe_remove_ppu_handler(gb,&callback_handler);
+    set_open(false);
 
     SDL_DestroyTexture(texture);
 }
@@ -52,54 +47,13 @@ void tile_viewer_t::ppu_callback(void* userdata){
     tile_viewer->bg_palette.update_data(&gb->palette);
     tile_viewer->obj_palette.update_data(&gb->palette);
 
-    uint8_t* dst = tile_viewer->data.data();
-    uint32_t address = tile_viewer->address_offset;
-    uint32_t len = tile_viewer->data_length;
-
-    switch(tile_viewer->current_source){
-        case tile_viewer_t::source_cpu:{
-            gb_memory_t* memory = &gb->memory;
-            while(len--){
-                *dst++ = gb_memory_cpu_read(memory,address++ % gb_bus_length);
-            }
-            break;
-        }
-        case tile_viewer_t::source_rom:{
-            gb_cartridge_t* cartridge = &gb->cartridge;
-            while(len--){
-                *dst++ = cartridge->rom[address++ % gb->cartridge.rom_size];
-            }
-            break;
-        }
-        case tile_viewer_t::source_vram:{
-            gb_ppu_t* ppu = &gb->ppu;
-            while(len--){
-                *dst++ = ppu->vram[address++ % gb_vram_length];
-            }
-            break;
-        }
-        case tile_viewer_t::source_ram:{
-            gb_cartridge_t* cartridge = &gb->cartridge;
-            while(len--){
-                *dst++ = cartridge->ram[address++ % gb->cartridge.ram_size];
-            }
-            break;
-        }
-        case tile_viewer_t::source_wram:{
-            gb_memory_t* memory = &gb->memory;
-            while(len--){
-                *dst++ = memory->wram[address++ % gb_wram_length];
-            }
-            break;
-        }
-        case tile_viewer_t::source_hram:{
-            gb_memory_t* memory = &gb->memory;
-            while(len--){
-                *dst++ = memory->hram[address++ % gb_hram_length];
-            }
-            break;
-        }
-    }
+    gb_memory_type_read(
+        gb,
+        tile_viewer->current_memory_type,
+        tile_viewer->address_offset,
+        tile_viewer->data.data(),
+        tile_viewer->data_length
+    );
 }
 
 
@@ -254,74 +208,22 @@ void tile_viewer_t::update_texture_uv() noexcept {
 }
 
 void tile_viewer_t::update_data_length() noexcept {
-
-    uint32_t data_max_length = columns * rows * 0x10;
-
-    switch(current_source){
-        case tile_viewer_t::source_cpu:{
-            data_length = gb_min(gb_bus_length,data_max_length);
-            break;
-        }
-        case tile_viewer_t::source_rom:{
-            data_length = gb_min(gb->cartridge.rom_size,data_max_length);
-            break;
-        }
-        case tile_viewer_t::source_vram:{
-            data_length = gb_min(gb_vram_length,data_max_length);
-            break;
-        }
-        case tile_viewer_t::source_ram:{
-            data_length = gb_min(gb->cartridge.ram_size,data_max_length);
-            break;
-        }
-        case tile_viewer_t::source_wram:{
-            data_length = gb_min(gb_wram_length,data_max_length);
-            break;
-        }
-        case tile_viewer_t::source_hram:{
-            data_length = gb_min(gb_hram_length,data_max_length);
-            break;
-        }
-    }
+    size_t data_max_length = columns * rows * 0x10;
+    size_t memory_type_length = gb_memory_type_length(gb,current_memory_type);
+    data_length = gb_min(memory_type_length,data_max_length);
 }
 
 void tile_viewer_t::update_address_offset() noexcept {
-    switch(current_source){
-        case tile_viewer_t::source_cpu:{
-            if(address_offset >= gb_bus_length){
-                address_offset = gb_bus_length - 1;
-            }
-            break;
+    
+    size_t memory_type_length = gb_memory_type_length(gb,current_memory_type);
+
+    if(memory_type_length > 0){
+        if(address_offset >= memory_type_length){
+            address_offset = memory_type_length - 1;
         }
-        case tile_viewer_t::source_rom:{
-            if(address_offset >= gb->cartridge.rom_size){
-                address_offset = gb->cartridge.rom_size - 1;
-            }
-            break;
-        }
-        case tile_viewer_t::source_vram:{
-            if(address_offset >= gb_vram_length){
-                address_offset = gb_vram_length - 1;
-            }
-            break;
-        }
-        case tile_viewer_t::source_ram:{
-            if(address_offset >= gb->cartridge.ram_size){
-                address_offset = gb->cartridge.ram_size - 1;
-            }
-            break;
-        }
-        case tile_viewer_t::source_wram:{
-            if(address_offset >= gb_wram_length){
-                address_offset = gb_wram_length - 1;
-            }
-            break;
-        }
-        case tile_viewer_t::source_hram:{
-            if(address_offset >= gb_hram_length){
-                address_offset = gb_hram_length - 1;
-            }
-        }
+    }
+    else{
+        address_offset = 0;
     }
 }
 
@@ -520,7 +422,7 @@ void tile_viewer_t::render_tile_tooltip(int row,int column){
         ImGui::TextUnformatted("Tile address");
         ImGui::TableNextColumn();
 
-        uint32_t address = 0;
+        size_t address = 0;
         switch(current_layout){
             case tile_viewer_t::layout_8x8:{
                 /*
@@ -552,7 +454,7 @@ void tile_viewer_t::render_tile_tooltip(int row,int column){
                 break;
             }
         }
-        ImGui::Text("$%04X",address % data_length);
+        ImGui::Text("$%04lX",address % data_length);
 
         ImGui::EndTable();
     }
@@ -561,11 +463,14 @@ void tile_viewer_t::render_tile_tooltip(int row,int column){
 }
 
 void tile_viewer_t::render(){
-    if(!_open) return;
+    if(!open) return;
 
     if(!gb->cartridge_inserted){
-        close();
+        set_open(false);
+        return;
     }
+
+    bool _open = open;
 
     if(ImGui::Begin("Tile Viewer",&_open)){
 
@@ -614,28 +519,22 @@ void tile_viewer_t::render(){
 
             ImGui::TableNextColumn();
 
-            if(ImGui::BeginCombo("Source",sources[current_source])){
+            if(ImGui::BeginCombo("Memory Type",gb_memory_type_names[current_memory_type])){
 
-                int new_current_source = current_source;
-
-                for(int i = 0; i < sources_count; ++i){
+                for(int i = 0; i < gb_memory_type_count; ++i){
                     
                     if(
-                        (i == tile_viewer_t::source_rom && !gb->cartridge.rom_size) ||
-                        (i == tile_viewer_t::source_ram && !gb->cartridge.ram_size)
+                        (i == gb_memory_cpu_type && !gb_memory_type_length(gb,gb_memory_cpu_type)) ||
+                        (i == gb_memory_ram_type && !gb_memory_type_length(gb,gb_memory_ram_type))
                     ){
                         continue;
                     }
 
-                    if(ImGui::Selectable(sources[i],current_source == i)){
-                        new_current_source = i;
+                    if(ImGui::Selectable(gb_memory_type_names[i],current_memory_type == i) && current_memory_type != i){
+                        current_memory_type = i;
+                        update_data_length();
+                        update_address_offset();
                     }
-                }
-
-                if(new_current_source != current_source){
-                    current_source = new_current_source;
-                    update_data_length();
-                    update_address_offset();
                 }
 
                 ImGui::EndCombo();
@@ -644,12 +543,12 @@ void tile_viewer_t::render(){
             ImGui::Combo("Layout",&current_layout,layouts,layouts_count);
 
             ImGui::SetNextItemWidth(input_scalar_width);
-            if(ImGui::InputScalar("Address",ImGuiDataType_U32,&address_offset,&input_scalar_step,nullptr,"%X")){
+            if(ImGui::InputScalar("Address",ImGuiDataType_U64,&address_offset,&address_offset_step,nullptr,"%lX")){
                 update_address_offset();
             }
 
             ImGui::SetNextItemWidth(input_scalar_width);
-            if(ImGui::InputScalar("Columns",ImGuiDataType_S32,&columns,&size_input_scalar_step)){
+            if(ImGui::InputScalar("Columns",ImGuiDataType_S32,&columns,&columns_step)){
                 if(columns > tile_viewer_t::max_size){
                     columns = tile_viewer_t::max_size;
                 }
@@ -665,7 +564,7 @@ void tile_viewer_t::render(){
             }
 
             ImGui::SetNextItemWidth(input_scalar_width);
-            if(ImGui::InputScalar("Rows",ImGuiDataType_S32,&rows,&size_input_scalar_step)){
+            if(ImGui::InputScalar("Rows",ImGuiDataType_S32,&rows,&rows_step)){
                 if(rows > tile_viewer_t::max_size){
                     rows = tile_viewer_t::max_size;
                 }
@@ -681,14 +580,14 @@ void tile_viewer_t::render(){
             }
 
             ImGui::SetNextItemWidth(input_scalar_width);
-            if(ImGui::InputScalar("Refresh on scanline",ImGuiDataType_U8,&callback_handler.scanline,&input_scalar_step)){
+            if(ImGui::InputScalar("Refresh on scanline",ImGuiDataType_U8,&callback_handler.scanline,&refresh_on_scanline_step)){
                 if(callback_handler.scanline >= gb_scanlines){
                     callback_handler.scanline = gb_scanlines - 1;
                 }
             }
 
             ImGui::SetNextItemWidth(input_scalar_width);
-            if(ImGui::InputScalar("Refresh on cycle",ImGuiDataType_U16,&callback_handler.cycle,&input_scalar_step)){
+            if(ImGui::InputScalar("Refresh on cycle",ImGuiDataType_U16,&callback_handler.cycle,&refresh_on_cycle_step)){
                 if(callback_handler.cycle >= gb_scanline_cycles){
                     callback_handler.cycle = gb_scanline_cycles - 1;
                 }
@@ -705,7 +604,33 @@ void tile_viewer_t::render(){
     }
     ImGui::End();
 
-    if(!_open){
-        close();
+    set_open(_open);
+}
+
+
+void tile_viewer_t::clear(){
+    clear_texture(texture,tile_viewer_t::texture_max_size);
+    bg_palette.clear();
+    obj_palette.clear();
+    current_memory_type = gb_memory_cpu_type;
+    update_data_length();
+    address_offset = 0;
+}
+
+
+void tile_viewer_t::set_open(bool _open) noexcept {
+    if(_open == open) return;
+
+    open = _open;
+
+    gb_thread_stop(gb);
+
+    if(open){
+        gb_ppu_add_handler(gb,&callback_handler);
     }
+    else{
+        gb_ppu_remove_handler(gb,&callback_handler);
+    }
+
+    gb_thread_start(gb);
 }

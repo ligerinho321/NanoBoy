@@ -4,17 +4,21 @@
 
 #include <gui/cheats/cheats.hpp>
 #include <gui/file_dialog/file_selector_dialog.hpp>
-#include <gui/object_viewer/object_viewer.hpp>
-#include <gui/palette_viewer/palette_viewer.hpp>
 #include <gui/printer/printer.hpp>
 #include <gui/savestate/savestate.hpp>
 #include <gui/screen/screen.hpp>
-#include <gui/tile_viewer/tile_viewer.hpp>
+
 #include <gui/boot_settings/boot_settings.hpp>
 #include <gui/input_settings/input_settings.hpp>
+
+#include <gui/debugger/debugger.hpp>
 #include <gui/tilemap_viewer/tilemap_viewer.hpp>
-#include <gui/utils/utils.hpp>
+#include <gui/tile_viewer/tile_viewer.hpp>
+#include <gui/object_viewer/object_viewer.hpp>
+#include <gui/palette_viewer/palette_viewer.hpp>
 #include <gui/wave_form/wave_form.hpp>
+
+#include <gui/utils/utils.hpp>
 
 class nanoboy_t {
 private:
@@ -66,15 +70,6 @@ private:
     void load_imgui_ini_settings();
 
     void take_screenshot();
-    
-    void pause_audio_device(bool on){
-        if(on){
-            SDL_PauseAudioDevice(audio_device,true);
-        }
-        else if(!gb->paused){
-            SDL_PauseAudioDevice(audio_device,false);
-        }
-    }
 
     void event();
 
@@ -98,11 +93,11 @@ public:
     cheats_t* cheats = nullptr;
     printer_t* printer = nullptr;
 
+    debugger_t* debugger = nullptr;
     tilemap_viewer_t* tilemap_viewer = nullptr;
     tile_viewer_t* tile_viewer = nullptr;
     object_viewer_t* object_viewer = nullptr;
     palette_viewer_t* palette_viewer = nullptr;
-    
     wave_form_t* wave_form = nullptr;
 
     bool running = false;
@@ -112,6 +107,9 @@ public:
 
     void insert_cartridge(std::filesystem::path path);
     void remove_cartridge();
+    void set_speed(float speed);
+    void pause();
+    void reset();
 
     void render_main_menu_bar();
     void imgui_render();

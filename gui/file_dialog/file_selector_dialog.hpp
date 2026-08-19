@@ -13,6 +13,9 @@ private:
     void render_popup_modal() override {}
     
 public:
+    file_selector_t() = default;
+    ~file_selector_t() = default;
+    
     void render(){
         file_base_dialog_t::render("File Selector","Ok","Cancel");
     }

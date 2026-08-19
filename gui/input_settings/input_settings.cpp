@@ -72,11 +72,8 @@ void input_settings_t::save_keyboard_bindings(cJSON* input_settings_object){
     cJSON_AddItemToObjectCS(input_settings_object,"Keyboard",keyboard_object);
 
     for(int i = 0; i < gb_button_count; ++i){
-
-        const char* button_name = gb_joypad_get_button_name(i);
-
         cJSON* binding_number = cJSON_CreateNumber((double)keyboard_bindings[i]);
-        cJSON_AddItemToObjectCS(keyboard_object,button_name,binding_number);
+        cJSON_AddItemToObjectCS(keyboard_object,gb_joypad_button_names[i],binding_number);
     }
 }
 
@@ -87,10 +84,8 @@ void input_settings_t::save_controller_bindings(cJSON* input_settings_object){
 
     for(int i = 0; i < gb_button_count; ++i){
 
-        const char* button_name = gb_joypad_get_button_name(i);
-
         cJSON* binding_object = cJSON_CreateObject();
-        cJSON_AddItemToObjectCS(controller_object,button_name,binding_object);
+        cJSON_AddItemToObjectCS(controller_object,gb_joypad_button_names[i],binding_object);
 
         controller_binding_t* binding = controller_bindings + i;
 
@@ -134,9 +129,7 @@ void input_settings_t::load_keyboard_bindings(cJSON* input_settings_object){
 
     for(int i = 0; i < gb_button_count; ++i){
 
-        const char* button_name = gb_joypad_get_button_name(i);
-
-        cJSON* binding_number = cJSON_GetObjectItemCaseSensitive(keyboard_object,button_name);
+        cJSON* binding_number = cJSON_GetObjectItemCaseSensitive(keyboard_object,gb_joypad_button_names[i]);
 
         if(!binding_number || !cJSON_IsNumber(binding_number)) continue;
 
@@ -156,9 +149,7 @@ void input_settings_t::load_controller_bindings(cJSON* input_settings_object){
 
     for(int i = 0; i < gb_button_count; ++i){
 
-        const char* button_name = gb_joypad_get_button_name(i);
-
-        cJSON* binding_object = cJSON_GetObjectItemCaseSensitive(controller_object,button_name);
+        cJSON* binding_object = cJSON_GetObjectItemCaseSensitive(controller_object,gb_joypad_button_names[i]);
 
         if(!binding_object || !cJSON_IsObject(binding_object)) continue;
 
@@ -384,7 +375,7 @@ void input_settings_t::render(){
                 
                 ImGui::AlignTextToFramePadding();
 
-                ImGui::TextUnformatted(gb_joypad_get_button_name(i));
+                ImGui::TextUnformatted(gb_joypad_button_names[i]);
                 
                 ImGui::TableNextColumn();
                 

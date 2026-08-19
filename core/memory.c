@@ -39,10 +39,14 @@ void gb_memory_init(gb_memory_t* memory,gb_t* gb){
 
 
 void gb_memory_write_empty(void* data,uint8_t value,uint16_t address){
-    return;
+    gb_unused(data);
+    gb_unused(value);
+    gb_unused(address);
 }
 
 uint8_t gb_memory_read_empty(void* data,uint16_t address){
+    gb_unused(data);
+    gb_unused(address);
     return 0xFF;
 }
 
@@ -157,6 +161,15 @@ void gb_memory_map_wram(gb_memory_t* memory){
     gb_memory_map(memory,&memory->wbk_register_descriptor,0xFF70);
 }
 
+size_t gb_memory_wram_absolute_address(gb_memory_t* memory,uint16_t relative_address){
+    if((relative_address & 0x1FFF) < 0x1000){
+        return relative_address & 0x0FFF;
+    }
+    else{
+        return ((memory->wram_bank ? memory->wram_bank : 0x01) << 0x0C) | (relative_address & 0x0FFF);
+    }
+}
+
 
 void gb_memory_write_hram(void* data,uint8_t value,uint16_t address){
     gb_memory_t* memory = (gb_memory_t*)data;
@@ -172,12 +185,19 @@ void gb_memory_map_hram(gb_memory_t* memory){
     gb_memory_map_in_range(memory,&memory->hram_descriptor,0xFF80,0xFFFE);
 }
 
+size_t gb_memory_hram_absolute_address(gb_memory_t* memory,uint16_t relative_address){
+    gb_unused(memory);
+    return relative_address & 0x7F;
+}
+
 
 #define gb_memory_update_wram_bank_ptr(memory)\
     (memory)->wram_bank_ptr = (memory)->wram + (((memory)->wram_bank ? (memory)->wram_bank : 0x01) << 0x0C);
 
 
 void gb_memory_write_wbk_register(void* data,uint8_t value,uint16_t address){
+    gb_unused(address);
+
     gb_memory_t* memory = (gb_memory_t*)data;
     gb_t* gb = memory->gb;
 
@@ -189,6 +209,8 @@ void gb_memory_write_wbk_register(void* data,uint8_t value,uint16_t address){
 }
 
 uint8_t gb_memory_read_wbk_register(void* data,uint16_t address){
+    gb_unused(address);
+    
     gb_memory_t* memory = (gb_memory_t*)data;
     gb_t* gb = memory->gb;
     

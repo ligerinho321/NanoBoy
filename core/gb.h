@@ -16,6 +16,10 @@
 #include "printer.h"
 #include "savestate.h"
 
+#include "debugger/breakpoint_manager.h"
+#include "debugger/disassembler.h"
+#include "debugger/memory_type.h"
+
 typedef struct _gb_t {
     bool is_cgb;
     bool is_cgb_pending;
@@ -59,6 +63,7 @@ typedef struct _gb_t {
     gb_cartridge_t cartridge;
     gb_printer_t printer;
     gb_frame_timer_t frame_timer;
+    gb_breakpoint_manager_t breakpoint_manager;
     
     gb_memory_descriptor_t key0_register_descriptor;
     gb_memory_descriptor_t key1_register_descriptor;
@@ -66,24 +71,14 @@ typedef struct _gb_t {
     gb_memory_descriptor_t undocumented_register_descriptor;
 } gb_t;
 
+#define gb_add_cheat_code(gb,code) gb_memory_add_cheat_code(&(gb)->memory,code)
+#define gb_remove_cheat_code(gb,code) gb_memory_remove_cheat_code(&(gb)->memory,code)
 
 #define gb_save_ram(gb,path) gb_cartridge_save_ram(&(gb)->cartridge,path)
 #define gb_load_ram(gb,path) gb_cartridge_load_ram(&(gb)->cartridge,path)
 
 #define gb_save_rtc(gb,path) gb_cartridge_save_rtc(&(gb)->cartridge,path)
 #define gb_load_rtc(gb,path) gb_cartridge_load_rtc(&(gb)->cartridge,path)
-
-#define gb_add_apu_handler(gb,handler) gb_apu_add_handler(&(gb)->apu,handler)
-#define gb_remove_apu_handler(gb,handler) gb_apu_remove_handler(&(gb)->apu,handler)
-
-#define gb_add_ppu_handler(gb,handler) gb_ppu_add_handler(&(gb)->ppu,handler)
-#define gb_remove_ppu_handler(gb,handler) gb_ppu_remove_handler(&(gb)->ppu,handler)
-
-#define gb_add_cheat_code(gb,code) gb_memory_add_cheat_code(&(gb)->memory,code)
-#define gb_remove_cheat_code(gb,code) gb_memory_remove_cheat_code(&(gb)->memory,code)
-
-#define gb_set_printer_padding_enabled(gb,enabled) gb_printer_set_padding_enabled(&(gb)->printer,enabled)
-#define gb_get_printer_padding_enabled(gb) gb_printer_get_padding_enabled(&(gb)->printer)
 
 #define gb_accelerate_printer(gb) gb_printer_accelerate(&(gb)->printer)
 
@@ -103,23 +98,9 @@ uint32_t gb_get_clock_rate(gb_t* gb);
 bool gb_insert_cartridge(gb_t* gb,const char* path);
 void gb_remove_cartridge(gb_t* gb);
 
-void gb_thread_safe_connect_printer(gb_t* gb,gb_printer_callback_t callback,void* userdata);
-void gb_thread_safe_disconnect_printer(gb_t* gb);
+void gb_set_speed(gb_t* gb,float new_speed);
 
-void gb_thread_safe_set_joypad_callback(gb_t* gb,gb_joypad_callback_t callback,void* data);
-void gb_thread_safe_remove_joypad_callback(gb_t* gb);
-
-void gb_thread_safe_add_apu_handler(gb_t* gb,gb_apu_handler_t* handler);
-void gb_thread_safe_remove_apu_handler(gb_t* gb,gb_apu_handler_t* handler);
-
-void gb_thread_safe_add_ppu_handler(gb_t* gb,gb_ppu_handler_t* handler);
-void gb_thread_safe_remove_ppu_handler(gb_t* gb,gb_ppu_handler_t* handler);
-
-void gb_thread_safe_set_speed(gb_t* gb,float new_speed);
-void gb_thread_safe_set_execution_mode(gb_t* gb,bool multi_thread);
-void gb_thread_safe_set_paused(gb_t* gb,bool paused);
-
-void gb_thread_safe_reset(gb_t *gb);
+void gb_pause(gb_t* gb,bool paused);
 
 void gb_connect_printer(gb_t* gb,gb_printer_callback_t callback,void* userdata);
 void gb_disconnect_printer(gb_t* gb);
@@ -128,6 +109,8 @@ void gb_half_machine_cycle(gb_t* gb);
 void gb_machine_cycle(gb_t* gb);
 
 void gb_execute_frame(gb_t* gb);
+
+void gb_execute_step(gb_t* gb);
 
 void gb_thread_stop(gb_t* gb);
 void gb_thread_start(gb_t* gb);

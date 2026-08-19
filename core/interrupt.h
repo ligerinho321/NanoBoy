@@ -1,6 +1,6 @@
 #pragma once
 
-#include "utils/utils.h"
+#include "utils.h"
 
 typedef enum _gb_interrupt_flag_t {
     gb_interrupt_vblank_flag = 0x01,
