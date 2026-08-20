@@ -475,7 +475,9 @@ void gb_ppu_clock(gb_ppu_t* ppu,int cycles){
                     ppu->vram_blocked = false;
                     ppu->oam_blocked = false;
 
-                    gb_vram_hblank_dma(&ppu->gb->dma);
+                    if(ppu->gb->dma.vram_hblank_running){
+                        ppu->gb->dma.vram_hblank_pending = true;
+                    }
                 }
             }
 

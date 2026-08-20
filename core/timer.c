@@ -14,11 +14,46 @@ void gb_timer_init(gb_timer_t* timer,gb_t* gb){
 }
 
 
-static inline void gb_timer_tima_reload(gb_timer_t* timer){
-    timer->tima_reload_request = false;
-    timer->tima_reloaded = true;
-    timer->tima = timer->tma;
-    timer->gb->interrupt.flag |= gb_interrupt_timer_flag;
+void gb_timer_schedule_next_event(gb_timer_t* timer){
+
+    timer->last_schedule_event = timer->gb->cycle;
+
+    timer->next_schedule_event = timer->gb->cycle;
+
+    if(timer->tima_reload_request){
+        timer->next_schedule_event += 4;    
+    }
+    else{
+        uint16_t tima_cycles = (uint16_t)-1;
+        uint16_t frame_sequencer_cycles = (uint16_t)-1;
+
+        if(timer->enabled){
+
+            uint16_t tima_half_period = div_bit[timer->clock_select];
+            uint16_t tima_period = tima_half_period << 0x01;
+            uint16_t tima_mod = timer->div % tima_period;
+            
+            if(tima_mod < tima_half_period){
+                tima_cycles = tima_half_period - tima_mod;
+            }
+            else{
+                tima_cycles = tima_period - tima_mod;
+            }
+        }
+        
+        uint16_t frame_sequencer_half_period = timer->gb->double_speed ? 0x2000 : 0x1000;
+        uint16_t frame_sequencer_period = timer->gb->double_speed ? 0x4000 : 0x2000;
+        uint16_t frame_sequencer_mod = timer->div % frame_sequencer_period;
+
+        if(frame_sequencer_mod < frame_sequencer_half_period){
+            frame_sequencer_cycles = frame_sequencer_half_period - frame_sequencer_mod;
+        }
+        else{
+            frame_sequencer_cycles = frame_sequencer_period - frame_sequencer_mod;
+        }
+
+        timer->next_schedule_event += gb_min(tima_cycles,frame_sequencer_cycles);
+    }
 }
 
 
@@ -41,7 +76,20 @@ void gb_timer_set_div(gb_timer_t* timer,uint16_t new_div){
     timer->div = new_div;
 }
 
-void gb_timer_clock(gb_timer_t* timer){
+
+static inline void gb_timer_tima_reload(gb_timer_t* timer){
+    timer->tima_reload_request = false;
+    timer->tima_reloaded = true;
+    timer->tima = timer->tma;
+    timer->gb->interrupt.flag |= gb_interrupt_timer_flag;
+}
+
+
+void gb_timer_update(gb_timer_t* timer){
+
+    uint64_t cycles = timer->gb->cycle - timer->last_schedule_event;
+
+    if(!cycles) return;
 
     timer->tima_reloaded = false;
 
@@ -49,12 +97,14 @@ void gb_timer_clock(gb_timer_t* timer){
         gb_timer_tima_reload(timer);
     }
 
-    gb_timer_set_div(timer,timer->div + 4);
+    gb_timer_set_div(timer,timer->div + cycles);
 }
 
 
 void gb_timer_write_register(void* data,uint8_t value,uint16_t address){
     gb_timer_t* timer = (gb_timer_t*)data;
+
+    gb_timer_update(timer);
 
     switch(address){
         //DIV
@@ -98,10 +148,14 @@ void gb_timer_write_register(void* data,uint8_t value,uint16_t address){
             break;
         }
     }
+
+    gb_timer_schedule_next_event(timer);
 }
 
 uint8_t gb_timer_read_register(void* data,uint16_t address){
     gb_timer_t* timer = (gb_timer_t*)data;
+
+    gb_timer_update(timer);
 
     uint8_t value = 0xFF;
 
@@ -115,6 +169,8 @@ uint8_t gb_timer_read_register(void* data,uint16_t address){
         //TAC
         case 0xFF07: value = 0xF8 | (timer->enabled ? 0x04 : 0x00) | (timer->clock_select & 0x03); break;
     }
+
+    gb_timer_schedule_next_event(timer);
 
     return value;
 }
@@ -133,6 +189,8 @@ void gb_timer_reset(gb_timer_t* timer){
     timer->enabled = false;
     timer->tima_reload_request = false;
     timer->tima_reloaded = false;
+
+    gb_timer_schedule_next_event(timer);
 }
 
 void gb_timer_skip_boot(gb_timer_t* timer){
@@ -150,6 +208,8 @@ void gb_timer_skip_boot(gb_timer_t* timer){
     else{
         timer->div = 0xABC4;
     }
+
+    gb_timer_schedule_next_event(timer);
 }
 
 
@@ -157,18 +217,28 @@ void gb_timer_save_state(gb_timer_t* timer,gb_state_t* state){
     gb_state_write(state,timer->div);
     gb_state_write(state,timer->tima);
     gb_state_write(state,timer->tma);
+    
     gb_state_write(state,timer->clock_select);
     gb_state_write(state,timer->enabled);
+
     gb_state_write(state,timer->tima_reload_request);
-    gb_state_write(state,timer->tima_reload_request);
+    gb_state_write(state,timer->tima_reloaded);
+    
+    gb_state_write(state,timer->last_schedule_event);
+    gb_state_write(state,timer->next_schedule_event);
 }
 
 void gb_timer_load_state(gb_timer_t* timer,gb_state_t* state){
     gb_state_read(state,timer->div);
     gb_state_read(state,timer->tima);
     gb_state_read(state,timer->tma);
+
     gb_state_read(state,timer->clock_select);
     gb_state_read(state,timer->enabled);
+
     gb_state_read(state,timer->tima_reload_request);
-    gb_state_read(state,timer->tima_reload_request);
+    gb_state_read(state,timer->tima_reloaded);
+
+    gb_state_read(state,timer->last_schedule_event);
+    gb_state_read(state,timer->next_schedule_event);
 }

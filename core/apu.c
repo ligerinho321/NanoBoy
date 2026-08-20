@@ -424,6 +424,8 @@ void gb_apu_write_register(void* data,uint8_t value,uint16_t address){
             if(!apu->enabled && new_enabled){
                 apu->enabled = true;
 
+                gb_timer_update(&apu->gb->timer);
+                gb_timer_schedule_next_event(&apu->gb->timer);
                 //Segundo o teste div_write_trigger_10 habilitar o canal quando o 4bit (ou 5bit em double speed) 
                 //de timer DIV está ativo faz com que o primeiro clock do senquenciador de quadros seja ignorado
                 apu->skip_first_frame_sequence_event = apu->gb->timer.div & (apu->gb->double_speed ? 0x2000 : 0x1000);

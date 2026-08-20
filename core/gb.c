@@ -142,14 +142,19 @@ void gb_half_machine_cycle(gb_t* gb){
 
     gb_ppu_clock(&gb->ppu,cycles);
 
+    if(gb->timer.next_schedule_event == gb->cycle){
+        gb_timer_update(&gb->timer);
+        gb_timer_schedule_next_event(&gb->timer);
+    }
+
     if(!(gb->cycle & 0x03)){
 
-        gb_timer_clock(&gb->timer);
+        gb_serial_clock(&gb->serial);
 
         gb_oam_dma_clock(&gb->dma);
-
-        gb_serial_clock(&gb->serial);
     }
+
+    gb_vram_hblank_dma(&gb->dma);
 }
 
 void gb_machine_cycle(gb_t* gb){
@@ -163,11 +168,16 @@ void gb_machine_cycle(gb_t* gb){
 
     gb_ppu_clock(&gb->ppu,cycles);
 
-    gb_timer_clock(&gb->timer);
+    if(gb->timer.next_schedule_event == gb->cycle){
+        gb_timer_update(&gb->timer);
+        gb_timer_schedule_next_event(&gb->timer);
+    }
+
+    gb_serial_clock(&gb->serial);
 
     gb_oam_dma_clock(&gb->dma);
 
-    gb_serial_clock(&gb->serial);
+    gb_vram_hblank_dma(&gb->dma);
 }
 
 
@@ -259,12 +269,15 @@ void gb_thread_start(gb_t* gb){
 void gb_switch_speed(gb_t* gb){
     gb_apu_run(&gb->apu);
 
-    gb_cartridge_update_rtc_timer(&gb->cartridge);
-    
+    gb_timer_update(&gb->timer);
     gb_timer_set_div(&gb->timer,0);
+
+    gb_cartridge_update_rtc_timer(&gb->cartridge);
 
     gb->speed_switch_needed = false;
     gb->double_speed = !gb->double_speed;
+
+    gb_timer_schedule_next_event(&gb->timer);
 }
 
 

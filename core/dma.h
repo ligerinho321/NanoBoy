@@ -22,6 +22,7 @@ typedef struct _gb_dma_t {
     uint16_t vram_dst;
     uint8_t vram_length;
     bool vram_hblank_running;
+    bool vram_hblank_pending;
 
     gb_memory_descriptor_t oam_register_descriptor;
     gb_memory_descriptor_t vram_register_descriptor;

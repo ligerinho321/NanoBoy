@@ -112,7 +112,7 @@ typedef bool gb_atomic_bool_t;
 
 #define gb_speed_step 0.25f
 #define gb_speed_min 1.0f
-#define gb_speed_max 10.0f
+#define gb_speed_max 15.0f
 
 #define gb_high_pass_factor 0.996013f
 

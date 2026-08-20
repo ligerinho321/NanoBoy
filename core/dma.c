@@ -97,7 +97,9 @@ uint8_t gb_oam_dma_read_register(void* data,uint16_t address){
 
 void gb_vram_hblank_dma(gb_dma_t* dma){
     
-    if(!dma->vram_hblank_running || dma->gb->cpu.state == gb_cpu_halted_state) return;
+    if(!dma->vram_hblank_pending || !dma->vram_hblank_running || dma->gb->cpu.state == gb_cpu_halted_state) return;
+    
+    dma->vram_hblank_pending = false;
     
     gb_t* gb = dma->gb;
 
@@ -253,6 +255,7 @@ void gb_dma_reset(gb_dma_t* dma){
     dma->vram_dst = 0x00;
     dma->vram_length = 0x7F;
     dma->vram_hblank_running = false;
+    dma->vram_hblank_pending = false;
 }
 
 void gb_dma_skip_boot(gb_dma_t* dma){
@@ -274,6 +277,7 @@ void gb_dma_save_state(gb_dma_t* dma,gb_state_t* state){
     gb_state_write(state,dma->vram_dst);
     gb_state_write(state,dma->vram_length);
     gb_state_write(state,dma->vram_hblank_running);
+    gb_state_write(state,dma->vram_hblank_pending);
 }
 
 void gb_dma_load_state(gb_dma_t* dma,gb_state_t* state){
@@ -287,4 +291,5 @@ void gb_dma_load_state(gb_dma_t* dma,gb_state_t* state){
     gb_state_read(state,dma->vram_dst);
     gb_state_read(state,dma->vram_length);
     gb_state_read(state,dma->vram_hblank_running);
+    gb_state_read(state,dma->vram_hblank_pending);
 }
