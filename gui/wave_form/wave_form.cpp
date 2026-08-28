@@ -1,15 +1,11 @@
 #include <gui/wave_form/wave_form.hpp>
 
-const char* audio_formats[] = {
-    "WAV\0.wav"
-};
-
-const int audio_formats_count = sizeof(audio_formats) / sizeof(audio_formats[0]);
+const char* file_extension = "WAV\0.wav";
 
 
 wave_form_t::wave_form_t(gb_t* _gb):gb(_gb){
     file_save.set_callback(file_save_callback,this);
-    file_save.set_extensions(audio_formats,audio_formats_count);
+    file_save.set_extensions(&file_extension,1);
 }
 
 

@@ -18,7 +18,9 @@
 
 #include "debugger/breakpoint_manager.h"
 #include "debugger/disassembler.h"
+#include "debugger/event_manager.h"
 #include "debugger/memory_type.h"
+#include "debugger/registers_label.h"
 
 typedef struct _gb_t {
     bool is_cgb;
@@ -64,6 +66,7 @@ typedef struct _gb_t {
     gb_printer_t printer;
     gb_frame_timer_t frame_timer;
     gb_breakpoint_manager_t breakpoint_manager;
+    gb_event_manager_t event_manager;
     
     gb_memory_descriptor_t key0_register_descriptor;
     gb_memory_descriptor_t key1_register_descriptor;

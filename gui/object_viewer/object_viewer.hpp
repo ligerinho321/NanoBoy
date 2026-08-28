@@ -67,7 +67,7 @@ private:
         }
     };
 
-    gb_t* gb = nullptr;
+    gb_t* gb;
 
     SDL_Texture* bg_texture = nullptr;
 
@@ -124,7 +124,8 @@ private:
 
     void update_objects();
 
-
+    void event();
+    
     void render_object_tooltip(object_t* object);
 
     void render_oam_table();

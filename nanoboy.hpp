@@ -12,6 +12,8 @@
 #include <gui/input_settings/input_settings.hpp>
 
 #include <gui/debugger/debugger.hpp>
+#include <gui/event_viewer/event_viewer.hpp>
+#include <gui/memory_viewer/memory_viewer.hpp>
 #include <gui/tilemap_viewer/tilemap_viewer.hpp>
 #include <gui/tile_viewer/tile_viewer.hpp>
 #include <gui/object_viewer/object_viewer.hpp>
@@ -94,6 +96,8 @@ public:
     printer_t* printer = nullptr;
 
     debugger_t* debugger = nullptr;
+    event_viewer_t* event_viewer = nullptr;
+    memory_viewer_t* memory_viewer = nullptr;
     tilemap_viewer_t* tilemap_viewer = nullptr;
     tile_viewer_t* tile_viewer = nullptr;
     object_viewer_t* object_viewer = nullptr;

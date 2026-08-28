@@ -9,7 +9,7 @@ private:
         tooltip_color_scale = 8
     };
 
-    gb_t* gb = nullptr;
+    gb_t* gb;
 
     bool cgb_mode = false;
     bg_palette_t bg_palette;

@@ -216,6 +216,33 @@ void object_viewer_t::update_objects(){
 }
 
 
+void object_viewer_t::event(){
+    if(ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows)){
+
+        if(ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Equal) && scale < max_scale){
+            ++scale;
+            update_bg_metrics();
+        }
+        else if(ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Minus) && scale > min_scale){
+            --scale;
+            update_bg_metrics();
+        }
+
+        ImGuiIO& io = ImGui::GetIO();
+        if(io.KeyCtrl){
+            if(io.MouseWheel > 0.0f && scale < max_scale){
+                ++scale;
+                update_bg_metrics();
+            }
+            else if(io.MouseWheel < 0.0f && scale > min_scale){
+                --scale;
+                update_bg_metrics();
+            }
+        }
+    }
+}
+
+
 void object_viewer_t::render_object_tooltip(object_t* object){
 
     if(!ImGui::BeginTooltip()) return;
@@ -515,31 +542,8 @@ void object_viewer_t::render(){
 
             ImGui::EndTable();
         }
-
-        if(ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows)){
-
-            if(ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Equal) && scale < max_scale){
-                ++scale;
-                update_bg_metrics();
-            }
-            else if(ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Minus) && scale > min_scale){
-                --scale;
-                update_bg_metrics();
-            }
-
-            ImGuiIO& io = ImGui::GetIO();
-            if(io.KeyCtrl){
-                if(io.MouseWheel > 0.0f && scale < max_scale){
-                    ++scale;
-                    update_bg_metrics();
-                }
-                else if(io.MouseWheel < 0.0f && scale > min_scale){
-                    --scale;
-                    update_bg_metrics();
-                }
-            }
-        }
         
+        event();
     }
     ImGui::End();
 

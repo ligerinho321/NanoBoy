@@ -165,8 +165,8 @@ inline float get_input_scalar_width(int digit_count){
     return ImGui::CalcTextSize("0").x * digit_count + style.FramePadding.x * 2.0f + (ImGui::GetFrameHeight() + style.ItemInnerSpacing.x) * 2.0f;
 }
 
-inline bool mouse_in_rect(ImVec2 m,ImVec2 rmin,ImVec2 rmax){
-    return (m.x >= rmin.x && m.x <= rmax.x) && (m.y >= rmin.y && m.y <= rmax.y);
+inline bool mouse_in_rect(const ImVec2& m,const ImVec2& p_min,const ImVec2& p_max){
+    return (m.x >= p_min.x && m.x < p_max.x) && (m.y >= p_min.y && m.y < p_max.y);
 }
 
 inline void render_size_text(size_t size){

@@ -17,20 +17,14 @@ enum{
     gb_cgb_cram_length = gb_cgb_colors * gb_cgb_bytes_per_color,
 };
 
-typedef struct gb_rgb_t {
-    uint8_t r;
-    uint8_t g;
-    uint8_t b;
-} gb_rgb_t;
-
 typedef struct _gb_palette_t {
     gb_t* gb;
 
     uint8_t bgp;
     uint8_t obp[0x02];
 
-    uint8_t bcps;
-    uint8_t ocps;
+    uint8_t bgpi;
+    uint8_t obpi;
 
     uint8_t bg_cram[gb_cgb_cram_length];
     uint8_t obj_cram[gb_cgb_cram_length];

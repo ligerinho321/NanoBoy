@@ -33,7 +33,7 @@ private:
         std::string load;
     };
 
-    gb_t* gb = nullptr;
+    gb_t* gb;
 
     std::array<slot_t,savestate_t::number_of_slots> slots;
 

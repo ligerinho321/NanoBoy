@@ -135,19 +135,20 @@ enum {
     gb_tilemap_columns = 32,
     gb_tilemap_rows = 32,
 
+    gb_vblank_scanline = 144,
+    gb_scanlines = 154,
+    gb_scanline_cycles = 456,
+    gb_frame_cycles = 70224,
+
     gb_screen_columns = 20,
     gb_screen_rows = 18,
 
     gb_screen_width = gb_screen_columns * gb_tile_size,
     gb_screen_height = gb_screen_rows * gb_tile_size,
+    gb_screen_pixels = gb_screen_width * gb_screen_height,
     gb_screen_bytes_per_pixel = 3,
     gb_screen_pitch = gb_screen_width * gb_screen_bytes_per_pixel,
     gb_screen_length = gb_screen_pitch * gb_screen_height,
-
-    gb_vblank_scanline = 144,
-    gb_scanlines = 154,
-    gb_scanline_cycles = 456,
-    gb_frame_cycles = 70224,
 
     gb_audio_sample_rate = 44100,
     gb_audio_channels = 2,
@@ -169,6 +170,12 @@ enum {
 
 typedef struct _gb_t gb_t;
 typedef struct _gb_state_t gb_state_t;
+
+typedef struct gb_rgb_t {
+    uint8_t r;
+    uint8_t g;
+    uint8_t b;
+} gb_rgb_t;
 
 
 typedef struct _gb_apu_handler_t {
@@ -245,8 +252,8 @@ void gb_frame_timer_stop(gb_frame_timer_t* frame_timer);
 
 float gb_frame_timer_get_fps(gb_frame_timer_t* frame_timer);
 
-bool gb_save_file(const char* path,void* data,size_t len);
-bool gb_load_file(const char* path,void** data,size_t* len);
+bool gb_save_file(const char* filename,void* data,size_t len);
+bool gb_load_file(const char* filename,void** data,size_t* len);
 
 uint32_t gb_crc32(const uint8_t* buffer,uint32_t len);
 

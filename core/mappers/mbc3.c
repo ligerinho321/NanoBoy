@@ -253,13 +253,13 @@ void gb_mbc3_rtc_save(gb_cartridge_t* cartridge,const char* path){
     gb_mbc3_t* mbc3 = (gb_mbc3_t*)cartridge->mapper.data;
     gb_mbc3_rtc_t* rtc = &mbc3->rtc;
     
-    uint8_t data[sizeof(rtc->reg) + sizeof(time_t)];
+    uint8_t data[sizeof(rtc->reg) + sizeof(uint64_t)];
     
     memcpy(data,rtc->reg,sizeof(rtc->reg));
 
-    time_t current_time = time(NULL);
+    uint64_t current_time = time(NULL);
 
-    memcpy(data + sizeof(rtc->reg),&current_time,sizeof(time_t));
+    memcpy(data + sizeof(rtc->reg),&current_time,sizeof(uint64_t));
 
     gb_save_file(path,data,sizeof(data));
 }
@@ -273,16 +273,16 @@ void gb_mbc3_rtc_load(gb_cartridge_t* cartridge,const char* path){
 
     if(!gb_load_file(path,(void**)&data,&len)) return;
 
-    if(len == (sizeof(rtc->reg) + sizeof(time_t))){
+    if(len == (sizeof(rtc->reg) + sizeof(uint64_t))){
 
         memcpy(rtc->reg,data,sizeof(rtc->reg));
 
-        time_t last_time = 0;
-        memcpy(&last_time,data + sizeof(rtc->reg),sizeof(time_t));
+        uint64_t last_time = 0;
+        memcpy(&last_time,data + sizeof(rtc->reg),sizeof(uint64_t));
 
-        time_t current_time = time(NULL);
+        uint64_t current_time = time(NULL);
 
-        time_t seconds = current_time - last_time;
+        uint64_t seconds = current_time - last_time;
 
         while(seconds--){
             gb_mbc3_rtc_clock(rtc);

@@ -32,8 +32,11 @@ void gb_oam_dma_clock(gb_dma_t* dma){
             break;
         }
         case gb_oam_dma_state_transfer:{
+
             dma->gb->ppu.oam[dma->oam_counter] = dma->oam_byte;
 
+            gb_event_manager_io(dma->gb,gb_event_write_flag,dma->oam_byte,0xFE00 | dma->oam_counter);
+            
             if(++dma->oam_counter >= 0xA0){
                 dma->oam_state = gb_oam_dma_state_none;
             }

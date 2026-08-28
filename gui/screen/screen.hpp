@@ -4,7 +4,7 @@
 
 class screen_t {
 private:
-    gb_t* gb = nullptr;
+    gb_t* gb;
 
     SDL_Window* window = nullptr;
     SDL_Renderer* renderer = nullptr;

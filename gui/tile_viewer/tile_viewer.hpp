@@ -27,7 +27,7 @@ private:
         layout_16x16
     };
 
-    gb_t* gb = nullptr;
+    gb_t* gb;
 
     SDL_Texture* texture = nullptr;
 

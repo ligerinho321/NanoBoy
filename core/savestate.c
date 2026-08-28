@@ -247,7 +247,9 @@ bool gb_savestate_deserialize(gb_t* gb,const char* filename){
     gb_memory_load_state(&gb->memory,&state);
     gb_cartridge_load_state(&gb->cartridge,&state);
 
-    gb->breakpoint_manager.last_check_address = (uint16_t)-1;
+    gb_event_manager_reset(&gb->event_manager);
+
+    gb->breakpoint_manager.last_check_address = -1;
     
     free(state_cbuff);
     free(state_dbuff);

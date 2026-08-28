@@ -54,6 +54,7 @@ gb_t* gb_new(){
     gb_printer_init(&gb->printer,gb);
     gb_frame_timer_init(&gb->frame_timer);
     gb_breakpoint_manager_init(&gb->breakpoint_manager,gb);
+    gb_event_manager_init(&gb->event_manager,gb);
 
     gb_map(gb);
 
@@ -447,8 +448,10 @@ void gb_reset(gb_t* gb){
     gb_memory_reset(&gb->memory);
     gb_cartridge_reset(&gb->cartridge);
     gb_printer_reset(&gb->printer);
+    
+    gb_event_manager_reset(&gb->event_manager);
 
-    gb->breakpoint_manager.last_check_address = (uint16_t)-1;
+    gb->breakpoint_manager.last_check_address = (uint32_t)-1;
 
     if(skip_boot){
         gb_boot_unmap(&gb->boot);
@@ -477,5 +480,7 @@ void gb_delete(gb_t* gb){
     
     gb_apu_free(&gb->apu);
 
+    gb_event_manager_free(&gb->event_manager);
+    
     free(gb);
 }

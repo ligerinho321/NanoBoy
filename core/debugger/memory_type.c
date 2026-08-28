@@ -132,12 +132,46 @@ size_t gb_memory_type_absolute_address(gb_t* gb,uint8_t memory_type,uint16_t rel
     return absolute_address;
 }
 
+
+void gb_memory_type_write_byte(gb_t* gb,uint8_t memory_type,uint8_t value,size_t address){
+    switch(memory_type){
+        case gb_memory_cpu_type:{
+            //TODO
+            break;
+        }
+        case gb_memory_rom_type:{
+            gb->cartridge.rom[address % gb->cartridge.rom_length] = value;
+            break;
+        }
+        case gb_memory_vram_type:{
+            gb->ppu.vram[address % gb_vram_length] = value;
+            break;
+        }
+        case gb_memory_ram_type:{
+            gb->cartridge.ram[address % gb->cartridge.ram_length] = value;
+            break;
+        }
+        case gb_memory_wram_type:{
+            gb->memory.wram[address % gb_wram_length] = value;
+            break;
+        }
+        case gb_memory_oam_type:{
+            gb->ppu.oam[address % gb_oam_length] = value;
+            break;
+        }
+        case gb_memory_hram_type:{
+            gb->memory.hram[address % gb_hram_length] = value;
+            break;
+        }
+    }
+}
+
 uint8_t gb_memory_type_read_byte(gb_t* gb,uint8_t memory_type,size_t address){
     uint8_t byte = 0x00;
 
     switch(memory_type){
         case gb_memory_cpu_type:{
-            byte = gb_memory_cpu_read(&gb->memory,address % gb_bus_length);
+            //TODO
             break;
         }
         case gb_memory_rom_type:{
@@ -169,11 +203,50 @@ uint8_t gb_memory_type_read_byte(gb_t* gb,uint8_t memory_type,size_t address){
     return byte;
 }
 
+
+void gb_memory_type_write(gb_t* gb,uint8_t memory_type,size_t address,uint8_t* src,size_t len){
+    switch(memory_type){
+        case gb_memory_cpu_type:{
+            //TODO
+            break;
+        }
+        case gb_memory_rom_type:{
+            uint8_t* rom = gb->cartridge.rom;
+            while(len--) rom[address++ % gb->cartridge.rom_length] = *src++;
+            break;
+        }
+        case gb_memory_vram_type:{
+            uint8_t* vram = gb->ppu.vram;
+            while(len--) vram[address++ % gb_vram_length] = *src++;
+            break;
+        }
+        case gb_memory_ram_type:{
+            uint8_t* ram = gb->cartridge.ram;
+            while(len--) ram[address++ % gb->cartridge.ram_length] = *src++;
+            break;
+        }
+        case gb_memory_wram_type:{
+            uint8_t* wram = gb->memory.wram;
+            while(len--) wram[address++ % gb_wram_length] = *src++;
+            break;
+        }
+        case gb_memory_oam_type:{
+            uint8_t* oam = gb->ppu.oam;
+            while(len--) oam[address++ % gb_oam_length] = *src++;
+            break;
+        }
+        case gb_memory_hram_type:{
+            uint8_t* hram = gb->memory.hram;
+            while(len--) hram[address++ % gb_hram_length] = *src++;
+            break;
+        }
+    }
+}
+
 void gb_memory_type_read(gb_t* gb,uint8_t memory_type,size_t address,uint8_t* dst,size_t len){
     switch(memory_type){
         case gb_memory_cpu_type:{
-            gb_memory_t* memory = &gb->memory;
-            while(len--) *dst++ = gb_memory_cpu_read(memory,address++ % gb_bus_length);
+            //TODO
             break;
         }
         case gb_memory_rom_type:{
@@ -204,6 +277,52 @@ void gb_memory_type_read(gb_t* gb,uint8_t memory_type,size_t address,uint8_t* ds
         case gb_memory_hram_type:{
             uint8_t* hram = gb->memory.hram;
             while(len--) *dst++ = hram[address++ % gb_hram_length];
+            break;
+        }
+    }
+}
+
+
+void gb_memory_type_import(gb_t* gb,uint8_t memory_type,const char* filename){
+    uint8_t* data = NULL;
+    size_t len = 0;
+
+    if(!gb_load_file(filename,(void**)&data,&len)) return;
+
+    gb_memory_type_write(gb,memory_type,0,data,len);
+
+    free(data);
+}
+
+void gb_memory_type_export(gb_t* gb,uint8_t memory_type,const char* filename){
+
+    switch(memory_type){
+        case gb_memory_cpu_type:{
+            //TODO
+            break;
+        }
+        case gb_memory_rom_type:{
+            gb_save_file(filename,gb->cartridge.rom,gb->cartridge.rom_length);
+            break;
+        }
+        case gb_memory_vram_type:{
+            gb_save_file(filename,gb->ppu.vram,gb_vram_length);
+            break;
+        }
+        case gb_memory_ram_type:{
+            gb_save_file(filename,gb->cartridge.ram,gb->cartridge.ram_length);
+            break;
+        }
+        case gb_memory_wram_type:{
+            gb_save_file(filename,gb->memory.wram,gb_wram_length);
+            break;
+        }
+        case gb_memory_oam_type:{
+            gb_save_file(filename,gb->ppu.oam,gb_oam_length);
+            break;
+        }
+        case gb_memory_hram_type:{
+            gb_save_file(filename,gb->memory.hram,gb_hram_length);
             break;
         }
     }

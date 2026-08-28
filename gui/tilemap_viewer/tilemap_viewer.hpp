@@ -16,7 +16,7 @@ private:
         tooltip_palette_scale = 2
     };
 
-    gb_t* gb = nullptr;
+    gb_t* gb;
 
     SDL_Texture* tilemap_texture[2] = {nullptr};
 

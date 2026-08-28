@@ -146,8 +146,8 @@ float gb_frame_timer_get_fps(gb_frame_timer_t* frame_timer){
 }
 
 
-bool gb_save_file(const char* path,void* data,size_t len){
-    FILE* file = fopen(path,"wb");
+bool gb_save_file(const char* filename,void* data,size_t len){
+    FILE* file = fopen(filename,"wb");
     if(!file){
         gb_printf_errno(fopen);
         return false;
@@ -159,14 +159,14 @@ bool gb_save_file(const char* path,void* data,size_t len){
     return true;
 }
 
-bool gb_load_file(const char* path,void** data,size_t* len){
+bool gb_load_file(const char* filename,void** data,size_t* len){
 
     *data = NULL;
     *len = 0;
 
     size_t read_bytes;
 
-    FILE* file = fopen(path,"rb");
+    FILE* file = fopen(filename,"rb");
 
     if(!file){
         gb_printf_errno(fopen);

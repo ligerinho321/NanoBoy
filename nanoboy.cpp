@@ -27,12 +27,12 @@ static void audio_callback(void* userdata,uint8_t* data,int len){
 }
 
 
-static const char* file_selector_extensions[] = {
-    "All files\0.*",
+static const char* file_extensions[] = {
+    "All files\0",
     "GB ROM files\0.gb;.gbc"
 };
 
-static const int file_selector_extensions_count = sizeof(file_selector_extensions) / sizeof(file_selector_extensions[0]);
+static const int file_extensions_count = sizeof(file_extensions) / sizeof(file_extensions[0]);
 
 
 static void file_selector_callback(void* userdata,std::filesystem::path path){
@@ -63,7 +63,7 @@ nanoboy_t::nanoboy_t(){
     input_settings = new input_settings_t();
 
     file_selector = new file_selector_t();
-    file_selector->set_extensions(file_selector_extensions,file_selector_extensions_count);
+    file_selector->set_extensions(file_extensions,file_extensions_count);
     file_selector->set_current_extension(1);
     file_selector->set_callback(file_selector_callback,this);
 
@@ -76,6 +76,8 @@ nanoboy_t::nanoboy_t(){
     printer = new printer_t(gb,renderer);
 
     debugger = new debugger_t(gb);
+    event_viewer = new event_viewer_t(gb,renderer);
+    memory_viewer = new memory_viewer_t(gb);
     tilemap_viewer = new tilemap_viewer_t(gb,renderer);
     tile_viewer = new tile_viewer_t(gb,renderer);
     object_viewer = new object_viewer_t(gb,renderer);
@@ -99,6 +101,8 @@ nanoboy_t::~nanoboy_t(){
     delete object_viewer;
     delete tile_viewer;
     delete tilemap_viewer;
+    delete memory_viewer;
+    delete event_viewer;
     delete debugger;
     delete printer;
     delete cheats;
@@ -416,6 +420,7 @@ void nanoboy_t::remove_cartridge(){
 
     printer->clear();
 
+    event_viewer->clear();
     tilemap_viewer->clear();
     tile_viewer->clear();
     object_viewer->clear();
@@ -457,7 +462,9 @@ void nanoboy_t::reset(){
     gb_reset(gb);
 
     SDL_UnlockAudioDevice(audio_device);
-
+    
+    event_viewer->reset();
+    
     gb_thread_start(gb);
 }
 
@@ -623,6 +630,12 @@ void nanoboy_t::render_main_menu_bar(){
         if(ImGui::MenuItem("Debugger",nullptr,nullptr,gb->cartridge_inserted)){
             debugger->set_open(true);
         }
+        if(ImGui::MenuItem("Event Viewer",nullptr,nullptr,gb->cartridge_inserted)){
+            event_viewer->set_open(true);
+        }
+        if(ImGui::MenuItem("Memory Viewer",nullptr,nullptr,gb->cartridge_inserted)){
+            memory_viewer->set_open(true);
+        }
         if(ImGui::MenuItem("Tilemap Viewer",nullptr,nullptr,gb->cartridge_inserted)){
             tilemap_viewer->set_open(true);
         }
@@ -665,6 +678,8 @@ void nanoboy_t::imgui_render(){
     printer->render();
     
     debugger->render();
+    event_viewer->render();
+    memory_viewer->render();
     tilemap_viewer->render();
     tile_viewer->render();
     object_viewer->render();

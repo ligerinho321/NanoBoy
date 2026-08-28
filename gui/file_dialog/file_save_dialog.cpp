@@ -1,11 +1,14 @@
 #include <gui/file_dialog/file_save_dialog.hpp>
 
 bool file_save_dialog_t::is_current_extension(std::string extension) const noexcept {
-    if(!extension.length()) return false;
 
     const char* current_extension_ptr = get_current_extension();
 
     if(!current_extension_ptr) return false;
+
+    if(current_extension_ptr[0] == '\0') return true;
+
+    if(!extension.length()) return false;
 
     if(!strcasecmp(extension.c_str(),current_extension_ptr)) return true;
     
@@ -13,6 +16,7 @@ bool file_save_dialog_t::is_current_extension(std::string extension) const noexc
 }
 
 bool file_save_dialog_t::is_extension_supported(std::string extension) const noexcept {
+
     if(!extensions || extensions_count <= 0) return false;
 
     bool result = false;
@@ -22,7 +26,7 @@ bool file_save_dialog_t::is_extension_supported(std::string extension) const noe
         const char* name_ptr = extensions[i];
         const char* extension_ptr = name_ptr + strlen(name_ptr) + 1;
 
-        if(!strcasecmp(extension.c_str(),extension_ptr)){
+        if(extension_ptr[0] == '\0' || !strcasecmp(extension.c_str(),extension_ptr)){
             result = true;
             break;
         }

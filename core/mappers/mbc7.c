@@ -88,6 +88,7 @@ void gb_mbc7_write_register_1(void* data,uint8_t value,uint16_t address){
     }
 }
 
+
 void gb_mbc7_write_register_2(void* data,uint8_t value,uint16_t address){
     gb_cartridge_t* cartridge = (gb_cartridge_t*)data;
     gb_mbc7_t* mbc7 = (gb_mbc7_t*)cartridge->mapper.data;

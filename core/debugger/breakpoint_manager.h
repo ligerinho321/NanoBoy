@@ -15,7 +15,7 @@ typedef struct _gb_breakpoint_manager_t {
     gb_t* gb;
     
     bool enabled;
-    uint16_t last_check_address;
+    uint32_t last_check_address;
     
     gb_breakpoint_t* breakpoints;
 } gb_breakpoint_manager_t;

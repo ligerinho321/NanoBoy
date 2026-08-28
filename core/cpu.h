@@ -15,7 +15,11 @@ typedef enum _gb_cpu_flag_t {
     gb_cpu_carry_flag = 0x10,       // C
     gb_cpu_half_carry_flag = 0x20,  // H
     gb_cpu_subtraction_flag = 0x40, // N
-    gb_cpu_zero_flag = 0x80         // Z
+    gb_cpu_zero_flag = 0x80,        // Z
+    
+    gb_cpu_nh_flag = gb_cpu_subtraction_flag | gb_cpu_half_carry_flag,
+    gb_cpu_znh_flag = gb_cpu_zero_flag | gb_cpu_subtraction_flag | gb_cpu_half_carry_flag,
+    gb_cpu_nhc_flag = gb_cpu_subtraction_flag | gb_cpu_half_carry_flag | gb_cpu_carry_flag
 } gb_cpu_flag_t;
 
 typedef struct _gb_cpu_t {
@@ -52,6 +56,7 @@ typedef struct _gb_cpu_t {
 
     uint16_t sp;
     uint16_t pc;
+    uint16_t instruction_pc;
 
     void (*execute)(struct _gb_cpu_t*);
 } gb_cpu_t;

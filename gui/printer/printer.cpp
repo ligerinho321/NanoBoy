@@ -1,17 +1,17 @@
 #include <gui/printer/printer.hpp>
 
-const char* image_formats[] = {
+const char* image_extensions[] = {
     "PNG\0.png",
     "BMP\0.bmp",
     "TGA\0.tga",
     "JPG\0.jpg"
 };
 
-const int image_formats_count = sizeof(image_formats) / sizeof(image_formats[0]);
+const int image_extensions_count = sizeof(image_extensions) / sizeof(image_extensions[0]);
 
 
 printer_t::printer_t(gb_t* _gb,SDL_Renderer* _renderer):gb(_gb),renderer(_renderer){
-    file_save.set_extensions(image_formats,image_formats_count);
+    file_save.set_extensions(image_extensions,image_extensions_count);
     file_save.set_callback(file_save_callback,this);
 
     gb_printer_set_padding_enabled(gb,padding_enabled);

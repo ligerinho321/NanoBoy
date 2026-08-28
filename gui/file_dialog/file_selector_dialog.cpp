@@ -1,18 +1,23 @@
 #include <gui/file_dialog/file_selector_dialog.hpp>
 
 bool file_selector_t::is_current_extension(std::string extension) const noexcept {
-    
-    if(!extensions || extensions_count <= 0 || !extension.length()) return false;
-
-    bool result = false;
 
     const char* current_extension_ptr = get_current_extension();
+
+    if(!current_extension_ptr) return false;
+
+    if(current_extension_ptr[0] == '\0') return true;
+
+    if(!extension.length()) return false;
+    
     size_t current_extension_length = strlen(current_extension_ptr);
 
     const char* token = nullptr;
     size_t token_length = 0;
 
     bool start = true;
+
+    bool result = false;
 
     while(true){
 
@@ -35,10 +40,7 @@ bool file_selector_t::is_current_extension(std::string extension) const noexcept
                     ++token_length;
                 }
 
-                if(
-                    (token_length == 2 && token[1] == '*') ||
-                    (token_length == extension.length() && !strncasecmp(token,extension.c_str(),token_length))
-                ){
+                if(token_length == extension.length() && !strncasecmp(token,extension.c_str(),token_length)){
                     result = true;
                     break;
                 }

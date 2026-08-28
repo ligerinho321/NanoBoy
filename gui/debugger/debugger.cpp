@@ -51,6 +51,7 @@ void debugger_t::delete_breakpoint(){
     breakpoint_selected = nullptr;
 }
 
+
 void debugger_t::update_breakpoint_popup_size_constraints(){
     ImGuiStyle& style = ImGui::GetStyle();
 
@@ -146,7 +147,12 @@ void debugger_t::render_breakpoint_popup(){
 
             if(ImGui::Selectable(gb_memory_type_names[i],temp_breakpoint.memory_type == i) && temp_breakpoint.memory_type != i){
                 temp_breakpoint.memory_type = i;
+                
                 update_breakpoint_max_address();
+
+                if(temp_breakpoint.address > breakpoint_max_address){
+                    temp_breakpoint.address = breakpoint_max_address;
+                }
             }
         }
         ImGui::EndCombo();
@@ -479,7 +485,7 @@ void debugger_t::render(){
 
             ImGui::SeparatorText("PPU Timing");
 
-            ImGui::Text("Scanline: %hhu",gb->ppu._ly);
+            ImGui::Text("Scanline: %hhu",gb->ppu.scanline);
             ImGui::Text("Cycle: %hu",gb->ppu.cycle);
 
             ImGui::EndTable();

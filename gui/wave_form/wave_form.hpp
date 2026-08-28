@@ -10,7 +10,7 @@ private:
         int count;
     };
 
-    gb_t *gb = nullptr;
+    gb_t *gb;
 
     file_save_dialog_t file_save;
 

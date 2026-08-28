@@ -1,10 +1,10 @@
 #include <gui/boot_settings/boot_settings.hpp>
 
-static const char* file_selector_extension = "All files\0.*";
+static const char* file_extension = "All files\0";
 
 boot_settings_t::boot_settings_t(gb_t* gb):gb(gb){
 
-    file_selector.set_extensions(&file_selector_extension,1);
+    file_selector.set_extensions(&file_extension,1);
 
     gb_set_dmg_rom_path_reference(gb,dmg_path);
     gb_set_cgb_rom_path_reference(gb,cgb_path);

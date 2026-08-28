@@ -33,7 +33,7 @@ private:
         cheat_t* next;
     };
 
-    gb_t* gb = nullptr;
+    gb_t* gb;
 
     bool request_open_popup_modal = false;
     bool popup_modal_open = false;

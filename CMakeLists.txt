@@ -50,7 +50,9 @@ target_sources(
 
     core/debugger/breakpoint_manager.c
     core/debugger/disassembler.c
+    core/debugger/event_manager.c
     core/debugger/memory_type.c
+    core/debugger/registers_label.c
 
     core/mappers/mbc1.c
     core/mappers/mbc2.c
@@ -102,21 +104,39 @@ target_sources(
 target_sources(
     NanoBoy
     PRIVATE
+    
     gui/boot_settings/boot_settings.cpp
+    
     gui/cheats/cheats.cpp
+    
     gui/debugger/debugger.cpp
+    
+    gui/event_viewer/event_viewer.cpp
+    
     gui/file_dialog/file_base_dialog.cpp
     gui/file_dialog/file_save_dialog.cpp
     gui/file_dialog/file_selector_dialog.cpp
-    gui/object_viewer/object_viewer.cpp
-    gui/palette_viewer/palette_viewer.cpp
-    gui/printer/printer.cpp
-    gui/savestate/savestate.cpp
-    gui/screen/screen.cpp
-    gui/tile_viewer/tile_viewer.cpp
+
     gui/input_settings/input_settings.cpp
+
+    gui/memory_viewer/memory_viewer.cpp
+
+    gui/object_viewer/object_viewer.cpp
+    
+    gui/palette_viewer/palette_viewer.cpp
+    
+    gui/printer/printer.cpp
+    
+    gui/savestate/savestate.cpp
+    
+    gui/screen/screen.cpp
+    
+    gui/tile_viewer/tile_viewer.cpp
+    
     gui/tilemap_viewer/tilemap_viewer.cpp
+    
     gui/utils/utils.cpp
+
     gui/wave_form/wave_form.cpp
 )
 

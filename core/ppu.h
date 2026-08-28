@@ -92,7 +92,7 @@ typedef struct _gb_ppu_t {
     uint8_t scx;
     
     uint8_t ly;
-    uint8_t _ly;
+    uint8_t scanline;
     uint16_t cycle;
 
     uint8_t lyc;
@@ -129,6 +129,8 @@ typedef struct _gb_ppu_t {
     gb_atomic_bool_t screen_index;
     uint8_t screen[2][gb_screen_length];
     uint8_t* current_screen;
+
+    gb_rgb_t event_color;
 
     uint8_t vram[gb_vram_length];
     uint8_t* vram_bank_ptr;

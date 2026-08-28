@@ -75,8 +75,9 @@ void gb_memory_cpu_write(gb_memory_t* memory,uint8_t value,uint16_t address){
 
     if(memory->gb->dma.oam_state != gb_oam_dma_state_transfer || !gb_oam_dma_bus_conflict(&memory->gb->dma,address)){
         descriptor->write(descriptor->data,value,address);
-    }
 
+        gb_event_manager_io(memory->gb,gb_event_write_flag,value,address);
+    }
 }
 
 uint8_t gb_memory_cpu_read(gb_memory_t* memory,uint16_t address){
@@ -89,6 +90,8 @@ uint8_t gb_memory_cpu_read(gb_memory_t* memory,uint16_t address){
         value = descriptor->read(descriptor->data,address);
 
         gb_memory_apply_cheat(memory,&value,address);
+
+        gb_event_manager_io(memory->gb,gb_event_read_flag,value,address);
     }
     else{
         value = memory->gb->dma.oam_byte;
@@ -105,6 +108,8 @@ uint8_t gb_memory_oam_dma_read(gb_memory_t* memory,uint16_t address){
 
     gb_memory_apply_cheat(memory,&value,address);
 
+    gb_event_manager_io(memory->gb,gb_event_read_flag,value,address);
+
     return value;
 }
 
@@ -113,6 +118,8 @@ void gb_memory_vram_dma_write(gb_memory_t* memory,uint8_t value,uint16_t address
     gb_memory_descriptor_t* descriptor = memory->bus[address];
 
     descriptor->write(descriptor->data,value,address);
+
+    gb_event_manager_io(memory->gb,gb_event_write_flag,value,address);
 }
 
 uint8_t gb_memory_vram_dma_read(gb_memory_t* memory,uint16_t address){
@@ -127,6 +134,8 @@ uint8_t gb_memory_vram_dma_read(gb_memory_t* memory,uint16_t address){
     
     gb_memory_apply_cheat(memory,&value,address);
 
+    gb_event_manager_io(memory->gb,gb_event_read_flag,value,address);
+    
     return value;
 }
 

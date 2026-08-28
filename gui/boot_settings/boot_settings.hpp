@@ -9,7 +9,7 @@ private:
         buffer_length = 256
     };
 
-    gb_t* gb = nullptr;
+    gb_t* gb;
 
     file_selector_t file_selector;
 

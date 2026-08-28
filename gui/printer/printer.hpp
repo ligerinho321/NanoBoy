@@ -14,7 +14,7 @@ private:
         buffer_expand_size = gb_printer_image_pitch * texture_expand_height
     };
 
-    gb_t* gb = nullptr;
+    gb_t* gb;
 
     file_save_dialog_t file_save;
 
