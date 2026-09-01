@@ -569,7 +569,9 @@ static inline void gb_cpu_irq(gb_cpu_t* cpu){
     
     cpu->ime = false;
 
-    gb_event_manager_irq(cpu->gb,vector);
+    if(cpu->gb->event_manager.enabled){
+        gb_event_manager_irq(cpu->gb,vector);
+    }
 }
 
 
@@ -1642,8 +1644,18 @@ static inline void gb_cpu_opcode(gb_cpu_t* cpu){
 
 static void gb_cpu_running(gb_cpu_t* cpu){
 
-    if(gb_breakpoint_manager_check(&cpu->gb->breakpoint_manager,cpu->pc)){
-        return;
+    gb_breakpoint_manager_t* breakpoint_manager = &cpu->gb->breakpoint_manager;
+
+    if(breakpoint_manager->last_check_address != cpu->pc){
+        
+        breakpoint_manager->last_check_address = cpu->pc;
+        
+        if(breakpoint_manager->enabled && breakpoint_manager->breakpoints){
+
+            if(gb_breakpoint_manager_check(breakpoint_manager,cpu->pc)){
+                return;
+            }
+        }
     }
 
     cpu->instruction_pc = cpu->pc;
@@ -1671,8 +1683,18 @@ static void gb_cpu_running(gb_cpu_t* cpu){
 
 static void gb_cpu_halted(gb_cpu_t* cpu){
 
-    if(gb_breakpoint_manager_check(&cpu->gb->breakpoint_manager,cpu->pc)){
-        return;
+    gb_breakpoint_manager_t* breakpoint_manager = &cpu->gb->breakpoint_manager;
+
+    if(breakpoint_manager->last_check_address != cpu->pc){
+        
+        breakpoint_manager->last_check_address = cpu->pc;
+        
+        if(breakpoint_manager->enabled && breakpoint_manager->breakpoints){
+
+            if(gb_breakpoint_manager_check(breakpoint_manager,cpu->pc)){
+                return;
+            }
+        }
     }
 
     gb_cpu_cycle(cpu);
@@ -1700,8 +1722,18 @@ static void gb_cpu_halted(gb_cpu_t* cpu){
 
 static void gb_cpu_stopped(gb_cpu_t* cpu){
     
-    if(gb_breakpoint_manager_check(&cpu->gb->breakpoint_manager,cpu->pc)){
-        return;
+    gb_breakpoint_manager_t* breakpoint_manager = &cpu->gb->breakpoint_manager;
+
+    if(breakpoint_manager->last_check_address != cpu->pc){
+        
+        breakpoint_manager->last_check_address = cpu->pc;
+        
+        if(breakpoint_manager->enabled && breakpoint_manager->breakpoints){
+
+            if(gb_breakpoint_manager_check(breakpoint_manager,cpu->pc)){
+                return;
+            }
+        }
     }
 
     gb_cpu_cycle(cpu);
@@ -1742,14 +1774,18 @@ void gb_cpu_set_state(gb_cpu_t* cpu,uint8_t state){
             
             cpu->execute = gb_cpu_halted;
             
-            gb_event_manager_halt(cpu->gb);
+            if(cpu->gb->event_manager.enabled){
+                gb_event_manager_halt(cpu->gb);
+            }
             break;
         case gb_cpu_stopped_state:
             cpu->state = gb_cpu_stopped_state;
             
             cpu->execute = gb_cpu_stopped;
 
-            gb_event_manager_stop(cpu->gb);
+            if(cpu->gb->event_manager.enabled){
+                gb_event_manager_stop(cpu->gb);
+            }
             break;
     }
 }

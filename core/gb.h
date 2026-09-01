@@ -132,6 +132,7 @@ void gb_write_undocumented_register(void* data,uint8_t value,uint16_t address);
 uint8_t gb_read_undocumented_register(void* data,uint16_t address);
 
 void gb_map(gb_t* gb);
+void gb_update_mapping(gb_t* gb);
 
 void gb_reset(gb_t* gb);
 

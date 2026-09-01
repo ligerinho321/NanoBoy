@@ -278,9 +278,6 @@ uint8_t gb_palette_read_dmg_register(void* data,uint16_t address){
 
 void gb_palette_write_cgb_register(void* data,uint8_t value,uint16_t address){
     gb_palette_t* palette = (gb_palette_t*)data;
-    gb_t* gb = palette->gb;
-
-    if(!(gb->is_cgb && (gb->cgb_mode || gb->boot.mapped))) return;
 
     switch(address){
         //BGPI
@@ -328,9 +325,6 @@ void gb_palette_write_cgb_register(void* data,uint8_t value,uint16_t address){
 
 uint8_t gb_palette_read_cgb_register(void* data,uint16_t address){
     gb_palette_t* palette = (gb_palette_t*)data;
-    gb_t* gb = palette->gb;
-    
-    if(!(gb->is_cgb && (gb->cgb_mode || gb->boot.mapped))) return 0xFF;
 
     uint8_t value = 0xFF;
 
@@ -351,10 +345,7 @@ uint8_t gb_palette_read_cgb_register(void* data,uint16_t address){
 
 void gb_palette_map(gb_palette_t* palette){
     gb_memory_t* memory = &palette->gb->memory;
-
     gb_memory_map_in_range(memory,&palette->dmg_register_descriptor,0xFF47,0xFF49);
-
-    gb_memory_map_in_range(memory,&palette->cgb_register_descriptor,0xFF68,0xFF6B);
 }
 
 

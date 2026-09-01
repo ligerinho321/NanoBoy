@@ -74,9 +74,12 @@ void gb_memory_cpu_write(gb_memory_t* memory,uint8_t value,uint16_t address){
     gb_memory_descriptor_t* descriptor = memory->bus[address];
 
     if(memory->gb->dma.oam_state != gb_oam_dma_state_transfer || !gb_oam_dma_bus_conflict(&memory->gb->dma,address)){
+        
         descriptor->write(descriptor->data,value,address);
 
-        gb_event_manager_io(memory->gb,gb_event_write_flag,value,address);
+        if(memory->gb->event_manager.enabled){
+            gb_event_manager_io(memory->gb,gb_event_write_flag,value,address);
+        }
     }
 }
 
@@ -91,7 +94,9 @@ uint8_t gb_memory_cpu_read(gb_memory_t* memory,uint16_t address){
 
         gb_memory_apply_cheat(memory,&value,address);
 
-        gb_event_manager_io(memory->gb,gb_event_read_flag,value,address);
+        if(memory->gb->event_manager.enabled){
+            gb_event_manager_io(memory->gb,gb_event_read_flag,value,address);
+        }
     }
     else{
         value = memory->gb->dma.oam_byte;
@@ -108,7 +113,9 @@ uint8_t gb_memory_oam_dma_read(gb_memory_t* memory,uint16_t address){
 
     gb_memory_apply_cheat(memory,&value,address);
 
-    gb_event_manager_io(memory->gb,gb_event_read_flag,value,address);
+    if(memory->gb->event_manager.enabled){
+        gb_event_manager_io(memory->gb,gb_event_read_flag,value,address);
+    }
 
     return value;
 }
@@ -119,7 +126,9 @@ void gb_memory_vram_dma_write(gb_memory_t* memory,uint8_t value,uint16_t address
 
     descriptor->write(descriptor->data,value,address);
 
-    gb_event_manager_io(memory->gb,gb_event_write_flag,value,address);
+    if(memory->gb->event_manager.enabled){
+        gb_event_manager_io(memory->gb,gb_event_write_flag,value,address);
+    }
 }
 
 uint8_t gb_memory_vram_dma_read(gb_memory_t* memory,uint16_t address){
@@ -134,7 +143,9 @@ uint8_t gb_memory_vram_dma_read(gb_memory_t* memory,uint16_t address){
     
     gb_memory_apply_cheat(memory,&value,address);
 
-    gb_event_manager_io(memory->gb,gb_event_read_flag,value,address);
+    if(memory->gb->event_manager.enabled){
+        gb_event_manager_io(memory->gb,gb_event_read_flag,value,address);
+    }
     
     return value;
 }
@@ -166,8 +177,6 @@ void gb_memory_map_wram(gb_memory_t* memory){
 
     gb_memory_map_in_range(memory,&memory->wram1_descriptor,0xD000,0xDFFF);
     gb_memory_map_in_range(memory,&memory->wram1_descriptor,0xF000,0xFDFF);
-
-    gb_memory_map(memory,&memory->wbk_register_descriptor,0xFF70);
 }
 
 size_t gb_memory_wram_absolute_address(gb_memory_t* memory,uint16_t relative_address){
@@ -208,9 +217,6 @@ void gb_memory_write_wbk_register(void* data,uint8_t value,uint16_t address){
     gb_unused(address);
 
     gb_memory_t* memory = (gb_memory_t*)data;
-    gb_t* gb = memory->gb;
-
-    if(!(gb->is_cgb && (gb->cgb_mode || gb->boot.mapped))) return;
 
     memory->wram_bank = value & 0x07;
 
@@ -221,9 +227,6 @@ uint8_t gb_memory_read_wbk_register(void* data,uint16_t address){
     gb_unused(address);
     
     gb_memory_t* memory = (gb_memory_t*)data;
-    gb_t* gb = memory->gb;
-    
-    if(!(gb->is_cgb && (gb->cgb_mode || gb->boot.mapped))) return 0xFF;
 
     return 0xF8 | (memory->wram_bank & 0x07);
 }

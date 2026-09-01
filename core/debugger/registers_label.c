@@ -87,6 +87,11 @@ const char* gb_registers_label[0x100] = {
 
     [0x70] = "WBK",
 
+    [0x72] = "Undocumented",
+    [0x73] = "Undocumented",
+    [0x74] = "Undocumented",
+    [0x75] = "Undocumented",
+    
     [0x76] = "PCM12",
     [0x77] = "PCM34",
 

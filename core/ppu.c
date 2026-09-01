@@ -67,27 +67,6 @@ static inline void gb_ppu_swap_frame_buffer(gb_ppu_t* ppu){
 }
 
 
-static inline void gb_ppu_init_line_renderer(gb_ppu_t* ppu){
-    ppu->wx_enabled = false;
-
-    ppu->tile_fetcher.step = 0x00;
-    ppu->object_fetcher.step = 0x00;
-
-    ppu->object_found_index = 0xFF;
-    ppu->fetch_window = false;
-    ppu->fetch_column = 0x00;
-    ppu->drawn_pixels = -0x08 - (ppu->scx & 0x07);
-
-    ppu->fictitious_fetch = true;
-
-    ppu->tile_fifo.length = 0x08;
-
-    ppu->object_fifo.length = 0x00;
-    memset(ppu->object_fifo.data,0x00,sizeof(ppu->object_fifo.data));
-
-    ppu->event_color = gb_event_colors[gb_event_fictitious_fetch_color];
-}
-
 static inline void gb_ppu_visible_scanline(gb_ppu_t* ppu){
     switch(ppu->cycle){
         case 4:{
@@ -97,22 +76,52 @@ static inline void gb_ppu_visible_scanline(gb_ppu_t* ppu){
 
                 ppu->status.mode = gb_ppu_oam_mode;
 
-                ppu->event_color = gb_event_colors[gb_event_oam_color];
+                ppu->event_screen_color = gb_event_screen_palette[gb_event_screen_oam_scan_color];
 
                 ppu->object_buffer_length = 0;
                 ppu->oam_address = 0;
 
-                ppu->oam_blocked = true;
+                ppu->oam_write_blocked = true;
             }
+            break;
+        }
+        case 80:{
+            if(ppu->scanline != 0 || !ppu->first_frame){
+                ppu->vram_read_blocked = true;   
+            }
+            break;
+        }
+        case 83:{
+            ppu->oam_write_blocked = false;
             break;
         }
         case 84:{
             ppu->status.mode = gb_ppu_drawing_mode;
 
-            ppu->vram_blocked = true;
-            ppu->oam_blocked = true;
+            ppu->vram_write_blocked = true;
+            ppu->vram_read_blocked = true;
 
-            gb_ppu_init_line_renderer(ppu);
+            ppu->oam_write_blocked = true;
+            ppu->oam_read_blocked = true;
+
+            ppu->wx_enabled = false;
+
+            ppu->tile_fetcher.step = 0x00;
+            ppu->object_fetcher.step = 0x00;
+
+            ppu->object_found_index = 0xFF;
+            ppu->fetch_window = false;
+            ppu->fetch_column = 0x00;
+            ppu->drawn_pixels = -0x08 - (ppu->scx & 0x07);
+
+            ppu->fictitious_fetch = true;
+
+            ppu->tile_fifo.length = 0x08;
+
+            ppu->object_fifo.length = 0x00;
+            memset(ppu->object_fifo.data,0x00,sizeof(ppu->object_fifo.data));
+
+            ppu->event_screen_color = gb_event_screen_palette[gb_event_screen_fictitious_fetch_color];
             break;
         }
         case 89:{
@@ -125,6 +134,10 @@ static inline void gb_ppu_visible_scanline(gb_ppu_t* ppu){
             ppu->ly = ppu->scanline;
 
             ppu->_lyc = 0xFFFF;
+
+            if(ppu->scanline < gb_vblank_scanline){
+                ppu->oam_read_blocked = true;
+            }
 
             if(!ppu->wy_enabled){
                 ppu->wy_enabled = ppu->ly == ppu->wy;
@@ -146,7 +159,7 @@ static inline void gb_ppu_vblank_scanline(gb_ppu_t* ppu){
                 
                 ppu->status.mode = gb_ppu_vblank_mode;
 
-                ppu->event_color = gb_event_colors[gb_event_vblank_color];
+                ppu->event_screen_color = gb_event_screen_palette[gb_event_screen_vblank_color];
 
                 ppu->gb->interrupt.flag |= gb_interrupt_vblank_flag;
 
@@ -235,136 +248,6 @@ static inline void gb_ppu_oam_evaluation(gb_ppu_t* ppu){
 }
 
 
-static inline void gb_ppu_tile_fetcher_step(gb_ppu_t* ppu){
-
-    switch(ppu->tile_fetcher.step++){
-        case 0x00:{
-            if(ppu->fetch_window){
-                ppu->event_color = gb_event_colors[gb_event_window_fetch_color];
-            }
-            else{
-                ppu->event_color = gb_event_colors[gb_event_background_fetch_color];
-            }
-            break;
-        }
-        case 0x01:{
-            uint8_t y_fine = 0x00;
-            uint16_t map_address = 0x0000;
-
-            if(ppu->fetch_window){
-                uint8_t x = ppu->fetch_column & 0x1F;
-                uint8_t y = (ppu->window_ly >> 0x03) & 0x1F;
-
-                y_fine = ppu->window_ly & 0x07;
-                map_address = (ppu->lcdc.window_tilemap_area ? 0x1C00 : 0x1800) | (y << 0x05) | x;
-            }
-            else{
-                uint8_t x = (ppu->fetch_column + (ppu->scx >> 0x03)) & 0x1F;
-                uint8_t y = ((ppu->ly + ppu->scy) >> 0x03) & 0x1F;
-
-                y_fine = (ppu->ly + ppu->scy) & 0x07;
-                map_address = (ppu->lcdc.bg_tilemap_area ? 0x1C00 : 0x1800) | (y << 0x05) | x;
-            }
-            
-            uint8_t tile_index = ppu->vram[map_address];
-
-            ppu->tile_fetcher.attribute = ppu->gb->cgb_mode ? ppu->vram[0x2000 | map_address] : 0x00;
-            
-            ppu->tile_fetcher.tile_address = (ppu->tile_fetcher.attribute & gb_tilemap_tile_bank_mask) ? 0x2000 : 0x0000;
-            ppu->tile_fetcher.tile_address |= ppu->lcdc.tiledata_area ? tile_index << 0x04 : 0x1000 + ((int8_t)tile_index << 0x04);
-            ppu->tile_fetcher.tile_address |= ((ppu->tile_fetcher.attribute & gb_tilemap_vertical_flip_mask) ? 0x07 ^ y_fine : y_fine) << 0x01;
-            break;
-        }
-        case 0x03:{
-            ppu->tile_fetcher.lo = ppu->vram[ppu->tile_fetcher.tile_address + 0x00];
-            break;
-        }
-        case 0x05:{
-            ppu->tile_fetcher.hi = ppu->vram[ppu->tile_fetcher.tile_address + 0x01];
-            break;
-        }
-    }
-    
-    if(ppu->tile_fifo.length == 0x00 && ppu->tile_fetcher.step > 0x05){
-
-        if(ppu->lcdc.tile_enabled || ppu->gb->cgb_mode){
-
-            for(uint8_t i = 0x00; i < 0x08; ++i){
-
-                gb_pixel_fifo_entry_t* entry = ppu->tile_fifo.data + ((ppu->tile_fifo.front + ppu->tile_fifo.length) & 0x07);
-
-                uint8_t bit = 0x01 << ((ppu->tile_fetcher.attribute & gb_tilemap_horizontal_flip_mask) ? i : 0x07 ^ i);
-
-                entry->palette_index = ppu->tile_fetcher.attribute & gb_tilemap_palette_mask;
-                entry->color_index = ((ppu->tile_fetcher.hi & bit) ? 0x02 : 0x00) | ((ppu->tile_fetcher.lo & bit) ? 0x01 : 0x00);
-                entry->priority = ppu->tile_fetcher.attribute & gb_tilemap_priority_mask;
-                
-                ppu->tile_fifo.length++;
-            }
-        }
-        else{
-            ppu->tile_fifo.length = 0x08;
-        }
-        
-        ppu->fetch_column++;
-        ppu->tile_fetcher.step = 0x00;
-    }
-}
-
-static inline void gb_ppu_object_fetcher_step(gb_ppu_t* ppu){
-    switch(ppu->object_fetcher.step++){
-        case 0x00:{
-            ppu->event_color = gb_event_colors[gb_event_object_fetch_color];
-            break;
-        }
-        case 0x01:{
-            gb_object_t* sprite = ppu->object_buffer + ppu->object_found_index;
-            
-            uint8_t y = (ppu->ly + 0x10) - sprite->y;
-
-            ppu->object_fetcher.tile_address = (ppu->gb->cgb_mode && (sprite->attribute & gb_object_tile_bank_mask)) ? 0x2000 : 0x0000;
-            ppu->object_fetcher.tile_address |= (sprite->tile_index & (ppu->lcdc.object_size ? 0xFE : 0xFF)) << 0x04;
-            ppu->object_fetcher.tile_address |= ((sprite->attribute & gb_object_vertical_flip_mask) ? ((ppu->lcdc.object_size ? 0x0F : 0x07) ^ y) : y) << 0x01;
-            break;
-        }
-        case 0x03:{
-            ppu->object_fetcher.lo = ppu->vram[ppu->object_fetcher.tile_address + 0x00];
-            break;
-        }
-        case 0x05:{
-            ppu->object_fetcher.hi = ppu->vram[ppu->object_fetcher.tile_address + 0x01];
-
-            gb_object_t* sprite = ppu->object_buffer + ppu->object_found_index;
-
-            for(uint8_t i = 0x00; i < 0x08; ++i){
-                uint8_t bit = 0x01 << ((sprite->attribute & gb_object_horizontal_flip_mask) ? i : 0x07 ^ i);
-                uint8_t color_index = ((ppu->object_fetcher.hi & bit) ? 0x02 : 0x00) | ((ppu->object_fetcher.lo & bit) ? 0x01 : 0x00);
-
-                gb_pixel_fifo_entry_t* entry = ppu->object_fifo.data + ((ppu->object_fifo.front + i) & 0x07);
-
-                if(color_index && (!entry->color_index || (!ppu->gb->obj_priority_mode && ppu->object_found_index < entry->index))){
-                    if(ppu->gb->cgb_mode){
-                        entry->palette_index = sprite->attribute & gb_object_cgb_palette_mask;
-                    }
-                    else{
-                        entry->palette_index = (sprite->attribute & gb_object_dmg_palette_mask) ? 0x01 : 0x00;
-                    }
-                    entry->color_index = color_index;
-                    entry->priority = sprite->attribute & gb_object_priority_mask;
-                    entry->index = ppu->object_found_index;
-                }
-            }
-
-            ppu->object_fetcher.step = 0x00;
-            ppu->object_fifo.length = 0x08;
-            ppu->object_found_index = 0xFF;
-            sprite->x = 0xFF;
-            break;
-        }
-    }
-}
-
-
 void gb_pixel_fifo_pop(gb_pixel_fifo_t* fifo){
     if(fifo->length == 0x00) return;
 
@@ -428,7 +311,7 @@ static inline void gb_ppu_render_pixel(gb_ppu_t* ppu){
         pixel[1] = color.g;
         pixel[2] = color.b;
 
-        ppu->event_color = color;
+        ppu->event_screen_color = color;
     }
 
     ppu->drawn_pixels++;
@@ -469,53 +352,178 @@ static inline void gb_ppu_drawing(gb_ppu_t* ppu){
     }
 
     if(ppu->object_found_index != 0xFF && ppu->tile_fetcher.step >= 0x05 && ppu->tile_fifo.length > 0x00){
-        gb_ppu_object_fetcher_step(ppu);
+        
+        ppu->event_screen_color = gb_event_screen_palette[gb_event_screen_object_fetch_color];
+
+        switch(ppu->object_fetcher.step++){
+            case 0x01:{
+                gb_object_t* sprite = ppu->object_buffer + ppu->object_found_index;
+                
+                uint8_t y = (ppu->ly + 0x10) - sprite->y;
+
+                ppu->object_fetcher.tile_address = (ppu->gb->cgb_mode && (sprite->attribute & gb_object_tile_bank_mask)) ? 0x2000 : 0x0000;
+                ppu->object_fetcher.tile_address |= (sprite->tile_index & (ppu->lcdc.object_size ? 0xFE : 0xFF)) << 0x04;
+                ppu->object_fetcher.tile_address |= ((sprite->attribute & gb_object_vertical_flip_mask) ? ((ppu->lcdc.object_size ? 0x0F : 0x07) ^ y) : y) << 0x01;
+                break;
+            }
+            case 0x03:{
+                ppu->object_fetcher.lo = ppu->vram[ppu->object_fetcher.tile_address + 0x00];
+                break;
+            }
+            case 0x05:{
+                ppu->object_fetcher.hi = ppu->vram[ppu->object_fetcher.tile_address + 0x01];
+
+                gb_object_t* sprite = ppu->object_buffer + ppu->object_found_index;
+
+                for(uint8_t i = 0x00; i < 0x08; ++i){
+                    uint8_t bit = 0x01 << ((sprite->attribute & gb_object_horizontal_flip_mask) ? i : 0x07 ^ i);
+                    uint8_t color_index = ((ppu->object_fetcher.hi & bit) ? 0x02 : 0x00) | ((ppu->object_fetcher.lo & bit) ? 0x01 : 0x00);
+
+                    gb_pixel_fifo_entry_t* entry = ppu->object_fifo.data + ((ppu->object_fifo.front + i) & 0x07);
+
+                    if(color_index && (!entry->color_index || (!ppu->gb->obj_priority_mode && ppu->object_found_index < entry->index))){
+                        if(ppu->gb->cgb_mode){
+                            entry->palette_index = sprite->attribute & gb_object_cgb_palette_mask;
+                        }
+                        else{
+                            entry->palette_index = (sprite->attribute & gb_object_dmg_palette_mask) ? 0x01 : 0x00;
+                        }
+                        entry->color_index = color_index;
+                        entry->priority = sprite->attribute & gb_object_priority_mask;
+                        entry->index = ppu->object_found_index;
+                    }
+                }
+
+                ppu->object_fetcher.step = 0x00;
+                ppu->object_fifo.length = 0x08;
+                ppu->object_found_index = 0xFF;
+                sprite->x = 0xFF;
+                break;
+            }
+        }
     }
     else{
-        gb_ppu_tile_fetcher_step(ppu);
+        if(ppu->fetch_window){
+            ppu->event_screen_color = gb_event_screen_palette[gb_event_screen_window_fetch_color];
+        }
+        else{
+            ppu->event_screen_color = gb_event_screen_palette[gb_event_screen_background_fetch_color];
+        }
 
+        switch(ppu->tile_fetcher.step++){
+            case 0x01:{
+                uint8_t y_fine = 0x00;
+                uint16_t map_address = 0x0000;
+
+                if(ppu->fetch_window){
+                    uint8_t x = ppu->fetch_column & 0x1F;
+                    uint8_t y = (ppu->window_ly >> 0x03) & 0x1F;
+
+                    y_fine = ppu->window_ly & 0x07;
+                    map_address = (ppu->lcdc.window_tilemap_area ? 0x1C00 : 0x1800) | (y << 0x05) | x;
+                }
+                else{
+                    uint8_t x = (ppu->fetch_column + (ppu->scx >> 0x03)) & 0x1F;
+                    uint8_t y = ((ppu->ly + ppu->scy) >> 0x03) & 0x1F;
+
+                    y_fine = (ppu->ly + ppu->scy) & 0x07;
+                    map_address = (ppu->lcdc.bg_tilemap_area ? 0x1C00 : 0x1800) | (y << 0x05) | x;
+                }
+                
+                uint8_t tile_index = ppu->vram[map_address];
+
+                ppu->tile_fetcher.attribute = ppu->gb->cgb_mode ? ppu->vram[0x2000 | map_address] : 0x00;
+                
+                ppu->tile_fetcher.tile_address = (ppu->tile_fetcher.attribute & gb_tilemap_tile_bank_mask) ? 0x2000 : 0x0000;
+                ppu->tile_fetcher.tile_address |= ppu->lcdc.tiledata_area ? tile_index << 0x04 : 0x1000 + ((int8_t)tile_index << 0x04);
+                ppu->tile_fetcher.tile_address |= ((ppu->tile_fetcher.attribute & gb_tilemap_vertical_flip_mask) ? 0x07 ^ y_fine : y_fine) << 0x01;
+                break;
+            }
+            case 0x03:{
+                ppu->tile_fetcher.lo = ppu->vram[ppu->tile_fetcher.tile_address + 0x00];
+                break;
+            }
+            case 0x05:{
+                ppu->tile_fetcher.hi = ppu->vram[ppu->tile_fetcher.tile_address + 0x01];
+                break;
+            }
+        }
+        
         gb_ppu_render_pixel(ppu);
+
+        if(ppu->tile_fifo.length == 0x00 && ppu->tile_fetcher.step > 0x05){
+
+            if(ppu->lcdc.tile_enabled || ppu->gb->cgb_mode){
+
+                for(uint8_t i = 0x00; i < 0x08; ++i){
+
+                    gb_pixel_fifo_entry_t* entry = ppu->tile_fifo.data + ((ppu->tile_fifo.front + ppu->tile_fifo.length) & 0x07);
+
+                    uint8_t bit = 0x01 << ((ppu->tile_fetcher.attribute & gb_tilemap_horizontal_flip_mask) ? i : 0x07 ^ i);
+
+                    entry->palette_index = ppu->tile_fetcher.attribute & gb_tilemap_palette_mask;
+                    entry->color_index = ((ppu->tile_fetcher.hi & bit) ? 0x02 : 0x00) | ((ppu->tile_fetcher.lo & bit) ? 0x01 : 0x00);
+                    entry->priority = ppu->tile_fetcher.attribute & gb_tilemap_priority_mask;
+                    
+                    ppu->tile_fifo.length++;
+                }
+            }
+            else{
+                ppu->tile_fifo.length = 0x08;
+            }
+            
+            ppu->fetch_column++;
+            ppu->tile_fetcher.step = 0x00;
+        }
     }
 }
 
 
 void gb_ppu_clock(gb_ppu_t* ppu,int cycles){
     if(ppu->lcdc.lcd_enabled){
+
+        gb_event_manager_t* event_manager = &ppu->gb->event_manager;
+
         while(cycles--){
             ppu->cycle++;
 
             if(ppu->scanline < gb_vblank_scanline){
                 gb_ppu_visible_scanline(ppu);
+
+                if(ppu->status.mode == gb_ppu_oam_mode){
+                    gb_ppu_oam_evaluation(ppu);
+                }
+                else if(ppu->status.mode == gb_ppu_drawing_mode){
+
+                    gb_ppu_drawing(ppu);
+
+                    if(ppu->drawn_pixels >= gb_screen_width){
+
+                        ppu->status.mode = gb_ppu_hblank_mode;
+
+                        ppu->event_screen_color = gb_event_screen_palette[gb_event_screen_hblank_color];
+
+                        ppu->vram_write_blocked = false;
+                        ppu->vram_read_blocked = false;
+
+                        ppu->oam_write_blocked = false;
+                        ppu->oam_read_blocked = false;
+
+                        if(ppu->gb->dma.vram_hblank_running){
+                            ppu->gb->dma.vram_hblank_pending = true;
+                        }
+                    }
+                }
             }
             else{
                 gb_ppu_vblank_scanline(ppu);
             }
 
-            if(ppu->status.mode == gb_ppu_oam_mode){
-                gb_ppu_oam_evaluation(ppu);
-            }
-            else if(ppu->status.mode == gb_ppu_drawing_mode){
-
-                gb_ppu_drawing(ppu);
-
-                if(ppu->drawn_pixels >= gb_screen_width){
-
-                    ppu->status.mode = gb_ppu_hblank_mode;
-
-                    ppu->event_color = gb_event_colors[gb_event_hblank_color];
-
-                    ppu->vram_blocked = false;
-                    ppu->oam_blocked = false;
-
-                    if(ppu->gb->dma.vram_hblank_running){
-                        ppu->gb->dma.vram_hblank_pending = true;
-                    }
-                }
-            }
-
             ppu->status.lcy_equals_ly = ppu->ly == ppu->_lyc;
 
+            
             gb_ppu_update_irq_line(ppu);
+
 
             if(ppu->handlers != NULL){
                 gb_ppu_handler_t* handler = ppu->handlers;
@@ -527,7 +535,14 @@ void gb_ppu_clock(gb_ppu_t* ppu,int cycles){
                 }while(handler != NULL);
             }
 
-            gb_event_manager_screen_put_color(ppu->gb,ppu->scanline,ppu->cycle,&ppu->event_color);
+            
+            if(event_manager->enabled){
+                uint8_t* pixel = event_manager->screen + (ppu->scanline * gb_event_screen_pitch) + (ppu->cycle * gb_event_screen_bytes_per_pixel);
+
+                pixel[0] = ppu->event_screen_color.r;
+                pixel[1] = ppu->event_screen_color.g;
+                pixel[2] = ppu->event_screen_color.b;
+            }
         }
     }
     else{
@@ -560,7 +575,7 @@ const uint8_t* gb_ppu_get_render_buffer(gb_ppu_t* ppu){
 void gb_ppu_write_vram(void* data,uint8_t value,uint16_t address){
     gb_ppu_t* ppu = (gb_ppu_t*)data;
     
-    if(!ppu->vram_blocked){
+    if(!ppu->vram_write_blocked){
         ppu->vram_bank_ptr[address & 0x1FFF] = value;
     }
 
@@ -571,7 +586,7 @@ uint8_t gb_ppu_read_vram(void* data,uint16_t address){
     
     uint8_t value = 0xFF;
 
-    if(!ppu->vram_blocked){
+    if(!ppu->vram_read_blocked){
         value = ppu->vram_bank_ptr[address & 0x1FFF];
     }
 
@@ -605,23 +620,29 @@ void gb_ppu_write_register(void* data,uint8_t value,uint16_t address){
 
                 ppu->status.mode = gb_ppu_hblank_mode;
 
-                ppu->event_color = gb_event_colors[gb_event_hblank_color];
-
                 ppu->off_cycle = ppu->ly * gb_scanline_cycles + ppu->cycle;
                 
                 ppu->ly = 0x00;
                 ppu->scanline = 0x00;
                 ppu->cycle = 0x00;
 
-                ppu->vram_blocked = false;
-                ppu->oam_blocked = false;
+                ppu->vram_write_blocked = false;
+                ppu->vram_read_blocked = false;
+
+                ppu->oam_write_blocked = false;
+                ppu->oam_read_blocked = false;
             }
             else if(!ppu->lcdc.lcd_enabled && lcd_enabled){
 
                 ppu->lcdc.lcd_enabled = true;
 
-                //Quando a PPU é ligado a linha 0 é mais curta em 5 T-cycles
-                ppu->cycle = 0x04;
+                ppu->cycle = 0x07;
+
+                ppu->event_screen_color = gb_event_screen_palette[gb_event_screen_hblank_color];
+
+                gb_event_manager_screen_blank(ppu->gb);
+
+                gb_event_manager_swap_frame(ppu->gb);
 
                 ppu->first_frame = true;
             }
@@ -740,9 +761,6 @@ void gb_ppu_write_vbk_register(void* data,uint8_t value,uint16_t address){
     gb_unused(address);
 
     gb_ppu_t* ppu = (gb_ppu_t*)data;
-    gb_t* gb = ppu->gb;
-
-    if(!(gb->is_cgb && (gb->cgb_mode || gb->boot.mapped))) return;
 
     ppu->vram_bank = value & 0x01;
     ppu->vram_bank_ptr = ppu->vram + (ppu->vram_bank ? 0x2000 : 0x0000);
@@ -752,9 +770,6 @@ uint8_t gb_ppu_read_vbk_register(void* data,uint16_t address){
     gb_unused(address);
 
     gb_ppu_t* ppu = (gb_ppu_t*)data;
-    gb_t* gb = ppu->gb;
-    
-    if(!(gb->is_cgb && (gb->cgb_mode || gb->boot.mapped))) return 0xFF;
     
     return 0xFE | (ppu->vram_bank & 0x01);
 }
@@ -763,7 +778,7 @@ uint8_t gb_ppu_read_vbk_register(void* data,uint16_t address){
 void gb_ppu_write_oam(void* data,uint8_t value,uint16_t address){
     gb_ppu_t* ppu = (gb_ppu_t*)data;
     
-    if(ppu->gb->dma.oam_state != gb_oam_dma_state_transfer && !ppu->oam_blocked){
+    if(ppu->gb->dma.oam_state != gb_oam_dma_state_transfer && !ppu->oam_write_blocked){
         ppu->oam[address & 0xFF] = value;
     }
 }
@@ -773,7 +788,7 @@ uint8_t gb_ppu_read_oam(void* data,uint16_t address){
 
     uint8_t value = 0xFF;
 
-    if(ppu->gb->dma.oam_state != gb_oam_dma_state_transfer && !ppu->oam_blocked){
+    if(ppu->gb->dma.oam_state != gb_oam_dma_state_transfer && !ppu->oam_read_blocked){
         value = ppu->oam[address & 0xFF];
     }
 
@@ -795,8 +810,6 @@ void gb_ppu_map(gb_ppu_t* ppu){
     gb_memory_map_in_range(memory,&ppu->register_descriptor,0xFF4A,0xFF4B);
 
     gb_memory_map_in_range(memory,&ppu->oam_descriptor,0xFE00,0xFE9F);
-
-    gb_memory_map(memory,&ppu->vbk_register_descriptor,0xFF4F);
 }
 
 
@@ -898,16 +911,18 @@ void gb_ppu_reset(gb_ppu_t* ppu){
     ppu->screen_index = !ppu->screen_index;
     ppu->current_screen = ppu->screen[ppu->screen_index];
 
-    ppu->event_color = gb_event_colors[gb_event_hblank_color];
+    ppu->event_screen_color = gb_event_screen_palette[gb_event_screen_hblank_color];
 
     memset(ppu->vram,0x00,sizeof(ppu->vram));
     ppu->vram_bank_ptr = ppu->vram;
     ppu->vram_bank = 0x00;
-    ppu->vram_blocked = false;
+    ppu->vram_write_blocked = false;
+    ppu->vram_read_blocked = false;
 
     memset(ppu->oam,0x00,sizeof(ppu->oam));
     ppu->oam_address = 0x00;
-    ppu->oam_blocked = false;
+    ppu->oam_write_blocked = false;
+    ppu->oam_read_blocked = false;
 
 }
 
@@ -943,7 +958,7 @@ void gb_ppu_skip_boot(gb_ppu_t* ppu){
 
     ppu->status.mode = gb_ppu_vblank_mode;
 
-    ppu->event_color = gb_event_colors[gb_event_vblank_color];
+    ppu->event_screen_color = gb_event_screen_palette[gb_event_screen_vblank_color];
 }
 
 
@@ -992,13 +1007,17 @@ void gb_ppu_save_state(gb_ppu_t* ppu,gb_state_t* state){
     gb_state_write(state,ppu->screen_index);
     gb_state_write_ex(state,ppu->screen,sizeof(ppu->screen));
 
+    gb_state_write(state,ppu->event_screen_color);
+    
     gb_state_write_ex(state,ppu->vram,sizeof(ppu->vram));
     gb_state_write(state,ppu->vram_bank);
-    gb_state_write(state,ppu->vram_blocked);
+    gb_state_write(state,ppu->vram_write_blocked);
+    gb_state_write(state,ppu->vram_read_blocked);
 
     gb_state_write_ex(state,ppu->oam,sizeof(ppu->oam));
     gb_state_write(state,ppu->oam_address);
-    gb_state_write(state,ppu->oam_blocked);
+    gb_state_write(state,ppu->oam_write_blocked);
+    gb_state_write(state,ppu->oam_read_blocked);
 }
 
 void gb_ppu_load_state(gb_ppu_t* ppu,gb_state_t* state){
@@ -1047,12 +1066,16 @@ void gb_ppu_load_state(gb_ppu_t* ppu,gb_state_t* state){
     gb_state_read_ex(state,ppu->screen,sizeof(ppu->screen));
     ppu->current_screen = ppu->screen[ppu->screen_index];
 
+    gb_state_read(state,ppu->event_screen_color);
+
     gb_state_read_ex(state,ppu->vram,sizeof(ppu->vram));
     gb_state_read(state,ppu->vram_bank);
-    gb_state_read(state,ppu->vram_blocked);
+    gb_state_read(state,ppu->vram_write_blocked);
+    gb_state_read(state,ppu->vram_read_blocked);
     ppu->vram_bank_ptr = ppu->vram + (ppu->vram_bank ? 0x2000 : 0x0000);
 
     gb_state_read_ex(state,ppu->oam,sizeof(ppu->oam));
     gb_state_read(state,ppu->oam_address);
-    gb_state_read(state,ppu->oam_blocked);
+    gb_state_read(state,ppu->oam_write_blocked);
+    gb_state_read(state,ppu->oam_read_blocked);
 }

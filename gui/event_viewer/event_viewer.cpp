@@ -17,7 +17,7 @@ event_viewer_t::event_viewer_t(gb_t* gb,SDL_Renderer* renderer):gb(gb){
 
     event_selected_border_color = ImGui::ColorConvertFloat4ToU32(ImGui::GetStyleColorVec4(ImGuiCol_NavCursor));
 
-    update_event_config_child_size();
+    update_event_control_child_size();
     update_event_list_column_width();
     update_texture_size();
 
@@ -255,6 +255,7 @@ void event_viewer_t::init_event_infos(){
         "$FF56 (%s)\n"
         "$FF6C (%s)\n"
         "$FF70 (%s)\n"
+        "$FF72-$FF75 (%s)\n"
         "$FF76 (%s)\n"
         "$FF77 (%s)",
         gb_registers_label[0x4C],
@@ -264,6 +265,7 @@ void event_viewer_t::init_event_infos(){
         gb_registers_label[0x56],
         gb_registers_label[0x6C],
         gb_registers_label[0x70],
+        gb_registers_label[0x72],
         gb_registers_label[0x76],
         gb_registers_label[0x77]
     );
@@ -272,10 +274,18 @@ void event_viewer_t::init_event_infos(){
 }
 
 
-void event_viewer_t::update_event_config_child_size(){
+void event_viewer_t::update_event_control_child_size(){
     ImGuiStyle& style = ImGui::GetStyle();
     
     float label_text_max_width = 0.0f;
+
+    for(int i = 0; i < gb_event_screen_color_count; ++i){
+        float width = ImGui::CalcTextSize(gb_event_screen_color_names[i]).x;
+        if(width > label_text_max_width){
+            label_text_max_width = width;
+        }
+    }
+
     for(int i = 1; i < gb_event_type_count; ++i){
         float width = ImGui::CalcTextSize(gb_event_type_names[i]).x;
         if(width > label_text_max_width){
@@ -295,10 +305,10 @@ void event_viewer_t::update_event_config_child_size(){
     
     float table_max_width = label_column_width + write_column_width + read_column_width;
 
-    event_config_child_size.x = table_max_width + style.WindowPadding.x * 2.0f + style.ScrollbarSize;
-    event_config_child_size.y = 0.0f;
+    event_control_child_size.x = table_max_width + style.WindowPadding.x * 2.0f + style.ScrollbarSize;
+    event_control_child_size.y = 0.0f;
 
-    event_config_label_column_width = label_text_max_width;
+    event_control_label_column_width = label_text_max_width;
 }
 
 void event_viewer_t::update_event_list_column_width(){
@@ -832,7 +842,7 @@ void event_viewer_t::render_interrupt_event_configs(){
 
         ImGuiStyle& style = ImGui::GetStyle();
 
-        ImGui::TableSetupColumn("Label",ImGuiTableColumnFlags_WidthFixed,event_config_label_column_width);
+        ImGui::TableSetupColumn(nullptr,ImGuiTableColumnFlags_WidthFixed,event_control_label_column_width);
 
         for(int i = gb_event_halt_type; i <= gb_event_irq_joypad_type; ++i){
             ImGui::PushID(i);
@@ -847,7 +857,7 @@ void event_viewer_t::render_interrupt_event_configs(){
 
             ImGui::TableNextColumn();
 
-            if(ImGui::CheckboxFlags("##CheckBoxFlagsInterrupt",&event_configs[i].flags,gb_event_interrupt_flag)){
+            if(ImGui::CheckboxFlags("##CheckBoxFlags",&event_configs[i].flags,gb_event_interrupt_flag)){
                 if(event_selected != nullptr && (*event_selected)->type == i && !((*event_selected)->flag & event_configs[i].flags)){
                     event_selected = nullptr;
                 }
@@ -855,7 +865,7 @@ void event_viewer_t::render_interrupt_event_configs(){
 
             ImGui::SameLine(0.0f,style.ItemInnerSpacing.x);
 
-            ImGui::ColorEdit3("##ColorEditInterrupt",(float*)&event_configs[i].interrupt_color,ImGuiColorEditFlags_NoInputs);
+            ImGui::ColorEdit3("##ColorEdit",(float*)&event_configs[i].interrupt_color,ImGuiColorEditFlags_NoInputs);
 
             ImGui::PopID();
         }
@@ -871,7 +881,7 @@ void event_viewer_t::render_io_event_configs(const char* collapsing_header,const
 
         ImGuiStyle& style = ImGui::GetStyle();
 
-        ImGui::TableSetupColumn("Label",ImGuiTableColumnFlags_WidthFixed,event_config_label_column_width);
+        ImGui::TableSetupColumn(nullptr,ImGuiTableColumnFlags_WidthFixed,event_control_label_column_width);
 
         ImGui::PushStyleColor(ImGuiCol_HeaderHovered,ImVec4(0.0f,0.0f,0.0f,0.0f));
         ImGui::PushStyleColor(ImGuiCol_HeaderActive,ImVec4(0.0f,0.0f,0.0f,0.0f));
@@ -1015,8 +1025,43 @@ void event_viewer_t::render(){
 
             ImGui::TableNextColumn();
 
-            if(ImGui::BeginChild("EventConfigsChild",event_config_child_size,ImGuiChildFlags_Borders)){
+            if(ImGui::BeginChild("ControlChild",event_control_child_size,ImGuiChildFlags_Borders)){
                 
+
+                if(ImGui::CollapsingHeader("Screen Palette")){
+                    
+                    if(ImGui::BeginTable("ScreenPaletteTable",2)){
+
+                        ImGui::TableSetupColumn(nullptr,ImGuiTableColumnFlags_WidthFixed,event_control_label_column_width);
+
+                        for(int i = 0; i < gb_event_screen_color_count; ++i){
+                            ImGui::PushID(i);
+                            
+                            ImGui::TableNextRow();
+                            
+                            ImGui::TableNextColumn();
+                            
+                            ImGui::TextUnformatted(gb_event_screen_color_names[i]);
+
+                            ImGui::TableNextColumn();
+
+                            gb_rgb_t color = gb_event_screen_palette[i];
+
+                            ImVec4 color_converted(
+                                color.r / 255.0f,
+                                color.g / 255.0f,
+                                color.b / 255.0f,
+                                1.0f
+                            );
+
+                            ImGui::ColorButton("##ColorButton",color_converted);
+                            
+                            ImGui::PopID();
+                        }
+                        ImGui::EndTable();
+                    }
+                }
+
                 render_interrupt_event_configs();
 
                 render_io_event_configs("Memory","MemoryTable",gb_event_vram_type,gb_event_hram_type);

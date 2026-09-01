@@ -33,19 +33,19 @@ private:
     config_t event_configs[gb_event_type_count] = {
         [gb_event_none_type] = {},
         
-        [gb_event_halt_type] = {{},{},{0.620f, 0.620f, 0.620f, 1.0f},0},
-        [gb_event_stop_type] = {{},{},{1.000f, 0.831f, 0.490f, 1.0f},0},
+        [gb_event_halt_type] = {{},{},{0.62f, 0.62f, 0.62f, 1.00f},0},
+        [gb_event_stop_type] = {{},{},{1.00f, 0.83f, 0.49f, 1.00f},0},
         
-        [gb_event_irq_vblank_type] = {{},{},{0.310f, 0.765f, 0.969f, 1.0f},0},
-        [gb_event_irq_lcd_type]    = {{},{},{0.671f, 0.498f, 1.000f, 1.0f},0},
-        [gb_event_irq_timer_type]  = {{},{},{1.000f, 0.718f, 0.302f, 1.0f},0},
-        [gb_event_irq_serial_type] = {{},{},{0.302f, 0.816f, 0.882f, 1.0f},0},
-        [gb_event_irq_joypad_type] = {{},{},{0.941f, 0.384f, 0.576f, 1.0f},0},
+        [gb_event_irq_vblank_type] = {{},{},{0.31f, 0.76f, 0.96f, 1.00f},0},
+        [gb_event_irq_lcd_type]    = {{},{},{0.67f, 0.49f, 1.00f, 1.00f},0},
+        [gb_event_irq_timer_type]  = {{},{},{1.00f, 0.71f, 0.30f, 1.00f},0},
+        [gb_event_irq_serial_type] = {{},{},{0.30f, 0.81f, 0.88f, 1.00f},0},
+        [gb_event_irq_joypad_type] = {{},{},{0.94f, 0.38f, 0.57f, 1.00f},0},
 
-        [gb_event_vram_type] = {{0.08f, 0.42f, 0.80f, 1.00f},{0.400f, 0.710f, 0.970f, 1.0f},{},0},
-        [gb_event_wram_type] = {{0.18f, 0.55f, 0.22f, 1.00f},{0.500f, 0.780f, 0.520f, 1.0f},{},0},
-        [gb_event_oam_type]  = {{0.75f, 0.10f, 0.35f, 1.00f},{0.960f, 0.560f, 0.700f, 1.0f},{},0},
-        [gb_event_hram_type] = {{0.00f, 0.45f, 0.40f, 1.00f},{0.300f, 0.720f, 0.680f, 1.0f},{},0},
+        [gb_event_vram_type] = {{0.08f, 0.42f, 0.80f, 1.00f},{0.40f, 0.71f, 0.97f, 1.00f},{},0},
+        [gb_event_wram_type] = {{0.18f, 0.55f, 0.22f, 1.00f},{0.50f, 0.78f, 0.52f, 1.00f},{},0},
+        [gb_event_oam_type]  = {{0.75f, 0.10f, 0.35f, 1.00f},{0.96f, 0.56f, 0.70f, 1.00f},{},0},
+        [gb_event_hram_type] = {{0.00f, 0.45f, 0.40f, 1.00f},{0.30f, 0.72f, 0.68f, 1.00f},{},0},
 
         [gb_event_joypad_type]       = {{0.76f, 0.20f, 0.38f, 1.00f},{0.95f, 0.60f, 0.69f, 1.00f},{},0},
         [gb_event_serial_type]       = {{0.08f, 0.52f, 0.60f, 1.00f},{0.40f, 0.82f, 0.87f, 1.00f},{},0},
@@ -85,14 +85,14 @@ private:
         float previous_frame;
     } event_list_column_width;
 
-    ImVec2 event_config_child_size;
-    float event_config_label_column_width;
+    ImVec2 event_control_child_size;
+    float event_control_label_column_width;
 
     bool open = false;
 
     void init_event_infos();
 
-    void update_event_config_child_size();
+    void update_event_control_child_size();
     void update_event_list_column_width();
 
     void update_texture();

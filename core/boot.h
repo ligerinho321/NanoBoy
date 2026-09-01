@@ -53,7 +53,6 @@ void gb_boot_init(gb_boot_t* boot,gb_t* gb);
 
 void gb_boot_update_roms(gb_boot_t* boot);
 
-void gb_boot_map_register(gb_boot_t* boot);
 void gb_boot_map(gb_boot_t* boot);
 void gb_boot_unmap(gb_boot_t* boot);
 

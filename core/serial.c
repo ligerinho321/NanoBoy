@@ -25,8 +25,6 @@ void gb_serial_remove_callback(gb_serial_t* serial){
 
 void gb_serial_clock(gb_serial_t* serial){
 
-    if(!serial->transfer_enabled) return;
-
     if(serial->internal_clock){
         
         serial->timer -= 0x04;

@@ -16,9 +16,6 @@ void gb_infrared_write_register(void* data,uint8_t value,uint16_t address){
     gb_unused(address);
 
     gb_infrared_t* infrared = (gb_infrared_t*)data;
-    gb_t* gb = infrared->gb;
-
-    if(!(gb->is_cgb && (gb->cgb_mode || gb->boot.mapped))) return;
 
     infrared->read_enabled = (value & 0xC0) >> 0x06;
     infrared->led_on = value & 0x01;
@@ -28,9 +25,6 @@ uint8_t gb_infrared_read_register(void* data,uint16_t address){
     gb_unused(address);
     
     gb_infrared_t* infrared = (gb_infrared_t*)data;
-    gb_t* gb = infrared->gb;
-    
-    if(!(gb->is_cgb && (gb->cgb_mode || gb->boot.mapped))) return 0xFF;
     
     uint8_t value = ((infrared->read_enabled & 0x03) << 0x06) | 0x3C | (infrared->led_on ? 0x01 : 0x00);
     
@@ -42,11 +36,6 @@ uint8_t gb_infrared_read_register(void* data,uint16_t address){
     }
 
     return value;
-}
-
-
-void gb_infrared_map(gb_infrared_t* infrared){
-    gb_memory_map(&infrared->gb->memory,&infrared->register_descriptor,0xFF56);
 }
 
 

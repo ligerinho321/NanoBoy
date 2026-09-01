@@ -34,6 +34,8 @@ void gb_breakpoint_manager_add(gb_t* gb,gb_breakpoint_t* breakpoint);
 void gb_breakpoint_manager_remove(gb_t* gb,gb_breakpoint_t* breakpoint);
 void gb_breakpoint_manager_clear(gb_t* gb);
 
+void gb_breakpoint_manager_reset(gb_breakpoint_manager_t* breakpoint_manager);
+
 #ifdef __cplusplus
 }
 #endif

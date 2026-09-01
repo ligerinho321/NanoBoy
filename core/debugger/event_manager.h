@@ -40,7 +40,7 @@ typedef enum _gb_event_type_t {
     gb_event_ppu_type,          //0xFF40-0xFF45,0xFF4A-0xFF4B
     gb_event_palette_type,      //0xFF47-0xFF49,0xFF68-FF6B
     gb_event_dma_type,          //0xFF46,0xFF51-0xFF55
-    gb_event_others_type,       //0xFF4C,0xFF4D,0xFF4F,0xFF50,0xFF56,0xFF6C,0xFF70,0xFF76,0xFF77
+    gb_event_others_type,       //0xFF4C,0xFF4D,0xFF4F,0xFF50,0xFF56,0xFF6C,0xFF70,0xFF72-0xFF75,0xFF76-0xFF77
     
     gb_event_type_count
 } gb_event_type_t;
@@ -54,18 +54,21 @@ typedef enum _gb_event_flag_t {
     gb_event_interrupt_flag = 0x04,
 } gb_event_flag_t;
 
-typedef enum _gb_event_color {
-    gb_event_hblank_color,
-    gb_event_vblank_color,
-    gb_event_oam_color,
-    gb_event_fictitious_fetch_color,
-    gb_event_background_fetch_color,
-    gb_event_window_fetch_color,
-    gb_event_object_fetch_color,
-    gb_event_color_count
-} gb_event_color;
 
-extern const gb_rgb_t gb_event_colors[gb_event_color_count];
+typedef enum _gb_event_screen_color {
+    gb_event_screen_hblank_color,
+    gb_event_screen_vblank_color,
+    gb_event_screen_oam_scan_color,
+    gb_event_screen_fictitious_fetch_color,
+    gb_event_screen_background_fetch_color,
+    gb_event_screen_window_fetch_color,
+    gb_event_screen_object_fetch_color,
+    gb_event_screen_color_count
+} gb_event_screen_color;
+
+extern const gb_rgb_t gb_event_screen_palette[gb_event_screen_color_count];
+
+extern const char* gb_event_screen_color_names[gb_event_screen_color_count];
 
 
 typedef struct _gb_event_t {
@@ -90,14 +93,22 @@ typedef struct _gb_event_frame_t {
     uint32_t capacity;
 } gb_event_frame_t;
 
+typedef struct _gb_event_register_map_t {
+    uint8_t type;
+    uint8_t flags;
+} gb_event_register_map_t;
+
 typedef struct _gb_event_manager_t {
     gb_t* gb;
 
     bool enabled;
     
+    gb_event_register_map_t registers_map[0x100];
+
     uint8_t screen[gb_event_screen_length];
 
     gb_event_frame_t frame[2];
+
     gb_event_frame_t* current_frame;
 } gb_event_manager_t;
 
@@ -108,7 +119,9 @@ extern "C" {
 
 void gb_event_manager_init(gb_event_manager_t* event_manager,gb_t* gb);
 
-void gb_event_manager_screen_put_color(gb_t* gb,uint8_t scanline,uint16_t cycle,gb_rgb_t *color);
+void gb_event_manager_map(gb_event_manager_t* event_manager);
+void gb_event_manager_update_mapping(gb_event_manager_t* event_manager);
+
 void gb_event_manager_screen_blank(gb_t* gb);
 
 void gb_event_manager_halt(gb_t* gb);

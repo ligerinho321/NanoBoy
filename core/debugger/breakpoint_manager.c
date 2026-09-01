@@ -8,17 +8,10 @@ void gb_breakpoint_manager_init(gb_breakpoint_manager_t* breakpoint_manager,gb_t
 
 bool gb_breakpoint_manager_check(gb_breakpoint_manager_t* breakpoint_manager,uint16_t address){
 
-    if(breakpoint_manager->last_check_address == address){
-        return false;
-    }
-
-    breakpoint_manager->last_check_address = address;
-
-    if(!breakpoint_manager->enabled || !breakpoint_manager->breakpoints) return false;
-
     gb_breakpoint_t* breakpoint = breakpoint_manager->breakpoints;
     
-    do{
+    while(breakpoint != NULL){
+
         if(breakpoint->enabled){
             if(breakpoint->memory_type == gb_memory_cpu_type){
 
@@ -48,7 +41,7 @@ bool gb_breakpoint_manager_check(gb_breakpoint_manager_t* breakpoint_manager,uin
         
         breakpoint = breakpoint->next;
 
-    }while(breakpoint != NULL);
+    };
 
     return false;
 }
@@ -69,4 +62,9 @@ void gb_breakpoint_manager_remove(gb_t* gb,gb_breakpoint_t* breakpoint){
 
 void gb_breakpoint_manager_clear(gb_t* gb){
     gb->breakpoint_manager.breakpoints = NULL;
+}
+
+
+void gb_breakpoint_manager_reset(gb_breakpoint_manager_t* breakpoint_manager){
+    breakpoint_manager->last_check_address = (uint32_t)-1;
 }

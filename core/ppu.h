@@ -46,13 +46,13 @@ typedef struct _gb_ppu_status_t {
     bool lyc_enabled : 1;
 } gb_ppu_status_t;
 
-typedef struct _gb_bg_fetcher_t {
+typedef struct _gb_tile_fetcher_t {
     uint8_t step;
     uint16_t tile_address;
     uint8_t attribute;
     uint8_t lo;
     uint8_t hi;
-} gb_bg_fetcher_t;
+} gb_tile_fetcher_t;
 
 typedef struct _gb_object_fetcher_t {
     uint8_t step;
@@ -104,7 +104,7 @@ typedef struct _gb_ppu_t {
     bool wx_enabled;
     uint8_t window_ly;
 
-    gb_bg_fetcher_t tile_fetcher;
+    gb_tile_fetcher_t tile_fetcher;
     gb_object_fetcher_t object_fetcher;
     
     uint8_t object_found_index;
@@ -130,18 +130,20 @@ typedef struct _gb_ppu_t {
     uint8_t screen[2][gb_screen_length];
     uint8_t* current_screen;
 
-    gb_rgb_t event_color;
+    gb_rgb_t event_screen_color;
 
     uint8_t vram[gb_vram_length];
     uint8_t* vram_bank_ptr;
     uint8_t vram_bank;
-    bool vram_blocked;
+    bool vram_write_blocked;
+    bool vram_read_blocked;
     gb_memory_descriptor_t vram_descriptor;
     gb_memory_descriptor_t vbk_register_descriptor;
 
     uint8_t oam[gb_oam_length];
     uint8_t oam_address;
-    bool oam_blocked;
+    bool oam_write_blocked;
+    bool oam_read_blocked;
     gb_memory_descriptor_t oam_descriptor;
 
     gb_memory_descriptor_t register_descriptor;

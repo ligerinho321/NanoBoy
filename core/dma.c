@@ -19,8 +19,7 @@ void gb_dma_init(gb_dma_t* dma,gb_t* gb){
 
 
 void gb_oam_dma_clock(gb_dma_t* dma){
-    if(dma->oam_state == gb_oam_dma_state_none || dma->gb->cpu.state == gb_cpu_halted_state) return;
-    
+
     switch(dma->oam_state){
         case gb_oam_dma_state_delay:{
             dma->oam_state = gb_oam_dma_state_setup;
@@ -35,7 +34,9 @@ void gb_oam_dma_clock(gb_dma_t* dma){
 
             dma->gb->ppu.oam[dma->oam_counter] = dma->oam_byte;
 
-            gb_event_manager_io(dma->gb,gb_event_write_flag,dma->oam_byte,0xFE00 | dma->oam_counter);
+            if(dma->gb->event_manager.enabled){
+                gb_event_manager_io(dma->gb,gb_event_write_flag,dma->oam_byte,0xFE00 | dma->oam_counter);
+            }
             
             if(++dma->oam_counter >= 0xA0){
                 dma->oam_state = gb_oam_dma_state_none;
@@ -99,9 +100,7 @@ uint8_t gb_oam_dma_read_register(void* data,uint16_t address){
 
 
 void gb_vram_hblank_dma(gb_dma_t* dma){
-    
-    if(!dma->vram_hblank_pending || !dma->vram_hblank_running || dma->gb->cpu.state == gb_cpu_halted_state) return;
-    
+
     dma->vram_hblank_pending = false;
     
     gb_t* gb = dma->gb;
@@ -168,9 +167,6 @@ void gb_vram_general_dma(gb_dma_t* dma){
 
 void gb_vram_dma_write_register(void* data,uint8_t value,uint16_t address){
     gb_dma_t* dma = (gb_dma_t*)data;
-    gb_t* gb = dma->gb;
-
-    if(!(gb->is_cgb && (gb->cgb_mode || gb->boot.mapped))) return;
 
     switch(address){
         //Src msb
@@ -217,9 +213,6 @@ void gb_vram_dma_write_register(void* data,uint8_t value,uint16_t address){
 
 uint8_t gb_vram_dma_read_register(void* data,uint16_t address){
     gb_dma_t* dma = (gb_dma_t*)data;
-    gb_t* gb = dma->gb;
-    
-    if(!(gb->is_cgb && (gb->cgb_mode || gb->boot.mapped))) return 0xFF;
     
     uint8_t value = 0xFF;
 
@@ -233,10 +226,7 @@ uint8_t gb_vram_dma_read_register(void* data,uint16_t address){
 
 void gb_dma_map(gb_dma_t* dma){
     gb_memory_t* memory = &dma->gb->memory;
-    
     gb_memory_map(memory,&dma->oam_register_descriptor,0xFF46);
-
-    gb_memory_map_in_range(memory,&dma->vram_register_descriptor,0xFF51,0xFF55);
 }
 
 

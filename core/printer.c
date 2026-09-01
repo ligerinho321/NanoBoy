@@ -283,8 +283,6 @@ void gb_printer_accelerate(gb_t* gb){
 
 void gb_printer_clock(gb_printer_t* printer,int cycles){
     
-    if(!(printer->status & gb_printer_currently_printing_status)) return;
-
     if(!gb_atomic_load_explicit(&printer->accelerate,gb_memory_order_relaxed)){
         
         printer->timer -= cycles;

@@ -82,11 +82,6 @@ void gb_boot_update_roms(gb_boot_t* boot){
 }
 
 
-void gb_boot_map_register(gb_boot_t* boot){
-    gb_memory_t* memory = &boot->gb->memory;
-    gb_memory_map(memory,&boot->bank_register_descriptor,0xFF50);
-}
-
 void gb_boot_map(gb_boot_t* boot){
     gb_memory_t* memory = &boot->gb->memory;
 
@@ -122,8 +117,9 @@ void gb_boot_write_bank_register(void* data,uint8_t value,uint16_t address){
 
     gb_boot_t* boot = (gb_boot_t*)data;
     
-    if(boot->mapped && (value & 0x01)){
+    if(value & 0x01){
         gb_boot_unmap(boot);
+        gb_update_mapping(boot->gb);
     }
 }
 
@@ -132,11 +128,7 @@ uint8_t gb_boot_read_bank_register(void* data,uint16_t address){
 
     gb_boot_t* boot = (gb_boot_t*)data;
 
-    if(boot->mapped){
-        return 0xFE | !boot->mapped;
-    }
-    
-    return 0xFF;
+    return 0xFE | !boot->mapped;
 }
 
 

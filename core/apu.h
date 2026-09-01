@@ -124,7 +124,7 @@ typedef struct _gb_apu_t {
     bool skip_first_frame_sequence_event;
 
     uint64_t last_clock_cycle;
-    uint64_t cycles;
+    uint64_t cycle;
     
     gb_memory_descriptor_t square1_register_descriptor;
     gb_memory_descriptor_t square2_register_descriptor;
@@ -168,7 +168,7 @@ void gb_apu_remove_handler(gb_t* gb,gb_apu_handler_t* handler);
 
 void gb_apu_update_rates(gb_apu_t* apu);
 
-void gb_apu_run(gb_apu_t* apu);
+void gb_apu_update(gb_apu_t* apu);
 
 void gb_apu_frame_sequencer_clock(gb_apu_t* apu);
 
