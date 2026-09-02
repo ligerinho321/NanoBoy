@@ -36,7 +36,7 @@ void screen_t::save(cJSON* settings_object){
     cJSON* screen_object = cJSON_CreateObject();
     cJSON_AddItemToObjectCS(settings_object,"Screen",screen_object);
 
-    cJSON* floating_bool = cJSON_CreateBool(floating);
+    cJSON* floating_bool = cJSON_CreateBool(_floating);
     cJSON_AddItemToObjectCS(screen_object,"Floating",floating_bool);
 
     cJSON* aspect_ratio_bool = cJSON_CreateBool(aspect_ratio);
@@ -61,7 +61,7 @@ void screen_t::load(cJSON* settings_object){
     cJSON* floating_bool = cJSON_GetObjectItemCaseSensitive(screen_object,"Floating");
 
     if(floating_bool && cJSON_IsBool(floating_bool)){
-        floating = cJSON_IsTrue(floating_bool);
+        _floating = cJSON_IsTrue(floating_bool);
     }
 
     cJSON* aspect_ratio_bool = cJSON_GetObjectItemCaseSensitive(screen_object,"Aspect ratio");
@@ -248,8 +248,8 @@ void screen_t::render_menu_bar(){
         ImGui::EndMenu();
     }
 
-    if(ImGui::MenuItem("Floating",nullptr,floating)){
-        floating = !floating;
+    if(ImGui::MenuItem("Floating",nullptr,_floating)){
+        _floating = !_floating;
     }
 
     if(ImGui::MenuItem("Aspect ratio",nullptr,aspect_ratio)){
@@ -283,7 +283,7 @@ void screen_t::render_menu_bar(){
 
 void screen_t::render_floating(){
 
-    if(!floating) return;
+    if(!_floating) return;
 
     ImGui::SetNextWindowSizeConstraints(floating_min_size,floating_max_size);
 
@@ -333,7 +333,7 @@ void screen_t::render_floating(){
 }
 
 void screen_t::render_embedded(){
-    if(floating) return;
+    if(_floating) return;
 
     SDL_RenderCopy(renderer,texture,nullptr,&embedded_rect);
 }

@@ -191,7 +191,7 @@ void nanoboy_t::init_imgui(){
 
     ImGuiIO& io = ImGui::GetIO();
 
-    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_NavEnableGamepad;
+    ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
     io.IniFilename = nullptr;
     io.LogFilename = nullptr;
@@ -525,10 +525,6 @@ void nanoboy_t::gb_run(){
 
 void nanoboy_t::render_main_menu_bar(){
 
-    bool fullscreen = SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN_DESKTOP;
-
-    if(fullscreen && gb->cartridge_inserted) return;
-
     if(!ImGui::BeginMainMenuBar()) return;
         
     if(ImGui::BeginMenu("File")){
@@ -662,6 +658,10 @@ void nanoboy_t::imgui_render(){
     ImGui_ImplSDLRenderer2_NewFrame();
     ImGui_ImplSDL2_NewFrame();
     ImGui::NewFrame();
+
+    if(screen->floating()){
+        ImGui::DockSpaceOverViewport();
+    }
 
     render_main_menu_bar();
 

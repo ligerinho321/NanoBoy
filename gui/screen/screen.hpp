@@ -13,7 +13,7 @@ private:
     
     SDL_Rect embedded_rect = {};
 
-    bool floating = false;
+    bool _floating = false;
     bool aspect_ratio = false;
     bool interger_scale = false;
     bool bilinear_filtering = false;
@@ -56,6 +56,10 @@ public:
     }
 
     bool focused(){
-        return floating && _focused;
+        return _floating && _focused;
+    }
+
+    bool floating(){
+        return _floating;
     }
 };
