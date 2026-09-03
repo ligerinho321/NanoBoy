@@ -10,6 +10,8 @@
 
 #include <SDL2/SDL.h>
 
+#include <zstd.h>
+
 #include <iostream>
 #include <chrono>
 #include <filesystem>

@@ -130,9 +130,11 @@ void gb_apu_update_rates(gb_apu_t* apu){
 
 void gb_apu_update_output(gb_apu_t* apu){
     
-    int clock_time = apu->frame_cycles - 1;
-    
-    if(clock_time < 0) return;
+    uint32_t clock_time = apu->frame_cycles;
+
+    if(clock_time > 0){
+        --clock_time;
+    }
 
     int square1_output = gb_apu_square_output(&apu->square1);
     int square2_output = gb_apu_square_output(&apu->square2);
@@ -314,8 +316,6 @@ void gb_apu_update(gb_apu_t* apu){
 
     while(cycles_to_run > 0){
 
-        gb_apu_frame_end(apu);
-
         uint64_t cycles = cycles_to_run;
 
         uint32_t frame_cycles_remaining = gb_frame_cycles - apu->frame_cycles;
@@ -338,12 +338,21 @@ void gb_apu_update(gb_apu_t* apu){
 
         apu->frame_cycles += cycles;
 
-        gb_apu_square_clock(&apu->square1,cycles);
-        gb_apu_square_clock(&apu->square2,cycles);
-        gb_apu_wave_clock(&apu->wave,cycles);
-        gb_apu_noise_clock(&apu->noise,cycles);
+        if(apu->square1.enabled){
+            gb_apu_square_clock(&apu->square1,cycles);
+        }
+        if(apu->square2.enabled){
+            gb_apu_square_clock(&apu->square2,cycles);
+        }
+        if(apu->wave.enabled){
+            gb_apu_wave_clock(&apu->wave,cycles);
+        }
+        if(apu->noise.enabled){
+            gb_apu_noise_clock(&apu->noise,cycles);
+        }
 
         gb_apu_update_output(apu);
+        gb_apu_frame_end(apu);
 
         cycles_to_run -= cycles;
     }
@@ -382,8 +391,6 @@ void gb_apu_frame_sequencer_clock(gb_apu_t* apu){
             apu->skip_first_frame_sequence_event = false;
         }
     }
-
-    gb_apu_frame_end(apu);
 }
 
 
@@ -438,14 +445,12 @@ void gb_apu_write_register(void* data,uint8_t value,uint16_t address){
     }
 
     gb_apu_update_output(apu);
-    gb_apu_frame_end(apu);
 }
 
 uint8_t gb_apu_read_register(void* data,uint16_t address){
     gb_apu_t* apu = (gb_apu_t*)data;
 
     gb_apu_update(apu);
-    gb_apu_frame_end(apu);
 
     uint8_t value = 0xFF;
 
@@ -484,7 +489,7 @@ uint8_t gb_apu_read_register(void* data,uint16_t address){
             break;
         }
     }
-
+    
     return value;
 }
 
@@ -640,8 +645,6 @@ void gb_apu_length_counter_load_state(gb_apu_length_counter_t* length_counter,gb
 
 void gb_apu_square_clock(gb_apu_square_t* square,int timer){
 
-    if(!square->enabled) return;
-
     square->timer -= timer;
 
     if(square->timer > 0x00) return;
@@ -740,14 +743,12 @@ void gb_apu_write_square_register(void* data,uint8_t value,uint16_t address){
     }
 
     gb_apu_update_output(square->apu);
-    gb_apu_frame_end(square->apu);
 }
 
 uint8_t gb_apu_read_square_register(void* data,uint16_t address){
     gb_apu_square_t* square = (gb_apu_square_t*)data;
 
     gb_apu_update(square->apu);
-    gb_apu_frame_end(square->apu);
 
     uint8_t value = 0xFF;
 
@@ -851,8 +852,6 @@ void gb_apu_square_load_state(gb_apu_square_t* square,gb_state_t* state){
 
 void gb_apu_wave_clock(gb_apu_wave_t* wave,int timer){
 
-    if(!wave->enabled) return;
-
     wave->timer -= timer;
 
     if(wave->timer > 0x00) return;
@@ -928,14 +927,12 @@ void gb_apu_write_wave_register(void* data,uint8_t value,uint16_t address){
     }
 
     gb_apu_update_output(wave->apu);
-    gb_apu_frame_end(wave->apu);
 }
 
 uint8_t gb_apu_read_wave_register(void* data,uint16_t address){
     gb_apu_wave_t* wave = (gb_apu_wave_t*)data;
 
     gb_apu_update(wave->apu);
-    gb_apu_frame_end(wave->apu);
 
     uint8_t value = 0xFF;
 
@@ -953,7 +950,6 @@ void gb_apu_write_wave_ram(void* data,uint8_t value,uint16_t address){
     gb_apu_wave_t* wave = (gb_apu_wave_t*)data;
     
     gb_apu_update(wave->apu);
-    gb_apu_frame_end(wave->apu);
 
     if(!wave->enabled){
         wave->ram[address & 0x0F] = value;
@@ -964,7 +960,6 @@ uint8_t gb_apu_read_wave_ram(void* data,uint16_t address){
     gb_apu_wave_t* wave = (gb_apu_wave_t*)data;
 
     gb_apu_update(wave->apu);
-    gb_apu_frame_end(wave->apu);
 
     if(!wave->enabled){
         return wave->ram[address & 0x0F];
@@ -1060,8 +1055,6 @@ void gb_apu_wave_load_state(gb_apu_wave_t* wave,gb_state_t* state){
 
 void gb_apu_noise_clock(gb_apu_noise_t* noise,int timer){
 
-    if(!noise->enabled) return;
-
     noise->timer -= timer;
 
     if(noise->timer > 0x00) return;
@@ -1143,14 +1136,12 @@ void gb_apu_write_noise_register(void* data,uint8_t value,uint16_t address){
     }
 
     gb_apu_update_output(noise->apu);
-    gb_apu_frame_end(noise->apu);
 }
 
 uint8_t gb_apu_read_noise_register(void* data,uint16_t address){
     gb_apu_noise_t* noise = (gb_apu_noise_t*)data;
 
     gb_apu_update(noise->apu);
-    gb_apu_frame_end(noise->apu);
 
     uint8_t value = 0xFF;
 
@@ -1247,7 +1238,6 @@ uint8_t gb_apu_read_pcm12_register(void* data,uint16_t address){
     gb_apu_t* apu = (gb_apu_t*)data;
 
     gb_apu_update(apu);
-    gb_apu_frame_end(apu);
 
     return (gb_apu_square_raw_output(&apu->square2) << 0x04) | gb_apu_square_raw_output(&apu->square1);
 }
@@ -1258,7 +1248,6 @@ uint8_t gb_apu_read_pcm34_register(void* data,uint16_t address){
     gb_apu_t* apu = (gb_apu_t*)data;
 
     gb_apu_update(apu);
-    gb_apu_frame_end(apu);
 
     return (gb_apu_noise_raw_output(&apu->noise) << 0x04) | gb_apu_wave_raw_output(&apu->wave);
 }
@@ -1359,6 +1348,7 @@ void gb_apu_skip_boot(gb_apu_t* apu){
 
     apu->frame_sequencer = 0x01;
 }
+
 
 void gb_apu_free(gb_apu_t* apu){
     blip_delete(apu->square1_frame.blip);

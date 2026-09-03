@@ -136,7 +136,7 @@ size_t gb_memory_type_absolute_address(gb_t* gb,uint8_t memory_type,uint16_t rel
 void gb_memory_type_write_byte(gb_t* gb,uint8_t memory_type,uint8_t value,size_t address){
     switch(memory_type){
         case gb_memory_cpu_type:{
-            //TODO
+            gb_memory_cpu_write(&gb->memory,value,address);
             break;
         }
         case gb_memory_rom_type:{
@@ -171,7 +171,7 @@ uint8_t gb_memory_type_read_byte(gb_t* gb,uint8_t memory_type,size_t address){
 
     switch(memory_type){
         case gb_memory_cpu_type:{
-            //TODO
+            byte = gb_memory_cpu_read(&gb->memory,address);
             break;
         }
         case gb_memory_rom_type:{
@@ -207,7 +207,8 @@ uint8_t gb_memory_type_read_byte(gb_t* gb,uint8_t memory_type,size_t address){
 void gb_memory_type_write(gb_t* gb,uint8_t memory_type,size_t address,uint8_t* src,size_t len){
     switch(memory_type){
         case gb_memory_cpu_type:{
-            //TODO
+            gb_memory_t* memory = &gb->memory;
+            while(len--) gb_memory_cpu_write(memory,*src++,address++ % gb_bus_length);
             break;
         }
         case gb_memory_rom_type:{
@@ -246,7 +247,8 @@ void gb_memory_type_write(gb_t* gb,uint8_t memory_type,size_t address,uint8_t* s
 void gb_memory_type_read(gb_t* gb,uint8_t memory_type,size_t address,uint8_t* dst,size_t len){
     switch(memory_type){
         case gb_memory_cpu_type:{
-            //TODO
+            gb_memory_t* memory = &gb->memory;
+            while(len--) *dst++ = gb_memory_cpu_read(memory,address++ % gb_bus_length);
             break;
         }
         case gb_memory_rom_type:{
@@ -298,7 +300,28 @@ void gb_memory_type_export(gb_t* gb,uint8_t memory_type,const char* filename){
 
     switch(memory_type){
         case gb_memory_cpu_type:{
-            //TODO
+
+            FILE* file = fopen(filename,"wb");
+            
+            if(!file){
+                gb_printf_errno(fopen);
+                return;
+            }
+
+            gb_memory_t* memory = &gb->memory;
+            
+            size_t address = 0;
+            
+            flockfile(file);
+
+            while(address < gb_bus_length){
+                fputc_unlocked(gb_memory_cpu_read(memory,address++),file);
+            }
+            
+            funlockfile(file);
+
+            fclose(file);
+
             break;
         }
         case gb_memory_rom_type:{

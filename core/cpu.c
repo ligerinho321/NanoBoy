@@ -1644,20 +1644,6 @@ static inline void gb_cpu_opcode(gb_cpu_t* cpu){
 
 static void gb_cpu_running(gb_cpu_t* cpu){
 
-    gb_breakpoint_manager_t* breakpoint_manager = &cpu->gb->breakpoint_manager;
-
-    if(breakpoint_manager->last_check_address != cpu->pc){
-        
-        breakpoint_manager->last_check_address = cpu->pc;
-        
-        if(breakpoint_manager->enabled && breakpoint_manager->breakpoints){
-
-            if(gb_breakpoint_manager_check(breakpoint_manager,cpu->pc)){
-                return;
-            }
-        }
-    }
-
     cpu->instruction_pc = cpu->pc;
 
     cpu->opcode = gb_cpu_read_byte(cpu,cpu->pc);
@@ -1682,20 +1668,6 @@ static void gb_cpu_running(gb_cpu_t* cpu){
 }
 
 static void gb_cpu_halted(gb_cpu_t* cpu){
-
-    gb_breakpoint_manager_t* breakpoint_manager = &cpu->gb->breakpoint_manager;
-
-    if(breakpoint_manager->last_check_address != cpu->pc){
-        
-        breakpoint_manager->last_check_address = cpu->pc;
-        
-        if(breakpoint_manager->enabled && breakpoint_manager->breakpoints){
-
-            if(gb_breakpoint_manager_check(breakpoint_manager,cpu->pc)){
-                return;
-            }
-        }
-    }
 
     gb_cpu_cycle(cpu);
 
@@ -1722,20 +1694,6 @@ static void gb_cpu_halted(gb_cpu_t* cpu){
 
 static void gb_cpu_stopped(gb_cpu_t* cpu){
     
-    gb_breakpoint_manager_t* breakpoint_manager = &cpu->gb->breakpoint_manager;
-
-    if(breakpoint_manager->last_check_address != cpu->pc){
-        
-        breakpoint_manager->last_check_address = cpu->pc;
-        
-        if(breakpoint_manager->enabled && breakpoint_manager->breakpoints){
-
-            if(gb_breakpoint_manager_check(breakpoint_manager,cpu->pc)){
-                return;
-            }
-        }
-    }
-
     gb_cpu_cycle(cpu);
 
     if(gb_joypad_is_any_button_pressed(&cpu->gb->joypad)){

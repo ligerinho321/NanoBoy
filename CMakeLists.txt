@@ -104,6 +104,8 @@ target_sources(
 target_sources(
     NanoBoy
     PRIVATE
+
+    gui/assets/assets.cpp
     
     gui/boot_settings/boot_settings.cpp
     

@@ -114,7 +114,9 @@ void gb_pause(gb_t* gb,bool paused){
         gb_frame_timer_stop(&gb->frame_timer);
     }
     else{
-        gb->breakpoint_manager.last_check_address = gb->cpu.pc;
+        if(gb->breakpoint_manager.enabled){
+            gb->breakpoint_manager.last_check_address = gb->cpu.pc;
+        }
 
         gb_frame_timer_start(&gb->frame_timer);
     }
@@ -199,22 +201,39 @@ void gb_machine_cycle(gb_t* gb){
 
 
 void gb_execute_frame(gb_t* gb){
-    if(!gb->cartridge_inserted || gb->paused || (gb->multi_thread && !gb->breakpoint_manager.enabled)) return;
+    if(!gb->cartridge_inserted || gb->paused || gb->multi_thread) return;
 
     uint64_t frame = gb->ppu.frame_count;
     gb_cpu_t* cpu = &gb->cpu;
+    gb_ppu_t* ppu = &gb->ppu;
+    gb_breakpoint_manager_t* breakpoint_manager = &gb->breakpoint_manager;
 
-    while(frame == gb->ppu.frame_count && !gb->paused){
-        cpu->execute(cpu);
+    if(!breakpoint_manager->enabled){
+        while(frame == ppu->frame_count){
+            cpu->execute(cpu);
+        }
+    }
+    else{
+        while(frame == ppu->frame_count){
+
+            if(breakpoint_manager->last_check_address != cpu->pc){
+
+                breakpoint_manager->last_check_address = cpu->pc;
+
+                if(breakpoint_manager->breakpoints && gb_breakpoint_manager_check(breakpoint_manager,cpu->pc)){
+                    return;
+                }
+            }
+
+            cpu->execute(cpu);
+        }
     }
 }
 
 void gb_execute_step(gb_t* gb){
-    if(!gb->cartridge_inserted || (gb->multi_thread && !gb->breakpoint_manager.enabled)) return;
+    if(!gb->cartridge_inserted || gb->multi_thread) return;
 
     gb_pause(gb,true);
-
-    gb->breakpoint_manager.last_check_address = gb->cpu.pc;
 
     gb->cpu.execute(&gb->cpu);
 }
@@ -246,7 +265,7 @@ void* gb_thread_function(void* data){
 
 
 void gb_thread_stop(gb_t* gb){
-    if(!gb->cartridge_inserted || gb->paused || gb->breakpoint_manager.enabled) return;
+    if(!gb->cartridge_inserted || gb->paused) return;
 
     if(!gb->multi_thread || !gb_atomic_load_explicit(&gb->thread_running,gb_memory_order_relaxed)) return;
 
@@ -262,7 +281,7 @@ void gb_thread_stop(gb_t* gb){
 }
 
 void gb_thread_start(gb_t* gb){
-    if(!gb->cartridge_inserted || gb->paused || gb->breakpoint_manager.enabled) return;
+    if(!gb->cartridge_inserted || gb->paused) return;
 
     if(!gb->multi_thread || gb_atomic_load_explicit(&gb->thread_running,gb_memory_order_relaxed)) return;
 

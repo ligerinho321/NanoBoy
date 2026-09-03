@@ -172,6 +172,8 @@ void nanoboy_t::init_sdl(){
 
     window = SDL_CreateWindow("NanoBoy",0,0,0,0,SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
 
+    assets_load_window_icon(window);
+    
     renderer = SDL_CreateRenderer(window,-1,SDL_RENDERER_ACCELERATED);
 
     SDL_AudioSpec audio_spec = {};

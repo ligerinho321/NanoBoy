@@ -2,6 +2,8 @@
 
 #include <core/gb.h>
 
+#include <gui/assets/assets.hpp>
+
 #include <gui/cheats/cheats.hpp>
 #include <gui/file_dialog/file_selector_dialog.hpp>
 #include <gui/printer/printer.hpp>

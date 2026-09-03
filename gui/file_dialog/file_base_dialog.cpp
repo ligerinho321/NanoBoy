@@ -240,7 +240,7 @@ void file_base_dialog_t::render_directory(){
 
                 ImGui::TableNextColumn();
 
-                if(ImGui::Selectable(entry.name.c_str())){
+                if(ImGui::Selectable(entry.name.c_str(),false,ImGuiSelectableFlags_SpanAllColumns)){
                     selected_directory = &entry;
                 }
 
@@ -256,7 +256,7 @@ void file_base_dialog_t::render_directory(){
 
                 ImGui::TableNextColumn();
 
-                if(ImGui::Selectable(entry.name.c_str())){
+                if(ImGui::Selectable(entry.name.c_str(),false,ImGuiSelectableFlags_SpanAllColumns)){
                     select_file(entry.path);
                 }
 
