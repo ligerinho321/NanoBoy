@@ -124,10 +124,8 @@ void screen_t::update_embedded_size(){
 
     int main_menu_bar_height = 0;
 
-    if(!(SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN_DESKTOP)){
-        main_menu_bar_height = ImGui::GetFrameHeight();    
-        window_height -= main_menu_bar_height;
-    }
+    main_menu_bar_height = ImGui::GetFrameHeight();    
+    window_height -= main_menu_bar_height;
 
     int width = window_width;
     int height = window_height;

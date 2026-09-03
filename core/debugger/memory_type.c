@@ -311,7 +311,16 @@ void gb_memory_type_export(gb_t* gb,uint8_t memory_type,const char* filename){
             gb_memory_t* memory = &gb->memory;
             
             size_t address = 0;
-            
+
+#ifdef _WIN32
+            _lock_file(file);
+
+            while(address < gb_bus_length){
+                _fputc_nolock(gb_memory_cpu_read(memory,address++),file);
+            }
+
+            _unlock_file(file);
+#else
             flockfile(file);
 
             while(address < gb_bus_length){
@@ -319,9 +328,9 @@ void gb_memory_type_export(gb_t* gb,uint8_t memory_type,const char* filename){
             }
             
             funlockfile(file);
-
+#endif
             fclose(file);
-
+            
             break;
         }
         case gb_memory_rom_type:{
