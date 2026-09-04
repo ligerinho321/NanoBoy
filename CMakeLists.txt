@@ -159,6 +159,36 @@ target_include_directories(
 if(WIN32)
     target_link_libraries(NanoBoy PRIVATE SDL2::SDL2main)
     target_link_options(NanoBoy PRIVATE $<$<CONFIG:Release>:-mwindows>)
+    
+else()
+    add_custom_target(
+        GenerateDistLinuxDirectory
+        COMMAND
+            ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_SOURCE_DIR}/dist/linux
+        COMMENT
+            "GenerateDistLinuxDirectory"
+        WORKING_DIRECTORY
+            ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+
+    add_custom_target(
+        LinuxPackage
+        COMMAND
+            ${CMAKE_CURRENT_SOURCE_DIR}/tools/linuxdeploy-x86_64.AppImage
+            --appdir NanoBoy.AppDir
+            --executable $<TARGET_FILE:NanoBoy>
+            --icon-file ${CMAKE_CURRENT_SOURCE_DIR}/packaging/linux/NanoBoyIcon.png
+            --desktop-file ${CMAKE_CURRENT_SOURCE_DIR}/packaging/linux/NanoBoy.desktop
+            --output appimage
+        COMMAND
+            ${CMAKE_COMMAND} -E rm -rf NanoBoy.AppDir
+        COMMENT
+            "LinuxPackage"
+        WORKING_DIRECTORY
+            ${CMAKE_CURRENT_SOURCE_DIR}/dist/linux
+        DEPENDS
+            NanoBoy GenerateDistLinuxDirectory
+    )
 endif()
 
 target_link_libraries(NanoBoy PRIVATE SDL2::SDL2)

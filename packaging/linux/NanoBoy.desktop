@@ -1,0 +1,8 @@
+[Desktop Entry]
+Categories=Game
+Comment=Emulator
+Exec=NanoBoy
+Icon=NanoBoyIcon
+Name=NanoBoy
+Terminal=false
+Type=Application
