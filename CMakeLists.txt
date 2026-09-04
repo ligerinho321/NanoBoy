@@ -157,14 +157,59 @@ target_include_directories(
 
 
 if(WIN32)
+    target_sources(
+        NanoBoy
+        PRIVATE
+        packaging/windows/resource.rc
+    )
+
     target_link_libraries(NanoBoy PRIVATE SDL2::SDL2main)
     target_link_options(NanoBoy PRIVATE $<$<CONFIG:Release>:-mwindows>)
-    
+
+    set(WINDOWS_DISTRIBUTION_DIR ${CMAKE_CURRENT_SOURCE_DIR}/dist/windows)
+    set(WINDOWS_DISTRIBUTION_BASENAME NanoBoy-windows-x86_64)
+    set(WINDOWS_DISTRIBUTION_TEMP_FILE ${WINDOWS_DISTRIBUTION_DIR}/${WINDOWS_DISTRIBUTION_BASENAME})
+    set(WINDOWS_DISTRIBUTION_FILE ${WINDOWS_DISTRIBUTION_DIR}/${WINDOWS_DISTRIBUTION_BASENAME}.zip)
+
+    add_custom_target(
+        GenerateDistWindowsDirectory
+        COMMAND
+            ${CMAKE_COMMAND} -E make_directory ${WINDOWS_DISTRIBUTION_DIR}
+        COMMENT
+            "GenerateDistWindowsDirectory"
+        WORKING_DIRECTORY
+            ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+
+    add_custom_target(
+        WindowsPackage
+        COMMAND
+            ${CMAKE_COMMAND} -E make_directory ${WINDOWS_DISTRIBUTION_TEMP_FILE}
+        COMMAND
+            ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:NanoBoy> ${WINDOWS_DISTRIBUTION_TEMP_FILE}
+        COMMAND
+            ${CMAKE_COMMAND} -E copy_if_different $<TARGET_RUNTIME_DLLS:NanoBoy> ${WINDOWS_DISTRIBUTION_TEMP_FILE}
+        COMMAND
+            ${CMAKE_COMMAND} -E tar cv ${WINDOWS_DISTRIBUTION_FILE} --format=zip ${WINDOWS_DISTRIBUTION_TEMP_FILE}
+        COMMAND
+            ${CMAKE_COMMAND} -E rm -rf ${WINDOWS_DISTRIBUTION_TEMP_FILE}
+        COMMAND_EXPAND_LISTS
+        COMMENT
+            "WindowsPackage"
+        WORKING_DIRECTORY
+            ${WINDOWS_DISTRIBUTION_DIR}
+        DEPENDS
+            NanoBoy GenerateDistWindowsDirectory
+    )
+
 else()
+
+    set(LINUX_DISTRIBUTION_DIR ${CMAKE_CURRENT_SOURCE_DIR}/dist/linux)
+
     add_custom_target(
         GenerateDistLinuxDirectory
         COMMAND
-            ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_SOURCE_DIR}/dist/linux
+            ${CMAKE_COMMAND} -E make_directory ${LINUX_DISTRIBUTION_DIR}
         COMMENT
             "GenerateDistLinuxDirectory"
         WORKING_DIRECTORY
@@ -185,7 +230,7 @@ else()
         COMMENT
             "LinuxPackage"
         WORKING_DIRECTORY
-            ${CMAKE_CURRENT_SOURCE_DIR}/dist/linux
+            ${LINUX_DISTRIBUTION_DIR}
         DEPENDS
             NanoBoy GenerateDistLinuxDirectory
     )
