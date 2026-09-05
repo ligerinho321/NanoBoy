@@ -42,18 +42,15 @@ void object_viewer_t::callback(void* data){
     gb_t* gb = object_viewer->gb;
 
     object_viewer->cgb_mode = gb->cgb_mode;
-    
-    object_viewer->obj_priority_mode = gb->obj_priority_mode;
 
     object_viewer->object_size = gb->ppu.lcdc.object_size;
     
     object_viewer->object_texture_uv1.y = object_viewer->object_size ? 1.0f : 0.5f;
 
     object_viewer->obj_palette.update_data(&gb->palette);
-    
-    memcpy(object_viewer->oam,gb->ppu.oam,sizeof(object_viewer->oam));
-    
-    memcpy(object_viewer->vram,gb->ppu.vram,sizeof(object_viewer->vram));
+    object_viewer->obj_palette.update_texture(gb->is_cgb,gb->cgb_mode);
+
+    object_viewer->update_objects();
 }
 
 
@@ -138,6 +135,8 @@ void object_viewer_t::update_object_texture(object_t& object){
 
     SDL_LockTexture(object.texture,nullptr,(void**)&pixels,&pitch);
 
+    uint8_t* vram = gb->ppu.vram;
+
     for(uint8_t y = 0; y < object_height; ++y){
 
         uint16_t address = object.tile_address | ((object.vertical_flip ? (object_size ? 0x0F : 0x07) ^ y : y) << 0x01);
@@ -175,7 +174,7 @@ void object_viewer_t::update_object_texture(object_t& object){
 }
 
 void object_viewer_t::update_objects(){
-    gb_object_t* oam_entry = (gb_object_t*)oam;
+    gb_object_t* oam_entry = (gb_object_t*)gb->ppu.oam;
 
     for(auto& object : objects){
 
@@ -199,7 +198,7 @@ void object_viewer_t::update_objects(){
     }
 
     //DMG priority mode
-    if(obj_priority_mode){
+    if(gb->obj_priority_mode){
         std::sort(objects_sorted.begin(),objects_sorted.end(),[](object_t* a,object_t* b)->bool{
             if(a->x != b->x){
                 return a->x > b->x;
@@ -502,9 +501,6 @@ void object_viewer_t::render(){
 
     if(ImGui::Begin("Object Viewer",&_open)){
 
-        obj_palette.update_texture(gb->is_cgb,cgb_mode);
-        update_objects();
-
         if(ImGui::BeginTable("ObjectViewerTable",2)){
 
             ImGui::TableSetupColumn("Left",ImGuiTableColumnFlags_WidthStretch);
@@ -554,16 +550,11 @@ void object_viewer_t::render(){
 void object_viewer_t::clear(){
     cgb_mode = false;
     
-    obj_priority_mode = false;
-    
     object_size = false;
 
     object_texture_uv1.y = object_size ? 1.0f : 0.5f;
     
     obj_palette.clear();
-
-    memset(oam,0,sizeof(oam));
-    memset(vram,0,sizeof(vram));
 
     for(auto& object : objects){
         object.clear();
@@ -576,14 +567,10 @@ void object_viewer_t::set_open(bool _open) noexcept {
     
     open = _open;
 
-    gb_thread_stop(gb);
-
     if(open){
         gb_ppu_add_handler(gb,&callback_handler);
     }
     else{
         gb_ppu_remove_handler(gb,&callback_handler);
     }
-
-    gb_thread_start(gb);
 }

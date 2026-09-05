@@ -97,8 +97,8 @@ void gb_cartridge_init(gb_cartridge_t* cartridge,gb_t* gb);
 bool gb_cartridge_load(gb_cartridge_t* cartridge,const char* path);
 void gb_cartridge_remove(gb_cartridge_t* cartridge);
 
-void gb_cartridge_save_ram(gb_cartridge_t* cartridge,const char* path);
-void gb_cartridge_load_ram(gb_cartridge_t* cartridge,const char* path);
+void gb_cartridge_save_ram(gb_t* gb,const char* path);
+void gb_cartridge_load_ram(gb_t* gb,const char* path);
 
 bool gb_cartridge_verify_nintendo_logo(uint8_t* header);
 bool gb_cartridge_verify_header_checksum(uint8_t* header);
@@ -120,9 +120,12 @@ void gb_cartridge_map(gb_cartridge_t* cartridge);
 
 size_t gb_cartridge_rom_absolute_address(gb_cartridge_t* cartridge,uint16_t relative_address);
 size_t gb_cartridge_ram_absolute_address(gb_cartridge_t* cartridge,uint16_t relative_address);
+
 void gb_cartridge_update_rtc_timer(gb_cartridge_t* cartridge);
-void gb_cartridge_save_rtc(gb_cartridge_t* cartridge,const char* path);
-void gb_cartridge_load_rtc(gb_cartridge_t* cartridge,const char* path);
+
+void gb_cartridge_save_rtc(gb_t* gb,const char* path);
+void gb_cartridge_load_rtc(gb_t* gb,const char* path);
+
 void gb_cartridge_reset(gb_cartridge_t* cartridge);
 
 void gb_cartridge_save_state(gb_cartridge_t* cartridge,gb_state_t* state);

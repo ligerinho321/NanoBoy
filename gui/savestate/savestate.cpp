@@ -56,21 +56,13 @@ void savestate_t::unload(){
 
 
 void savestate_t::save_slot(slot_t& slot){    
-    gb_thread_stop(gb);
-
     gb_savestate_serialize(gb,slot.path.u8string().c_str());
-    
-    gb_thread_start(gb);
 
     update_slots();
 }
 
 void savestate_t::load_slot(slot_t& slot){
-    gb_thread_stop(gb);
-
     gb_savestate_deserialize(gb,slot.path.u8string().c_str());
-
-    gb_thread_start(gb);
 }
 
 void savestate_t::delete_slot(slot_t& slot){

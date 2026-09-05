@@ -412,7 +412,7 @@ void nanoboy_t::take_screenshot(){
     
     std::filesystem::path path = screenshot_path / (rom_name + "_" + timestamp + ".png");
 
-    if(!stbi_write_png(path.u8string().c_str(),gb_screen_width,gb_screen_height,gb_screen_bytes_per_pixel,gb_get_render_buffer(gb),gb_screen_pitch)){
+    if(!stbi_write_png(path.u8string().c_str(),gb_screen_width,gb_screen_height,gb_screen_bytes_per_pixel,gb_ppu_get_render_buffer(gb),gb_screen_pitch)){
         gb_printf_error("stbi_write_png failed");
     }
 }
@@ -439,35 +439,31 @@ void nanoboy_t::insert_cartridge(std::filesystem::path path){
         recent_roms.pop_back();
     }
 
-    gb_load_ram(gb,get_rom_save_path().c_str());
+    gb_cartridge_load_ram(gb,get_rom_save_path().c_str());
 
-    gb_load_rtc(gb,get_rom_rtc_path().c_str());
+    gb_cartridge_load_rtc(gb,get_rom_rtc_path().c_str());
 
     savestate->load(savestates_path,rom_name);
 
-    cheats->load(get_rom_cheat_path().c_str(),false);
+    cheats->load(get_rom_cheat_path().c_str());
 
     SDL_PauseAudioDevice(audio_device,false);
-
-    gb_thread_start(gb);
 }
 
 void nanoboy_t::remove_cartridge(){
 
     if(!gb->cartridge_inserted) return;
 
-    gb_thread_stop(gb);
-
     SDL_PauseAudioDevice(audio_device,true);
 
-    gb_save_ram(gb,get_rom_save_path().c_str());
+    gb_cartridge_save_ram(gb,get_rom_save_path().c_str());
     
-    gb_save_rtc(gb,get_rom_rtc_path().c_str());
+    gb_cartridge_save_rtc(gb,get_rom_rtc_path().c_str());
 
     savestate->unload();
 
     cheats->save(get_rom_cheat_path().c_str());
-    cheats->clear(false);
+    cheats->clear();
 
     printer->clear();
 
@@ -490,24 +486,14 @@ void nanoboy_t::remove_cartridge(){
 }
 
 void nanoboy_t::set_speed(float speed){
-    gb_thread_stop(gb);
-
     gb_set_speed(gb,speed);
-
-    gb_thread_start(gb);
 }
 
 void nanoboy_t::pause(){
-    gb_thread_stop(gb);
-
     gb_pause(gb,!gb->paused);
-
-    gb_thread_start(gb);
 }
 
 void nanoboy_t::reset(){
-    gb_thread_stop(gb);
-
     SDL_LockAudioDevice(audio_device);
 
     gb_reset(gb);
@@ -515,8 +501,6 @@ void nanoboy_t::reset(){
     SDL_UnlockAudioDevice(audio_device);
     
     event_viewer->reset();
-    
-    gb_thread_start(gb);
 }
 
 
@@ -665,18 +649,6 @@ void nanoboy_t::render_main_menu_bar(){
             ImGui::EndMenu();
         }
 
-        if(ImGui::BeginMenu("Execution Mode")){
-            if(ImGui::MenuItem("Single Thread",nullptr,!gb->multi_thread) && gb->multi_thread){
-                gb_thread_stop(gb);
-                gb->multi_thread = false;
-            }
-            if(ImGui::MenuItem("Multi Thread",nullptr,gb->multi_thread) && !gb->multi_thread){
-                gb->multi_thread = true;
-                gb_thread_start(gb);
-            }
-            ImGui::EndMenu();
-        }
-
         if(ImGui::MenuItem("Boot")){
             boot_settings->open();
         }
@@ -770,7 +742,7 @@ void nanoboy_t::sdl_render(){
     if(gb->cartridge_inserted){
         static char buffer[256] = {0};
 
-        snprintf(buffer,sizeof(buffer),"NanoBoy - %s (%.1f fps)",rom_name.c_str(),gb_get_fps(gb));
+        snprintf(buffer,sizeof(buffer),"NanoBoy - %s (%.1f fps)",rom_name.c_str(),gb->frame_timer.fps);
 
         SDL_SetWindowTitle(window,buffer);
     }

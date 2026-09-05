@@ -47,15 +47,11 @@ void wave_form_t::recording_callback(void* userdata){
 
     memcpy(wave_form->output.data() + size,apu->mixer_frame.samples,len);
 
-    size_t _output_size = wave_form->output.size();
-    int _seconds = _output_size / gb_audio_byte_rate;
-    int _minutes = _seconds / 60;
-    int _hours = _seconds / 3600;
+    int _seconds = wave_form->output.size() / gb_audio_byte_rate;
 
-    wave_form->output_size.store(_output_size,std::memory_order_relaxed);
-    wave_form->seconds.store(_seconds % 60,std::memory_order_relaxed);
-    wave_form->minutes.store(_minutes % 60,std::memory_order_relaxed);
-    wave_form->hours.store(_hours,std::memory_order_relaxed);
+    wave_form->seconds = _seconds % 60;
+    wave_form->minutes = (_seconds / 60) % 60;
+    wave_form->hours = _seconds / 3600;
 }
 
 void wave_form_t::file_save_callback(void* userdata,std::filesystem::path path){
@@ -75,8 +71,8 @@ void wave_form_t::file_save_callback(void* userdata,std::filesystem::path path){
     uint32_t byte_rate = SDL_SwapLE32(gb_audio_byte_rate);
     uint16_t block_align = SDL_SwapLE16((gb_audio_bits_per_sample * gb_audio_channels) / 8);
     uint16_t bits_per_sample = SDL_SwapLE16(gb_audio_bits_per_sample);
-    uint32_t data_size = SDL_SwapLE32(wave_form->output_size);
-    uint32_t file_size = SDL_SwapLE32(36 + wave_form->output_size);
+    uint32_t data_size = SDL_SwapLE32(wave_form->output.size());
+    uint32_t file_size = SDL_SwapLE32(36 + wave_form->output.size());
 
     //RIFF header
     // ID (4bytes): "RIFF"
@@ -130,20 +126,16 @@ void wave_form_t::clear_recording() noexcept {
     paused = false;
 
     std::vector<uint8_t>().swap(output);
-
-    output_size.store(0,std::memory_order_relaxed);
     
-    seconds.store(0,std::memory_order_relaxed);
-    minutes.store(0,std::memory_order_relaxed);
-    hours.store(0,std::memory_order_relaxed);
+    seconds = 0;
+    minutes = 0;
+    hours = 0;
 }
 
 void wave_form_t::pause_recording(bool _paused) noexcept {
     if(!recording || paused == _paused) return;
 
     paused = _paused;
-
-    gb_thread_stop(gb);
 
     if(paused){
         gb_apu_remove_handler(gb,&recording_handler);
@@ -153,8 +145,6 @@ void wave_form_t::pause_recording(bool _paused) noexcept {
     else{
         gb_apu_add_handler(gb,&recording_handler);
     }
-
-    gb_thread_start(gb);
 }
 
 
@@ -277,15 +267,13 @@ void wave_form_t::render(){
 
                 paused = false;
 
-                gb_thread_stop(gb);
                 gb_apu_add_handler(gb,&recording_handler);
-                gb_thread_start(gb);
             }
         }
 
         ImGui::SameLine();
 
-        ImGui::BeginDisabled((recording && !paused) || !output_size.load(std::memory_order_relaxed));
+        ImGui::BeginDisabled((recording && !paused) || !output.size());
 
         if(ImGui::Button("Discard")){
             clear_recording();
@@ -299,12 +287,7 @@ void wave_form_t::render(){
 
         ImGui::AlignTextToFramePadding();
         
-        ImGui::Text(
-            "%02d:%02d:%02d",
-            hours.load(std::memory_order_relaxed),
-            minutes.load(std::memory_order_relaxed),
-            seconds.load(std::memory_order_relaxed)
-        );
+        ImGui::Text("%02d:%02d:%02d",hours,minutes,seconds);
 
         ImGui::SameLine(0.0f,0.0f);
         ImGui::TextUnformatted(" | ");
@@ -322,7 +305,7 @@ void wave_form_t::render(){
         ImGui::TextUnformatted(" | ");
         ImGui::SameLine(0.0f,0.0f);
 
-        render_size_text(output_size.load(std::memory_order_relaxed));
+        render_size_text(output.size());
 
 
         if(ImGui::BeginTable("WavesTable",3,ImGuiTableFlags_None,table_size)){
@@ -437,12 +420,8 @@ void wave_form_t::set_open(bool _open,bool force_discarding) noexcept {
     
     if(_open){
         open = true;
-
-        gb_thread_stop(gb);
         
         gb_apu_add_handler(gb,&channel_handler);
-        
-        gb_thread_start(gb);
     }
     else{
         if(recording && !force_discarding){
@@ -454,13 +433,9 @@ void wave_form_t::set_open(bool _open,bool force_discarding) noexcept {
         else{
             open = false;
 
-            gb_thread_stop(gb);
-
             gb_apu_remove_handler(gb,&channel_handler);
 
             gb_apu_remove_handler(gb,&recording_handler);
-
-            gb_thread_start(gb);
 
             clear_recording();
         }

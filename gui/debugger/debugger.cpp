@@ -10,9 +10,7 @@ debugger_t::debugger_t(gb_t* gb):gb(gb){
 }
 
 debugger_t::~debugger_t(){
-    gb_thread_stop(gb);
     gb_breakpoint_manager_clear(gb);
-    gb_thread_start(gb);
 
     for(auto breakpoint : breakpoints){
         delete breakpoint;
@@ -504,8 +502,6 @@ void debugger_t::set_open(bool _open) noexcept {
 
     open = _open;
 
-    gb_thread_stop(gb);
-
     if(open){
         gb_breakpoint_manager_enable(gb,true);
 
@@ -514,6 +510,4 @@ void debugger_t::set_open(bool _open) noexcept {
     else{
         gb_breakpoint_manager_enable(gb,false);
     }
-
-    gb_thread_start(gb);
 }

@@ -1100,3 +1100,14 @@ void event_viewer_t::render(){
 
     set_open(_open);
 }
+
+
+void event_viewer_t::set_open(bool _open) noexcept {
+    if(open == _open) return;
+
+    open = _open;
+
+    if(!open) clear();
+
+    gb_event_manager_enable(gb,open);
+}

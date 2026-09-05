@@ -38,8 +38,12 @@ void tilemap_viewer_t::callback(void* data){
     tilemap_viewer->scy = gb->ppu.scy;
 
     tilemap_viewer->bg_palette.update_data(&gb->palette);
+    tilemap_viewer->bg_palette.update_texture(gb->is_cgb,gb->cgb_mode);
 
     memcpy(tilemap_viewer->vram,gb->ppu.vram,sizeof(tilemap_viewer->vram));
+
+    tilemap_viewer->update_tilemap_texture(0);
+    tilemap_viewer->update_tilemap_texture(1);
 }
 
 
@@ -424,9 +428,6 @@ void tilemap_viewer_t::render_tilemap(const char* str_id,bool tilemap){
 
     if(ImGui::BeginChild(str_id,ImVec2(0.0f,0.0f),ImGuiChildFlags_Borders,ImGuiWindowFlags_HorizontalScrollbar)){
         
-        bg_palette.update_texture(gb->is_cgb,cgb_mode);
-        update_tilemap_texture(tilemap);
-
         ImGui::Image((ImTextureRef)tilemap_texture[tilemap],tilemap_size);
         
         ImVec2 tilemap_start = ImGui::GetItemRectMin();
@@ -547,14 +548,10 @@ void tilemap_viewer_t::set_open(bool _open) noexcept {
     
     open = _open;
 
-    gb_thread_stop(gb);
-
     if(open){
         gb_ppu_add_handler(gb,&callback_handler);
     }
     else{
         gb_ppu_remove_handler(gb,&callback_handler);
     }
-
-    gb_thread_start(gb);
 }

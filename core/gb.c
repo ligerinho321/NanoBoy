@@ -201,7 +201,7 @@ void gb_machine_cycle(gb_t* gb){
 
 
 void gb_execute_frame(gb_t* gb){
-    if(!gb->cartridge_inserted || gb->paused || gb->multi_thread) return;
+    if(!gb->cartridge_inserted || gb->paused) return;
 
     uint64_t frame = gb->ppu.frame_count;
     gb_cpu_t* cpu = &gb->cpu;
@@ -231,74 +231,11 @@ void gb_execute_frame(gb_t* gb){
 }
 
 void gb_execute_step(gb_t* gb){
-    if(!gb->cartridge_inserted || gb->multi_thread) return;
+    if(!gb->cartridge_inserted) return;
 
     gb_pause(gb,true);
 
     gb->cpu.execute(&gb->cpu);
-}
-
-
-#ifdef _WIN32
-DWORD WINAPI gb_thread_function(void* data){
-    gb_t* gb = (gb_t*)data;
-    gb_cpu_t* cpu = &gb->cpu;
-    
-    while(gb_atomic_load_explicit(&gb->thread_running,gb_memory_order_relaxed)){
-        cpu->execute(cpu);
-    }
-
-    return 0;
-}
-#else
-void* gb_thread_function(void* data){
-    gb_t* gb = (gb_t*)data;
-    gb_cpu_t* cpu = &gb->cpu;
-    
-    while(gb_atomic_load_explicit(&gb->thread_running,gb_memory_order_relaxed)){
-        cpu->execute(cpu);
-    }
-
-    pthread_exit(NULL);
-}
-#endif
-
-
-void gb_thread_stop(gb_t* gb){
-    if(!gb->cartridge_inserted || gb->paused) return;
-
-    if(!gb->multi_thread || !gb_atomic_load_explicit(&gb->thread_running,gb_memory_order_relaxed)) return;
-
-    gb_atomic_store_explicit(&gb->thread_running,false,gb_memory_order_relaxed);
-
-#ifdef _WIN32
-    WaitForSingleObject(gb->thread_handle,INFINITE);
-    CloseHandle(gb->thread_handle);
-    gb->thread_handle = NULL;
-#else
-    pthread_join(gb->thread_id,NULL);
-#endif
-}
-
-void gb_thread_start(gb_t* gb){
-    if(!gb->cartridge_inserted || gb->paused) return;
-
-    if(!gb->multi_thread || gb_atomic_load_explicit(&gb->thread_running,gb_memory_order_relaxed)) return;
-
-    gb_atomic_store_explicit(&gb->thread_running,true,gb_memory_order_relaxed);
-
-#ifdef _WIN32
-    gb->thread_handle = CreateThread(NULL,0,gb_thread_function,gb,0,NULL);
-    if(!gb->thread_handle){
-        gb_atomic_store_explicit(&gb->thread_running,false,gb_memory_order_relaxed);
-        gb_printf_error("CreateThread failed\n");
-    }
-#else
-    if(pthread_create(&gb->thread_id,NULL,gb_thread_function,gb) != 0){
-        gb_atomic_store_explicit(&gb->thread_running,false,gb_memory_order_relaxed);
-        gb_printf_error("pthread_create failed");
-    }
-#endif
 }
 
 
@@ -543,8 +480,6 @@ void gb_reset(gb_t* gb){
 
 
 void gb_delete(gb_t* gb){
-
-    gb_thread_stop(gb);
 
     gb_remove_cartridge(gb);
     

@@ -45,8 +45,11 @@ void tile_viewer_t::ppu_callback(void* userdata){
     tile_viewer->cgb_mode = gb->cgb_mode;
 
     tile_viewer->bg_palette.update_data(&gb->palette);
-    tile_viewer->obj_palette.update_data(&gb->palette);
+    tile_viewer->bg_palette.update_texture(gb->is_cgb,gb->cgb_mode);
 
+    tile_viewer->obj_palette.update_data(&gb->palette);
+    tile_viewer->obj_palette.update_texture(gb->is_cgb,gb->cgb_mode);
+    
     gb_memory_type_read(
         gb,
         tile_viewer->current_memory_type,
@@ -54,6 +57,8 @@ void tile_viewer_t::ppu_callback(void* userdata){
         tile_viewer->data.data(),
         tile_viewer->data_length
     );
+
+    tile_viewer->update_texture();
 }
 
 
@@ -260,9 +265,6 @@ void tile_viewer_t::render_palette(){
 
     ImGui::TableSetupColumn("Left",ImGuiTableColumnFlags_WidthFixed);
     ImGui::TableSetupColumn("Right",ImGuiTableColumnFlags_WidthFixed);
-
-    bg_palette.update_texture(gb->is_cgb,cgb_mode);
-    obj_palette.update_texture(gb->is_cgb,cgb_mode);
 
     float height = gb_tile_size * tile_viewer_t::palette_scale;
 
@@ -485,8 +487,6 @@ void tile_viewer_t::render(){
 
             if(ImGui::BeginChild("TileViewerChild",ImVec2(0.0f,0.0f),ImGuiChildFlags_Borders,ImGuiWindowFlags_HorizontalScrollbar)){
                 
-                update_texture();
-
                 ImGui::Image((ImTextureRef)texture,texture_size,texture_uv0,texture_uv1);
 
                 if(show_tile_grid) render_grid(ImGui::GetItemRectMin(),ImGui::GetItemRectMax());
@@ -623,14 +623,10 @@ void tile_viewer_t::set_open(bool _open) noexcept {
 
     open = _open;
 
-    gb_thread_stop(gb);
-
     if(open){
         gb_ppu_add_handler(gb,&callback_handler);
     }
     else{
         gb_ppu_remove_handler(gb,&callback_handler);
     }
-
-    gb_thread_start(gb);
 }

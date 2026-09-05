@@ -44,7 +44,7 @@ static inline void gb_printer_start_printing(gb_printer_t* printer){
 
     printer->timer = gb_printer_printing_freq;
 
-    if(gb_atomic_load_explicit(&printer->padding_enabled,gb_memory_order_relaxed) && (printer->padding & 0xF0)){
+    if(printer->padding_enabled && (printer->padding & 0xF0)){
         
         printer->printing_state = gb_printer_top_padding_state;
 
@@ -54,7 +54,7 @@ static inline void gb_printer_start_printing(gb_printer_t* printer){
         printer->printing_state = gb_printer_image_state;
     }
 
-    gb_atomic_store_explicit(&printer->accelerate,false,gb_memory_order_relaxed);
+    printer->accelerate = false;
 }
 
 static inline void gb_printer_fill_buffer(gb_printer_t* printer){
@@ -267,23 +267,9 @@ void gb_printer_remove_callback(gb_printer_t* printer){
 }
 
 
-void gb_printer_set_padding_enabled(gb_t* gb,bool enabled){
-    gb_atomic_store_explicit(&gb->printer.padding_enabled,enabled,gb_memory_order_relaxed);
-}
-
-bool gb_printer_get_padding_enabled(gb_t* gb){
-    return gb_atomic_load_explicit(&gb->printer.padding_enabled,gb_memory_order_relaxed);
-}
-
-
-void gb_printer_accelerate(gb_t* gb){
-    gb_atomic_store_explicit(&gb->printer.accelerate,true,gb_memory_order_relaxed);
-}
-
-
 void gb_printer_clock(gb_printer_t* printer,int cycles){
     
-    if(!gb_atomic_load_explicit(&printer->accelerate,gb_memory_order_relaxed)){
+    if(!printer->accelerate){
         
         printer->timer -= cycles;
 
@@ -334,7 +320,7 @@ void gb_printer_clock(gb_printer_t* printer,int cycles){
             }
 
             if(++printer->line >= printer->lines){
-                if(gb_atomic_load_explicit(&printer->padding_enabled,gb_memory_order_relaxed) && (printer->padding & 0x0F)){
+                if(printer->padding_enabled && (printer->padding & 0x0F)){
                     
                     printer->printing_state = gb_printer_bottom_padding_state;
 

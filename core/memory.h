@@ -47,8 +47,8 @@ void gb_memory_init(gb_memory_t* memory,gb_t* gb);
 void gb_memory_write_empty(void* data,uint8_t value,uint16_t address);
 uint8_t gb_memory_read_empty(void* data,uint16_t address);
 
-void gb_memory_add_cheat_code(gb_memory_t* memory,gb_cheat_code_t* code);
-void gb_memory_remove_cheat_code(gb_memory_t* memory,gb_cheat_code_t* code);
+void gb_memory_add_cheat_code(gb_t* gb,gb_cheat_code_t* code);
+void gb_memory_remove_cheat_code(gb_t* gb,gb_cheat_code_t* code);
 
 void gb_memory_cpu_write(gb_memory_t* memory,uint8_t value,uint16_t address);
 uint8_t gb_memory_cpu_read(gb_memory_t* memory,uint16_t address);

@@ -20,10 +20,9 @@ private:
     channel_frame_t noise = {};
 
     std::vector<uint8_t> output;
-    std::atomic<size_t> output_size;
-    std::atomic<int> seconds;
-    std::atomic<int> minutes;
-    std::atomic<int> hours;
+    int seconds;
+    int minutes;
+    int hours;
     time_t last_time;
     bool paused = false;
     bool recording = false;

@@ -87,7 +87,7 @@ typedef struct _gb_printer_t {
     uint32_t ram_length;
 
     uint8_t printing_state;
-    gb_atomic_bool_t padding_enabled;
+    bool padding_enabled;
     uint8_t padding;
     uint8_t palette[gb_printer_palette_colors];
     uint32_t lines;
@@ -95,7 +95,7 @@ typedef struct _gb_printer_t {
     uint8_t line_buffer[gb_printer_image_pitch];
 
     int timer;
-    gb_atomic_bool_t accelerate;
+    bool accelerate;
 
     uint64_t last_bit_received;
 
@@ -112,11 +112,6 @@ void gb_printer_init(gb_printer_t* printer,gb_t* gb);
 
 void gb_printer_set_callback(gb_printer_t* printer,gb_printer_callback_t callback,void* userdata);
 void gb_printer_remove_callback(gb_printer_t* printer);
-
-void gb_printer_set_padding_enabled(gb_t* gb,bool enabled);
-bool gb_printer_get_padding_enabled(gb_t* gb);
-
-void gb_printer_accelerate(gb_t* gb);
 
 void gb_printer_clock(gb_printer_t* printer,int cycles);
 

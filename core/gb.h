@@ -29,16 +29,7 @@ typedef struct _gb_t {
     float speed;
     
     bool cartridge_inserted;
-    
-    bool multi_thread;
-
-#ifdef _WIN32
-    HANDLE thread_handle;
-#else
-    pthread_t thread_id;
-#endif
-    gb_atomic_bool_t thread_running;
-    
+        
     bool paused;
 
     bool cgb_mode;
@@ -74,21 +65,6 @@ typedef struct _gb_t {
     gb_memory_descriptor_t undocumented_register_descriptor;
 } gb_t;
 
-#define gb_add_cheat_code(gb,code) gb_memory_add_cheat_code(&(gb)->memory,code)
-#define gb_remove_cheat_code(gb,code) gb_memory_remove_cheat_code(&(gb)->memory,code)
-
-#define gb_save_ram(gb,path) gb_cartridge_save_ram(&(gb)->cartridge,path)
-#define gb_load_ram(gb,path) gb_cartridge_load_ram(&(gb)->cartridge,path)
-
-#define gb_save_rtc(gb,path) gb_cartridge_save_rtc(&(gb)->cartridge,path)
-#define gb_load_rtc(gb,path) gb_cartridge_load_rtc(&(gb)->cartridge,path)
-
-#define gb_accelerate_printer(gb) gb_printer_accelerate(&(gb)->printer)
-
-#define gb_get_fps(gb) gb_frame_timer_get_fps(&(gb)->frame_timer)
-
-#define gb_get_render_buffer(gb) gb_ppu_get_render_buffer(&(gb)->ppu)
-
 
 #ifdef __cplusplus
 extern "C" {
@@ -114,9 +90,6 @@ void gb_machine_cycle(gb_t* gb);
 void gb_execute_frame(gb_t* gb);
 
 void gb_execute_step(gb_t* gb);
-
-void gb_thread_stop(gb_t* gb);
-void gb_thread_start(gb_t* gb);
 
 void gb_switch_speed(gb_t* gb);
 

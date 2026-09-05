@@ -13,8 +13,6 @@ const int image_extensions_count = sizeof(image_extensions) / sizeof(image_exten
 printer_t::printer_t(gb_t* _gb,SDL_Renderer* _renderer):gb(_gb),renderer(_renderer){
     file_save.set_extensions(image_extensions,image_extensions_count);
     file_save.set_callback(file_save_callback,this);
-
-    gb_printer_set_padding_enabled(gb,padding_enabled);
 }
 
 printer_t::~printer_t(){
@@ -184,9 +182,7 @@ void printer_t::render(){
         }
         ImGui::EndChild();
 
-        if(ImGui::Checkbox("Padding",&padding_enabled)){
-            gb_printer_set_padding_enabled(gb,padding_enabled);
-        }
+        ImGui::Checkbox("Padding",&gb->printer.padding_enabled);
 
         ImGui::SameLine();
 
@@ -208,7 +204,7 @@ void printer_t::render(){
         ImGui::SameLine();
 
         if(ImGui::Button("Accelerate")){
-            gb_printer_accelerate(gb);
+            gb->printer.accelerate = true;
         }
 
         file_save.render();
@@ -237,14 +233,10 @@ void printer_t::set_open(bool _open) noexcept {
 
     open = _open;
 
-    gb_thread_stop(gb);
-
     if(open){
         gb_connect_printer(gb,gb_printer_callback,this);
     }
     else{
         gb_disconnect_printer(gb);
     }
-
-    gb_thread_start(gb);
 }

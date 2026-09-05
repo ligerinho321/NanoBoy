@@ -26,8 +26,6 @@ private:
     std::mutex mutex;
     std::vector<uint8_t> buffer;
     std::atomic<bool> update_texture = false;
-
-    bool padding_enabled = false;
     
     bool open = false;
 

@@ -61,7 +61,7 @@ static inline void gb_ppu_swap_frame_buffer(gb_ppu_t* ppu){
         gb_ppu_interframe_blending(ppu);
     }
 
-    gb_atomic_store_explicit(&ppu->screen_index,!ppu->screen_index,gb_memory_order_release);
+    ppu->screen_index = !ppu->screen_index;
 
     ppu->current_screen = ppu->screen[ppu->screen_index];
 }
@@ -566,9 +566,9 @@ void gb_ppu_clock(gb_ppu_t* ppu,int cycles){
 }
 
 
-const uint8_t* gb_ppu_get_render_buffer(gb_ppu_t* ppu){
-    bool screen_index = gb_atomic_load_explicit(&ppu->screen_index,gb_memory_order_acquire);
-    return ppu->screen[!screen_index];
+const uint8_t* gb_ppu_get_render_buffer(gb_t* gb){
+    gb_ppu_t* ppu = &gb->ppu;
+    return ppu->screen[!ppu->screen_index];
 }
 
 

@@ -174,7 +174,7 @@ void screen_t::update_screen(){
     int pitch = 0;
     SDL_LockTexture(texture,nullptr,(void**)&pixels,&pitch);
 
-    memcpy(pixels,gb_get_render_buffer(gb),gb_screen_length);
+    memcpy(pixels,gb_ppu_get_render_buffer(gb),gb_screen_length);
 
     SDL_UnlockTexture(texture);
 }

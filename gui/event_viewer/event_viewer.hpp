@@ -141,19 +141,7 @@ public:
         event_selected = nullptr;
     }
 
-    void set_open(bool _open) noexcept {
-        if(open == _open) return;
-
-        open = _open;
-
-        if(!open) clear();
-
-        gb_thread_stop(gb);
-
-        gb_event_manager_enable(gb,open);
-
-        gb_thread_start(gb);
-    }
+    void set_open(bool _open) noexcept;
 
     bool get_open() const noexcept {
         return open; 

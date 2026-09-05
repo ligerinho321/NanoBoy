@@ -126,7 +126,7 @@ typedef struct _gb_ppu_t {
     uint64_t frame_count;
     bool first_frame;
 
-    gb_atomic_bool_t screen_index;
+    bool screen_index;
     uint8_t screen[2][gb_screen_length];
     uint8_t* current_screen;
 
@@ -163,7 +163,7 @@ void gb_ppu_init(gb_ppu_t* ppu,gb_t* gb);
 
 void gb_ppu_clock(gb_ppu_t* ppu,int cycles);
 
-const uint8_t* gb_ppu_get_render_buffer(gb_ppu_t* ppu);
+const uint8_t* gb_ppu_get_render_buffer(gb_t* gb);
 
 void gb_ppu_add_handler(gb_t* gb,gb_ppu_handler_t* handler);
 void gb_ppu_remove_handler(gb_t* gb,gb_ppu_handler_t* handler);

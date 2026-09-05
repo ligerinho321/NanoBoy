@@ -145,12 +145,17 @@ void gb_cartridge_remove(gb_cartridge_t* cartridge){
 }
 
 
-void gb_cartridge_save_ram(gb_cartridge_t* cartridge,const char* path){
+void gb_cartridge_save_ram(gb_t* gb,const char* path){
+    gb_cartridge_t* cartridge = &gb->cartridge;
+
     if(!cartridge->ram_length || !cartridge->ram_has_battery) return;
+    
     gb_save_file(path,cartridge->ram,cartridge->ram_length);
 }
 
-void gb_cartridge_load_ram(gb_cartridge_t* cartridge,const char* path){
+void gb_cartridge_load_ram(gb_t* gb,const char* path){
+    gb_cartridge_t* cartridge = &gb->cartridge;
+
     if(!cartridge->ram_length || !cartridge->ram_has_battery) return;
 
     FILE* file = fopen(path,"rb");
@@ -420,23 +425,30 @@ size_t gb_cartridge_ram_absolute_address(gb_cartridge_t* cartridge,uint16_t rela
     }
 }
 
+
 void gb_cartridge_update_rtc_timer(gb_cartridge_t* cartridge){
     if(cartridge->mapper.rtc_update_timer != NULL){
         cartridge->mapper.rtc_update_timer(cartridge);
     }
 }
 
-void gb_cartridge_save_rtc(gb_cartridge_t* cartridge,const char* path){
+
+void gb_cartridge_save_rtc(gb_t* gb,const char* path){
+    gb_cartridge_t* cartridge = &gb->cartridge;
+
     if(cartridge->mapper.rtc_save != NULL){
         cartridge->mapper.rtc_save(cartridge,path);
     }
 }
 
-void gb_cartridge_load_rtc(gb_cartridge_t* cartridge,const char* path){
+void gb_cartridge_load_rtc(gb_t* gb,const char* path){
+    gb_cartridge_t* cartridge = &gb->cartridge;
+
     if(cartridge->mapper.rtc_load != NULL){
         cartridge->mapper.rtc_load(cartridge,path);
     }
 }
+
 
 void gb_cartridge_reset(gb_cartridge_t* cartridge){
     if(cartridge->mapper.reset != NULL){

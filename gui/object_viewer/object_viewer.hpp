@@ -96,13 +96,10 @@ private:
     ImVec2 bg_offset{0.0f,0.0f};
 
     bool cgb_mode = false;
-    bool obj_priority_mode = false;
     bool object_size = false;
     ImVec2 object_texture_uv0{0.0f,0.0f};
     ImVec2 object_texture_uv1{1.0f,0.5f};
     obj_palette_t obj_palette;
-    uint8_t oam[gb_oam_length] = {0};
-    uint8_t vram[gb_vram_length] = {0};
 
     std::array<object_t,gb_oam_objects> objects;
     std::array<object_t*,gb_oam_objects> objects_sorted;

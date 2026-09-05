@@ -233,7 +233,7 @@ void gb_ring_buffer_free(gb_ring_buffer_t* rb);
 typedef struct _gb_frame_timer_t {
     uint32_t frame_count;
     uint32_t cycles;
-    gb_atomic_float_t fps;
+    float fps;
 #ifdef _WIN32
     LARGE_INTEGER freq;
     LARGE_INTEGER last;
@@ -249,8 +249,6 @@ void gb_frame_timer_clock(gb_frame_timer_t* frame_timer);
 void gb_frame_timer_start(gb_frame_timer_t* frame_timer);
 
 void gb_frame_timer_stop(gb_frame_timer_t* frame_timer);
-
-float gb_frame_timer_get_fps(gb_frame_timer_t* frame_timer);
 
 bool gb_save_file(const char* filename,void* data,size_t len);
 bool gb_load_file(const char* filename,void** data,size_t* len);

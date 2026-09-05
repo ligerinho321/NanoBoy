@@ -61,11 +61,13 @@ static inline void gb_memory_apply_cheat(gb_memory_t* memory,uint8_t* value,uint
     }
 }
 
-void gb_memory_add_cheat_code(gb_memory_t* memory,gb_cheat_code_t* code){
+void gb_memory_add_cheat_code(gb_t* gb,gb_cheat_code_t* code){
+    gb_memory_t* memory = &gb->memory;
     gb_list_add_element(memory->codes[code->address],code,gb_cheat_code_t);
 }
 
-void gb_memory_remove_cheat_code(gb_memory_t* memory,gb_cheat_code_t* code){
+void gb_memory_remove_cheat_code(gb_t* gb,gb_cheat_code_t* code){
+    gb_memory_t* memory = &gb->memory;
     gb_list_remove_element(memory->codes[code->address],code,gb_cheat_code_t);
 }
 

@@ -63,14 +63,14 @@ private:
 
     void copy_valuestring_to_buffer(const char* valuestring,char* buffer);
 
-    void load_cheat(cJSON* object,bool thread_safe);
+    void load_cheat(cJSON* object);
     
     bool cheat_is_valid();
     void copy_codes_buffer(char* dst);
-    void load_cheat_codes(cheat_t* cheat,bool thread_safe);
-    void add_cheat(bool thread_safe);
-    void edit_cheat(bool thread_safe);
-    void delete_cheat_selected(bool thread_safe);
+    void load_cheat_codes(cheat_t* cheat);
+    void add_cheat();
+    void edit_cheat();
+    void delete_cheat_selected();
 
     void open_popup(int type);
 
@@ -81,9 +81,9 @@ public:
 
     ~cheats_t();
 
-    void load(const char* path,bool thread_safe);
+    void load(const char* path);
     void save(const char* path);
-    void clear(bool thread_safe);
+    void clear();
 
     void render();
 

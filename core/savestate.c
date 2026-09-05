@@ -71,7 +71,7 @@ bool gb_savestate_serialize(gb_t* gb,const char* filename){
         goto fail;
     }
 
-    size_t screen_compress_result = ZSTD_compress(screen_cbuff,screen_cbuff_size,gb_get_render_buffer(gb),gb_screen_length,gb_savestate_zstd_compress_level);
+    size_t screen_compress_result = ZSTD_compress(screen_cbuff,screen_cbuff_size,gb_ppu_get_render_buffer(gb),gb_screen_length,gb_savestate_zstd_compress_level);
 
     if(ZSTD_isError(screen_compress_result)){
         gb_printf_error("ZSTD_compress failed");

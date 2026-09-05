@@ -19,7 +19,7 @@ cheats_t::cheats_t(gb_t* gb):
 {}
 
 cheats_t::~cheats_t(){
-    clear(true);
+    clear();
 }
 
 
@@ -35,7 +35,7 @@ void cheats_t::copy_valuestring_to_buffer(const char* valuestring,char* buffer){
     buffer[len] = '\0';
 }
 
-void cheats_t::load_cheat(cJSON* object,bool thread_safe){
+void cheats_t::load_cheat(cJSON* object){
 
     cJSON* item = object->child;
 
@@ -76,10 +76,10 @@ void cheats_t::load_cheat(cJSON* object,bool thread_safe){
         item = item->next;
     }
 
-    add_cheat(thread_safe);
+    add_cheat();
 }
 
-void cheats_t::load(const char* path,bool thread_safe){
+void cheats_t::load(const char* path){
     char* data = nullptr;
     size_t len = 0;
 
@@ -105,7 +105,7 @@ void cheats_t::load(const char* path,bool thread_safe){
 
     object = array->child;
     while(object != nullptr){
-        load_cheat(object,thread_safe);
+        load_cheat(object);
         object = object->next;
     }
 
@@ -200,14 +200,12 @@ void cheats_t::copy_codes_buffer(char* dst){
     *dst = '\0';
 }
 
-void cheats_t::load_cheat_codes(cheat_t* cheat,bool thread_safe){
-
-    if(thread_safe) gb_thread_stop(gb);
+void cheats_t::load_cheat_codes(cheat_t* cheat){
 
     if(cheat->codes.size() > 0){
 
         for(auto& code : cheat->codes){
-            gb_remove_cheat_code(gb,&code);
+            gb_memory_remove_cheat_code(gb,&code);
         }
 
         cheat->codes.clear();
@@ -276,13 +274,11 @@ void cheats_t::load_cheat_codes(cheat_t* cheat,bool thread_safe){
     }
 
     for(auto& code : cheat->codes){
-        gb_add_cheat_code(gb,&code);
+        gb_memory_add_cheat_code(gb,&code);
     }
-
-    if(thread_safe) gb_thread_start(gb);
 }
 
-void cheats_t::add_cheat(bool thread_safe){
+void cheats_t::add_cheat(){
 
     if(!cheat_is_valid()) return;
 
@@ -296,7 +292,7 @@ void cheats_t::add_cheat(bool thread_safe){
     
     cheat->enabled = enabled;
 
-    load_cheat_codes(cheat,thread_safe);
+    load_cheat_codes(cheat);
 
     cheat_t* current = cheats;
 
@@ -315,7 +311,7 @@ void cheats_t::add_cheat(bool thread_safe){
     popup_modal_open = false;
 }
 
-void cheats_t::edit_cheat(bool thread_safe){
+void cheats_t::edit_cheat(){
     if(!cheat_is_valid()) return;
 
     strcpy(cheat_selected->description_buffer,description_buffer);
@@ -326,12 +322,12 @@ void cheats_t::edit_cheat(bool thread_safe){
     
     cheat_selected->enabled = enabled;
 
-    load_cheat_codes(cheat_selected,thread_safe);
+    load_cheat_codes(cheat_selected);
 
     popup_modal_open = false;
 }
 
-void cheats_t::delete_cheat_selected(bool thread_safe){
+void cheats_t::delete_cheat_selected(){
     if(cheat_selected == nullptr) return;
 
     cheat_t* prev = NULL;
@@ -351,38 +347,30 @@ void cheats_t::delete_cheat_selected(bool thread_safe){
         current = current->next;
     }
 
-    if(thread_safe) gb_thread_stop(gb);
-
     for(auto& code : cheat_selected->codes){
-        gb_remove_cheat_code(gb,&code);
+        gb_memory_remove_cheat_code(gb,&code);
     }
-
-    if(thread_safe) gb_thread_start(gb);
     
     delete cheat_selected;
     
     cheat_selected = nullptr;
 }
 
-void cheats_t::clear(bool thread_safe){
+void cheats_t::clear(){
     
     cheat_t* cheat = cheats;
-
-    if(thread_safe) gb_thread_stop(gb);
 
     while(cheat != nullptr){
         cheat_t* next = cheat->next;
         
         for(auto& code : cheat->codes){
-            gb_remove_cheat_code(gb,&code);
+            gb_memory_remove_cheat_code(gb,&code);
         }
         
         delete cheat;
         
         cheat = next; 
     }
-
-    if(thread_safe) gb_thread_start(gb);
 
     cheats = nullptr;
 }
@@ -523,10 +511,10 @@ void cheats_t::render_popup_modal(){
 
     if(ImGui::Button(ok)){
         if(popup_modal_type == popup_add_cheat_type){
-            add_cheat(true);
+            add_cheat();
         }
         else{
-            edit_cheat(true);
+            edit_cheat();
         }
     }
 
@@ -560,7 +548,7 @@ void cheats_t::render(){
 
         ImGui::SameLine();
         
-        if(ImGui::Button("Delete")) delete_cheat_selected(true);
+        if(ImGui::Button("Delete")) delete_cheat_selected();
 
         ImGui::EndDisabled();
 

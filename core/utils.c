@@ -118,7 +118,7 @@ void gb_frame_timer_clock(gb_frame_timer_t* frame_timer){
 
     if(elapsed > 1.0f){
         frame_timer->last = current;
-        gb_atomic_store_explicit(&frame_timer->fps,frame_timer->frame_count / elapsed,gb_memory_order_release);
+        frame_timer->fps = frame_timer->frame_count / elapsed;
         frame_timer->frame_count = 0;
     }
 }
@@ -138,11 +138,7 @@ void gb_frame_timer_start(gb_frame_timer_t* frame_timer){
 }
 
 void gb_frame_timer_stop(gb_frame_timer_t* frame_timer){
-    gb_atomic_store_explicit(&frame_timer->fps,0.0f,gb_memory_order_release);
-}
-
-float gb_frame_timer_get_fps(gb_frame_timer_t* frame_timer){
-    return gb_atomic_load_explicit(&frame_timer->fps,gb_memory_order_acquire);
+    frame_timer->fps = 0.0f;
 }
 
 

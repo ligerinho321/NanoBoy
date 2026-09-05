@@ -21,7 +21,10 @@ void palette_viewer_t::callback(void* data){
     palette_viewer->cgb_mode = gb->cgb_mode;
 
     palette_viewer->bg_palette.update_data(&gb->palette);
+    palette_viewer->bg_palette.update_texture(gb->is_cgb,gb->cgb_mode);
+
     palette_viewer->obj_palette.update_data(&gb->palette);
+    palette_viewer->obj_palette.update_texture(gb->is_cgb,gb->cgb_mode);
 
     memcpy(palette_viewer->bg_cram,gb->palette.bg_cram,sizeof(palette_viewer->bg_cram));
     memcpy(palette_viewer->obj_cram,gb->palette.obj_cram,sizeof(palette_viewer->obj_cram));
@@ -151,8 +154,6 @@ void palette_viewer_t::render_palette(palette_t& palette,uint8_t* cram){
     texture_size.x *= palette_scale;
     texture_size.y *= palette_scale;
 
-    palette.update_texture(gb->is_cgb,cgb_mode);
-
     ImGui::Image((ImTextureRef)palette.texture,texture_size,texture_uv0,texture_uv1);
 
     if(ImGui::IsItemHovered()){
@@ -244,8 +245,6 @@ void palette_viewer_t::set_open(bool _open) noexcept {
     if(open == _open) return;
 
     open = _open;
-    
-    gb_thread_stop(gb);
 
     if(open){
         gb_ppu_add_handler(gb,&callback_handler);
@@ -253,6 +252,4 @@ void palette_viewer_t::set_open(bool _open) noexcept {
     else{
         gb_ppu_remove_handler(gb,&callback_handler);
     }
-
-    gb_thread_start(gb);
 }
