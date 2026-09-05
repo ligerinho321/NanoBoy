@@ -26,6 +26,10 @@
 
 class nanoboy_t {
 private:
+    enum{
+        max_recent_roms = 10
+    };
+
     std::filesystem::path main_folder_path;
     std::filesystem::path saves_path;
     std::filesystem::path savestates_path;
@@ -34,6 +38,8 @@ private:
 
     std::filesystem::path rom_path;
     std::string rom_name;
+
+    std::list<std::string> recent_roms;
 
     std::string get_rom_save_path() const {
         std::filesystem::path path = saves_path / (rom_name + ".s");
@@ -66,6 +72,9 @@ private:
 
     void save_window_settings(cJSON* settings_object);
     void load_window_settings(cJSON* settings_object);
+
+    void save_recent_roms(cJSON* settings_object);
+    void load_recent_roms(cJSON* settings_object);
 
     void save_settings();
     void load_settings();

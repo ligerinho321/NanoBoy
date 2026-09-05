@@ -164,42 +164,15 @@ struct obj_palette_t : public palette_t {
 
 inline float get_input_scalar_width(int digit_count){
     ImGuiStyle& style = ImGui::GetStyle();
-    return ImGui::CalcTextSize("0").x * digit_count + style.FramePadding.x * 2.0f + (ImGui::GetFrameHeight() + style.ItemInnerSpacing.x) * 2.0f;
+    return ImGui::CalcTextSize(std::string(digit_count,'0').c_str()).x + style.FramePadding.x * 2.0f + (ImGui::GetFrameHeight() + style.ItemInnerSpacing.x) * 2.0f;
 }
 
 inline bool mouse_in_rect(const ImVec2& m,const ImVec2& p_min,const ImVec2& p_max){
     return (m.x >= p_min.x && m.x < p_max.x) && (m.y >= p_min.y && m.y < p_max.y);
 }
 
-inline void render_size_text(size_t size){
-    if(size >= gigabytes){
-        ImGui::Text("%.1f GB",(float)size / (float)gigabytes);
-    }
-    else if(size >= megabytes){
-        ImGui::Text("%.1f MB",(float)size / (float)megabytes);
-    }
-    else if(size >= kilobytes){
-        ImGui::Text("%.1f KB",(float)size / (float)kilobytes);
-    }
-    else{
-        ImGui::Text("%lu B",size);
-    }
-}
-
-inline void render_hertz_text(size_t hertz){
-    if(hertz >= gigahertz){
-        ImGui::Text("%.1f gHz",(float)hertz / (float)gigahertz);
-    }
-    else if(hertz >= megahertz){
-        ImGui::Text("%.1f mHz",(float)hertz / (float)megahertz);
-    }
-    else if(hertz >= kilohertz){
-        ImGui::Text("%.1f kHz",(float)hertz / (float)kilohertz);
-    }
-    else{
-        ImGui::Text("%lu Hz",hertz);
-    }
-}
+void render_size_text(unsigned long long size);
+void render_hertz_text(unsigned long long hertz);
 
 
 time_t get_file_last_write_time(std::filesystem::path file);

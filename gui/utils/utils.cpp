@@ -54,6 +54,36 @@ void obj_palette_t::clear(){
 }
 
 
+void render_size_text(unsigned long long size){
+    if(size >= gigabytes){
+        ImGui::Text("%.1f GB",(float)size / (float)gigabytes);
+    }
+    else if(size >= megabytes){
+        ImGui::Text("%.1f MB",(float)size / (float)megabytes);
+    }
+    else if(size >= kilobytes){
+        ImGui::Text("%.1f KB",(float)size / (float)kilobytes);
+    }
+    else{
+        ImGui::Text("%llu B",size);
+    }
+}
+
+void render_hertz_text(unsigned long long hertz){
+    if(hertz >= gigahertz){
+        ImGui::Text("%.1f gHz",(float)hertz / (float)gigahertz);
+    }
+    else if(hertz >= megahertz){
+        ImGui::Text("%.1f mHz",(float)hertz / (float)megahertz);
+    }
+    else if(hertz >= kilohertz){
+        ImGui::Text("%.1f kHz",(float)hertz / (float)kilohertz);
+    }
+    else{
+        ImGui::Text("%llu Hz",hertz);
+    }
+}
+
 time_t get_file_last_write_time(std::filesystem::path file){
 
     std::chrono::time_point sys_time_point = std::chrono::time_point_cast<std::chrono::system_clock::duration>(

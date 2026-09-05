@@ -153,27 +153,30 @@ void memory_viewer_t::render(){
 
             if(ImGui::BeginChild("MemoryViewerChild",ImVec2(0.0f,0.0f),ImGuiChildFlags_Borders,ImGuiWindowFlags_HorizontalScrollbar)){
                 
-                if(ImGui::IsKeyPressed(ImGuiKey_UpArrow) && editing_address >= columns){
-                    editing_address -= columns;
-                    update_scroll_y = true;
-                }
-                else if(ImGui::IsKeyPressed(ImGuiKey_DownArrow) && editing_address < (memory_length > columns ? memory_length - columns : 0)){
-                    editing_address += columns;
-                    update_scroll_y = true;
-                }
-                else if(ImGui::IsKeyPressed(ImGuiKey_LeftArrow) && editing_address > 0){
-                    --editing_address;
-                    update_scroll_y = true;
-                }
-                else if(ImGui::IsKeyPressed(ImGuiKey_RightArrow) && editing_address < (memory_length - 1)){
-                    ++editing_address;
-                    update_scroll_y = true;
+                if(!ImGui::GetIO().WantTextInput){
+                    if(ImGui::IsKeyPressed(ImGuiKey_UpArrow) && editing_address >= columns){
+                        editing_address -= columns;
+                        update_scroll_y = true;
+                    }
+                    else if(ImGui::IsKeyPressed(ImGuiKey_DownArrow) && editing_address < (memory_length > columns ? memory_length - columns : 0)){
+                        editing_address += columns;
+                        update_scroll_y = true;
+                    }
+                    else if(ImGui::IsKeyPressed(ImGuiKey_LeftArrow) && editing_address > 0){
+                        --editing_address;
+                        update_scroll_y = true;
+                    }
+                    else if(ImGui::IsKeyPressed(ImGuiKey_RightArrow) && editing_address < (memory_length - 1)){
+                        ++editing_address;
+                        update_scroll_y = true;
+                    }
                 }
 
                 ImGuiStyle& style = ImGui::GetStyle();
 
-                float glyph_width = ImGui::CalcTextSize("F").x;
-                float hex_content_width = (glyph_width * (address_digit_count + 1) + style.ItemSpacing.x) + (glyph_width * 2.0f + style.ItemSpacing.x) * columns;
+                float pair_width = ImGui::CalcTextSize("00").x;
+                float address_width = ImGui::CalcTextSize(std::string(address_digit_count + 1,'0').c_str()).x;
+                float hex_content_width = (address_width + style.ItemSpacing.x) + (pair_width + style.ItemSpacing.x) * columns;
                 
                 ImVec2 cursor = ImGui::GetCursorScreenPos();
 
@@ -214,7 +217,7 @@ void memory_viewer_t::render(){
 
                                 ImGui::PushID((void*)address);
 
-                                ImGui::SetNextItemWidth(glyph_width * 2.0f);
+                                ImGui::SetNextItemWidth(pair_width);
 
                                 if(need_focus_editing_address){
 

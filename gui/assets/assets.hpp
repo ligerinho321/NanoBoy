@@ -2,6 +2,7 @@
 
 #include <gui/utils/utils.hpp>
 
-bool assets_decompress(const uint8_t* src,size_t src_len,uint8_t** dst,size_t* dst_len);
+extern const size_t font_size;
+extern uint8_t font_data[714804];
 
 void assets_load_window_icon(SDL_Window* window);

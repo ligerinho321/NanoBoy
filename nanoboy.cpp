@@ -193,10 +193,13 @@ void nanoboy_t::init_imgui(){
 
     ImGuiIO& io = ImGui::GetIO();
 
-    ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     io.IniFilename = nullptr;
     io.LogFilename = nullptr;
+
+    ImFontConfig font_config = {};
+    font_config.FontDataOwnedByAtlas = false;
+    io.Fonts->AddFontFromMemoryTTF(font_data,font_size,16.0f,&font_config);
 
     load_imgui_ini_settings();
 
@@ -287,6 +290,38 @@ void nanoboy_t::load_window_settings(cJSON* settings_object){
 }
 
 
+void nanoboy_t::save_recent_roms(cJSON* settings_object){
+    cJSON* recent_roms_array = cJSON_CreateArray();
+    cJSON_AddItemToObjectCS(settings_object,"Recent ROMs",recent_roms_array);
+
+    for(auto& rom : recent_roms){
+        cJSON* rom_string = cJSON_CreateStringReference(rom.c_str());
+        cJSON_AddItemToArray(recent_roms_array,rom_string);
+    }
+}
+
+void nanoboy_t::load_recent_roms(cJSON* settings_object){
+
+    recent_roms.clear();
+
+    cJSON* recent_roms_array = cJSON_GetObjectItemCaseSensitive(settings_object,"Recent ROMs");
+    
+    if(!recent_roms_array || !cJSON_IsArray(recent_roms_array)) return;
+
+    cJSON* current_child = recent_roms_array->child;
+
+    size_t n = 0;
+
+    while(current_child != nullptr || n < nanoboy_t::max_recent_roms){
+        if(cJSON_IsString(current_child)){
+            recent_roms.push_back(current_child->valuestring);
+            ++n;
+        }
+        current_child = current_child->next;
+    }
+}
+
+
 void nanoboy_t::save_settings(){
 
     cJSON* settings_object = cJSON_CreateObject();
@@ -297,6 +332,8 @@ void nanoboy_t::save_settings(){
     }
 
     save_window_settings(settings_object);
+
+    save_recent_roms(settings_object);
 
     file_selector->save(settings_object);
     screen->save(settings_object);
@@ -328,6 +365,8 @@ void nanoboy_t::load_settings(){
     }
 
     load_window_settings(settings_object);
+
+    load_recent_roms(settings_object);
 
     file_selector->load(settings_object);
     screen->load(settings_object);
@@ -381,6 +420,10 @@ void nanoboy_t::take_screenshot(){
 
 void nanoboy_t::insert_cartridge(std::filesystem::path path){
     
+    std::string recent_rom = path.u8string();
+
+    recent_roms.remove(recent_rom);
+
     remove_cartridge();
 
     if(!gb_insert_cartridge(gb,(const char*)path.u8string().c_str())){
@@ -389,6 +432,12 @@ void nanoboy_t::insert_cartridge(std::filesystem::path path){
 
     rom_path = path;
     rom_name = path.filename().replace_extension("").u8string();
+
+    recent_roms.push_front(recent_rom);
+
+    if(recent_roms.size() > nanoboy_t::max_recent_roms){
+        recent_roms.pop_back();
+    }
 
     gb_load_ram(gb,get_rom_save_path().c_str());
 
@@ -534,6 +583,21 @@ void nanoboy_t::render_main_menu_bar(){
         if(ImGui::MenuItem("Open File")){
             file_selector->set_open(true);
         }
+
+        if(ImGui::BeginMenu("Recent",recent_roms.size() > 0)){
+            std::string* selected = nullptr;
+            for(auto& rom : recent_roms){
+                if(ImGui::Selectable(rom.c_str())){
+                    selected = &rom;
+                }
+            }
+            if(selected != nullptr){
+                insert_cartridge(*selected);
+            }
+            ImGui::EndMenu();
+        }
+
+        ImGui::Separator();
 
         if(ImGui::MenuItem("Take Screenshot","F12",nullptr,gb->cartridge_inserted)){
             take_screenshot();
