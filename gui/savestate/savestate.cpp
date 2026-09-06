@@ -1,17 +1,18 @@
 #include <gui/savestate/savestate.hpp>
+#include <gui/nanoboy/nanoboy.hpp>
 
 static const char* str_save = "Save";
 static const char* str_load = "Load";
 static const char* str_delete = "Delete";
 
 
-savestate_t::savestate_t(gb_t* gb,SDL_Renderer* renderer):gb(gb){
+savestate_t::savestate_t(nanoboy_t* nanoboy):nanoboy(nanoboy){
 
     for(int i = 0; i < savestate_t::number_of_slots; ++i){
         slots[i].name = "Slot #" + std::to_string(i + 1);
         slots[i].shortcut_save = "Shift+F" + std::to_string(i + 1);
         slots[i].shortcut_load = "F" + std::to_string(i + 1);
-        slots[i].screenshot = SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGB24,SDL_TEXTUREACCESS_STREAMING,gb_screen_width,gb_screen_height);
+        slots[i].screenshot = SDL_CreateTexture(nanoboy->renderer,SDL_PIXELFORMAT_RGB24,SDL_TEXTUREACCESS_STREAMING,gb_screen_width,gb_screen_height);
     }
 
     ImGuiStyle& style = ImGui::GetStyle();
@@ -55,23 +56,44 @@ void savestate_t::unload(){
 }
 
 
-void savestate_t::save_slot(slot_t& slot){    
-    gb_savestate_serialize(gb,slot.path.u8string().c_str());
+void savestate_t::save_slot(int index){    
+    if(gb_savestate_serialize(nanoboy->gb,slots[index].path.u8string().c_str())){
 
+        nanoboy->notification_manager->push_notification("State #%d Saved",index);
+    }
+    else{
+        nanoboy->notification_manager->push_notification("Failed To Save State #%d",index);
+    }
+    
     update_slots();
 }
 
-void savestate_t::load_slot(slot_t& slot){
-    gb_savestate_deserialize(gb,slot.path.u8string().c_str());
+void savestate_t::load_slot(int index){
+    SDL_LockAudioDevice(nanoboy->audio_device);
+
+    if(gb_savestate_deserialize(nanoboy->gb,slots[index].path.u8string().c_str())){
+
+        nanoboy->notification_manager->push_notification("State #%d Loaded",index);
+    }
+    else{
+        nanoboy->notification_manager->push_notification("Failed To Load State #%d",index);
+    }
+
+    SDL_UnlockAudioDevice(nanoboy->audio_device);
 }
 
-void savestate_t::delete_slot(slot_t& slot){
+void savestate_t::delete_slot(int index){
     try{
-        std::filesystem::remove(slot.path);
+        std::filesystem::remove(slots[index].path);
+
+        nanoboy->notification_manager->push_notification("State #%d Deleted",index);
 
         update_slots();
     }
     catch(std::exception& exception){
+
+        nanoboy->notification_manager->push_notification("Failed To Delete State #%d",index);
+
         gb_printf_error(exception.what());
     }
 }
@@ -125,7 +147,7 @@ void savestate_t::update_slots(){
 
 void savestate_t::event(SDL_Event& event){
 
-    if(!gb->cartridge_inserted) return;
+    if(!nanoboy->gb->cartridge_inserted) return;
 
     std::chrono::nanoseconds elapsed = std::chrono::steady_clock::now() - last_update_time;
 
@@ -138,7 +160,7 @@ void savestate_t::event(SDL_Event& event){
         if(SDL_GetModState() & KMOD_SHIFT){
             for(int i = 0; i < number_of_slots; ++i){
                 if(event.key.keysym.scancode == SDL_SCANCODE_F1 + i){
-                    save_slot(slots[i]);
+                    save_slot(i);
                 }
             }
         }
@@ -146,7 +168,7 @@ void savestate_t::event(SDL_Event& event){
         else{
             for(int i = 0; i < number_of_slots; ++i){
                 if(slots[i].exists && event.key.keysym.scancode == SDL_SCANCODE_F1 + i){
-                    load_slot(slots[i]);
+                    load_slot(i);
                 }
             }
         }
@@ -156,7 +178,7 @@ void savestate_t::event(SDL_Event& event){
 
 void savestate_t::render_menu_bar(){
 
-    if(ImGui::BeginMenu("Save State",gb->cartridge_inserted)){
+    if(ImGui::BeginMenu("Save State",nanoboy->gb->cartridge_inserted)){
 
         for(int i = 0; i < number_of_slots; ++i){
 
@@ -165,7 +187,7 @@ void savestate_t::render_menu_bar(){
             std::string label = std::to_string(i + 1) + ". " + (slots[i].exists ? get_time_formated(slots[i].last_write_time) : "empty");
             
             if(ImGui::MenuItem(label.c_str(),slots[i].shortcut_save.c_str())){
-                save_slot(slots[i]);
+                save_slot(i);
             }
 
             ImGui::PopID();
@@ -174,7 +196,7 @@ void savestate_t::render_menu_bar(){
         ImGui::EndMenu();
     }
 
-    if(ImGui::BeginMenu("Load State",gb->cartridge_inserted)){
+    if(ImGui::BeginMenu("Load State",nanoboy->gb->cartridge_inserted)){
 
         for(int i = 0; i < number_of_slots; ++i){
 
@@ -183,7 +205,7 @@ void savestate_t::render_menu_bar(){
             std::string label = std::to_string(i + 1) + ". " + (slots[i].exists ?  get_time_formated(slots[i].last_write_time) : "empty");
             
             if(ImGui::MenuItem(label.c_str(),slots[i].shortcut_load.c_str(),nullptr,slots[i].exists)){
-                load_slot(slots[i]);
+                load_slot(i);
             }
 
             ImGui::PopID();
@@ -192,7 +214,7 @@ void savestate_t::render_menu_bar(){
         ImGui::EndMenu();
     }
 
-    if(ImGui::MenuItem("Save State Menu",nullptr,nullptr,gb->cartridge_inserted)){
+    if(ImGui::MenuItem("Save State Menu",nullptr,nullptr,nanoboy->gb->cartridge_inserted)){
         open = true;
     }
 }
@@ -201,7 +223,7 @@ void savestate_t::render(){
 
     if(!open) return;
 
-    if(!gb->cartridge_inserted){
+    if(!nanoboy->gb->cartridge_inserted){
         open = false;
         return;
     }
@@ -238,17 +260,17 @@ void savestate_t::render(){
                 ImGui::PushID(i);
 
                 if(ImGui::Button(str_save,button_size)){
-                    save_slot(slots[i]);
+                    save_slot(i);
                 }
 
                 ImGui::BeginDisabled(!slots[i].exists);
 
                 if(ImGui::Button(str_load,button_size)){
-                    load_slot(slots[i]);
+                    load_slot(i);
                 }
                 
                 if(ImGui::Button(str_delete,button_size)){
-                    delete_slot(slots[i]);
+                    delete_slot(i);
                 }
 
                 ImGui::EndDisabled();

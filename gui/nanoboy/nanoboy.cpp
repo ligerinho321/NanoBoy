@@ -1,4 +1,4 @@
-#include <nanoboy.hpp>
+#include <gui/nanoboy/nanoboy.hpp>
 
 static void joypad_callback(void* data,gb_joypad_state_t* state){
 
@@ -59,6 +59,8 @@ nanoboy_t::nanoboy_t(){
 
     SDL_SetWindowPosition(window,SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED);
 
+    notification_manager = new notification_manager_t();
+
     boot_settings = new boot_settings_t(gb);
     input_settings = new input_settings_t();
 
@@ -67,7 +69,7 @@ nanoboy_t::nanoboy_t(){
     file_selector->set_current_extension(1);
     file_selector->set_callback(file_selector_callback,this);
 
-    savestate = new savestate_t(gb,renderer);
+    savestate = new savestate_t(this);
 
     screen = new screen_t(gb,window,renderer);
 
@@ -111,6 +113,7 @@ nanoboy_t::~nanoboy_t(){
     delete file_selector;
     delete input_settings;
     delete boot_settings;
+    delete notification_manager;
 
     ImGui_ImplSDLRenderer2_Shutdown();
     ImGui_ImplSDL2_Shutdown();
@@ -410,10 +413,15 @@ void nanoboy_t::take_screenshot(){
     
     strftime(timestamp,sizeof(timestamp),"%d%m%Y_%H%M%S",lt);
     
-    std::filesystem::path path = screenshot_path / (rom_name + "_" + timestamp + ".png");
+    std::string filename = rom_name + "_" + timestamp + ".png";
 
-    if(!stbi_write_png(path.u8string().c_str(),gb_screen_width,gb_screen_height,gb_screen_bytes_per_pixel,gb_ppu_get_render_buffer(gb),gb_screen_pitch)){
-        gb_printf_error("stbi_write_png failed");
+    std::filesystem::path path = screenshot_path / filename;
+
+    if(stbi_write_png(path.u8string().c_str(),gb_screen_width,gb_screen_height,gb_screen_bytes_per_pixel,gb_ppu_get_render_buffer(gb),gb_screen_pitch)){
+        notification_manager->push_notification("Screenshot Saved \"%s\"",filename.c_str());
+    }
+    else{
+        notification_manager->push_notification("Failed To Save Screenshot \"%s\"",filename.c_str());
     }
 }
 
@@ -427,8 +435,13 @@ void nanoboy_t::insert_cartridge(std::filesystem::path path){
     remove_cartridge();
 
     if(!gb_insert_cartridge(gb,(const char*)path.u8string().c_str())){
+
+        notification_manager->push_notification("Failed To Load \"%s\"",path.filename().u8string().c_str());
+
         return;
     }
+
+    notification_manager->push_notification("Loaded \"%s\"",path.filename().u8string().c_str());
 
     rom_path = path;
     rom_name = path.filename().replace_extension("").u8string();
@@ -487,10 +500,19 @@ void nanoboy_t::remove_cartridge(){
 
 void nanoboy_t::set_speed(float speed){
     gb_set_speed(gb,speed);
+
+    notification_manager->push_notification("Speed %d%%",(int)(gb->speed * 100.0f));
 }
 
 void nanoboy_t::pause(){
     gb_pause(gb,!gb->paused);
+
+    if(gb->paused){
+        notification_manager->push_notification("Paused");
+    }
+    else{
+        notification_manager->push_notification("Resumed");
+    }
 }
 
 void nanoboy_t::reset(){
@@ -499,7 +521,9 @@ void nanoboy_t::reset(){
     gb_reset(gb);
 
     SDL_UnlockAudioDevice(audio_device);
-    
+
+    notification_manager->push_notification("Reseted");
+
     event_viewer->reset();
 }
 
@@ -703,6 +727,8 @@ void nanoboy_t::imgui_render(){
 
     render_main_menu_bar();
 
+    notification_manager->render();
+
     boot_settings->render();
     input_settings->render();
 
@@ -711,7 +737,7 @@ void nanoboy_t::imgui_render(){
     savestate->render();
     
     screen->render_floating();
-    
+
     cheats->render();
     printer->render();
     

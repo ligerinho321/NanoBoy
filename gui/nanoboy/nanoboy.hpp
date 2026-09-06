@@ -4,6 +4,8 @@
 
 #include <gui/assets/assets.hpp>
 
+#include <gui/notification_manager/notification_manager.hpp>
+
 #include <gui/cheats/cheats.hpp>
 #include <gui/file_dialog/file_selector_dialog.hpp>
 #include <gui/printer/printer.hpp>
@@ -95,6 +97,8 @@ public:
     SDL_Renderer* renderer = nullptr;
     SDL_AudioDeviceID audio_device = 0;
 
+    notification_manager_t* notification_manager = nullptr;
+    
     boot_settings_t* boot_settings = nullptr;
     input_settings_t* input_settings = nullptr;
     

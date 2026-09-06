@@ -2,6 +2,8 @@
 
 #include <gui/utils/utils.hpp>
 
+class nanoboy_t;
+
 class savestate_t {
 private:
     enum{
@@ -33,7 +35,7 @@ private:
         std::string load;
     };
 
-    gb_t* gb;
+    nanoboy_t* nanoboy = nullptr;
 
     std::array<slot_t,savestate_t::number_of_slots> slots;
 
@@ -44,14 +46,14 @@ private:
 
     bool open = false;
 
-    void save_slot(slot_t& slot);
-    void load_slot(slot_t& slot);
-    void delete_slot(slot_t& slot);
+    void save_slot(int index);
+    void load_slot(int index);
+    void delete_slot(int index);
 
     void update_slots();
 
 public:
-    savestate_t(gb_t* gb,SDL_Renderer* renderer);
+    savestate_t(nanoboy_t* nanoboy);
 
     void load(std::filesystem::path path,std::string rom_name);
     void unload();

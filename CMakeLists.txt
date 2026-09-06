@@ -123,6 +123,10 @@ target_sources(
 
     gui/memory_viewer/memory_viewer.cpp
 
+    gui/nanoboy/nanoboy.cpp
+
+    gui/notification_manager/notification_manager.cpp
+
     gui/object_viewer/object_viewer.cpp
     
     gui/palette_viewer/palette_viewer.cpp
@@ -145,7 +149,6 @@ target_sources(
 target_sources(
     NanoBoy
     PRIVATE
-    nanoboy.cpp
     main.cpp
 )
 

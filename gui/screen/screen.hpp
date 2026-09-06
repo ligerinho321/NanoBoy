@@ -20,12 +20,12 @@ private:
 
     bool _focused = false;
 
-    ImVec2 floating_min_size{0.0f,0.0f};
-    ImVec2 floating_max_size{0.0f,0.0f};
+    ImVec2 floating_min_size{};
+    ImVec2 floating_max_size{};
 
-    ImVec2 floating_pos{0.0f,0.0f};
-    ImVec2 floating_size{0.0f,0.0f};
-    ImVec2 last_evail_size{0.0f,0.0f};
+    ImVec2 floating_pos{};
+    ImVec2 floating_size{};
+    ImVec2 last_evail_size{};
 
     void create_texture();
 

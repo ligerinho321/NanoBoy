@@ -1,4 +1,4 @@
-#include <nanoboy.hpp>
+#include <gui/nanoboy/nanoboy.hpp>
 
 int main(int n_args, char** args){
     gb_unused(n_args);
