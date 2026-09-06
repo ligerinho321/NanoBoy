@@ -315,7 +315,7 @@ void nanoboy_t::load_recent_roms(cJSON* settings_object){
 
     size_t n = 0;
 
-    while(current_child != nullptr || n < nanoboy_t::max_recent_roms){
+    while(current_child != nullptr && n < nanoboy_t::max_recent_roms){
         if(cJSON_IsString(current_child)){
             recent_roms.push_back(current_child->valuestring);
             ++n;
