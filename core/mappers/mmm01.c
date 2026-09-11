@@ -14,9 +14,13 @@ bool gb_mmm01_init(gb_cartridge_t* cartridge,uint8_t flags){
     memset(mmm01,0x00,sizeof(gb_mmm01_t));
 
     cartridge->mapper.data = mmm01;
+    cartridge->mapper.data_length = sizeof(gb_mmm01_t);
+    
     cartridge->mapper.rom_absolute_address = gb_mmm01_rom_absolute_address;
     cartridge->mapper.ram_absolute_address = gb_mmm01_ram_absolute_address;
+    
     cartridge->mapper.reset = gb_mmm01_reset;
+
     cartridge->mapper.save_state = gb_mmm01_save_state;
     cartridge->mapper.load_state = gb_mmm01_load_state;
 
@@ -236,33 +240,16 @@ void gb_mmm01_reset(gb_cartridge_t* cartridge){
 }
 
 
-void gb_mmm01_save_state(gb_cartridge_t* cartridge,gb_state_t* state){
+void gb_mmm01_save_state(gb_cartridge_t* cartridge,gb_snapshot_t* snapshot){
     gb_mmm01_t* mmm01 = (gb_mmm01_t*)cartridge->mapper.data;
 
-    gb_state_write(state,mmm01->ram_enabled);
-    
-    gb_state_write(state,mmm01->mapping_enabled);
-
-    gb_state_write(state,mmm01->mbc1_mode_locked);
-    gb_state_write(state,mmm01->mbc1_mode_select);
-
-    gb_state_write(state,mmm01->multiplex_enabled);
-
-    gb_state_write(state,mmm01->ram_bank_mask);
-    gb_state_write(state,mmm01->rom_bank_mask);
-
-    gb_state_write(state,mmm01->rom_bank_low);
-    gb_state_write(state,mmm01->rom_bank_mid);
-    gb_state_write(state,mmm01->rom_bank_high);
-
-    gb_state_write(state,mmm01->ram_bank_low);
-    gb_state_write(state,mmm01->ram_bank_high);
+    memcpy((uint8_t*)snapshot + sizeof(gb_snapshot_t) + cartridge->ram_length,mmm01,sizeof(gb_mmm01_t));
 }
 
-void gb_mmm01_load_state(gb_cartridge_t* cartridge,gb_state_t* state){
+void gb_mmm01_load_state(gb_cartridge_t* cartridge,gb_snapshot_t* snapshot){
     gb_mmm01_t* mmm01 = (gb_mmm01_t*)cartridge->mapper.data;
 
-    gb_state_read(state,mmm01->ram_enabled);
+    memcpy(mmm01,(uint8_t*)snapshot + sizeof(gb_snapshot_t) + cartridge->ram_length,sizeof(gb_mmm01_t));
 
     if(cartridge->ram_length > 0x00){
         if(mmm01->ram_enabled){
@@ -274,23 +261,6 @@ void gb_mmm01_load_state(gb_cartridge_t* cartridge,gb_state_t* state){
             cartridge->ram_descriptor.read = gb_memory_read_empty;
         }
     }
-
-    gb_state_read(state,mmm01->mapping_enabled);
-
-    gb_state_read(state,mmm01->mbc1_mode_locked);
-    gb_state_read(state,mmm01->mbc1_mode_select);
-
-    gb_state_read(state,mmm01->multiplex_enabled);
-
-    gb_state_read(state,mmm01->ram_bank_mask);
-    gb_state_read(state,mmm01->rom_bank_mask);
-
-    gb_state_read(state,mmm01->rom_bank_low);
-    gb_state_read(state,mmm01->rom_bank_mid);
-    gb_state_read(state,mmm01->rom_bank_high);
-
-    gb_state_read(state,mmm01->ram_bank_low);
-    gb_state_read(state,mmm01->ram_bank_high);
 
     gb_mmm01_update_mapping(cartridge);
 }

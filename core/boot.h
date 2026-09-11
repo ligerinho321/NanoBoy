@@ -7,8 +7,14 @@ enum{
     gb_boot_cgb_rom_size = 2048 + 256
 };
 
+typedef struct _gb_boot_state_t {
+    bool mapped;
+} gb_boot_state_t;
+
 typedef struct _gb_boot_t {
     gb_t* gb;
+
+    gb_boot_state_t state;
     
     const char* dmg_rom_path;
     bool cgb_rom_inserted;
@@ -22,8 +28,6 @@ typedef struct _gb_boot_t {
 
     bool skip_enabled;
 
-    bool mapped;
-    
     gb_memory_descriptor_t rom_descriptor;
     gb_memory_descriptor_t bank_register_descriptor;
 } gb_boot_t;
@@ -61,6 +65,9 @@ uint8_t gb_boot_read_bank_register(void* data,uint16_t address);
 
 uint8_t gb_boot_dmg_read_rom(void* data,uint16_t address);
 uint8_t gb_boot_cgb_read_rom(void* data,uint16_t address);
+
+void gb_boot_save_state(gb_boot_t* boot,gb_snapshot_t* snapshot);
+void gb_boot_load_state(gb_boot_t* boot,gb_snapshot_t* snapshot);
 
 #ifdef __cplusplus
 }

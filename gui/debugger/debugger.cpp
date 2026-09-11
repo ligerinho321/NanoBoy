@@ -272,8 +272,8 @@ void debugger_t::render_registers(){
 
     ImGuiStyle& style = ImGui::GetStyle();
 
-    const char* input_format_u8 = "%02X";
-    const char* input_format_u16 = "%04X";
+    const char* input_format_u8 = "%02" PRIX8;
+    const char* input_format_u16 = "%04" PRIX16;
 
     float input_u8_width = ImGui::CalcTextSize("00").x + style.FramePadding.x * 2.0f;
     float input_u16_width = ImGui::CalcTextSize("0000").x + style.FramePadding.x * 2.0f;
@@ -285,62 +285,62 @@ void debugger_t::render_registers(){
     ImGui::PushID("Registers");
 
     ImGui::SetNextItemWidth(input_u8_width);
-    ImGui::InputScalar("A",ImGuiDataType_U8,&gb->cpu.a,nullptr,nullptr,input_format_u8,input_flags);
+    ImGui::InputScalar("A",ImGuiDataType_U8,&gb->cpu.state.a,nullptr,nullptr,input_format_u8,input_flags);
 
     ImGui::SameLine();
 
     ImGui::SetNextItemWidth(input_u8_width);
-    ImGui::InputScalar("F",ImGuiDataType_U8,&gb->cpu.f,nullptr,nullptr,input_format_u8,input_flags);
+    ImGui::InputScalar("F",ImGuiDataType_U8,&gb->cpu.state.f,nullptr,nullptr,input_format_u8,input_flags);
 
     ImGui::SameLine();
 
-    ImGui::Text("($%04X)",gb->cpu.af);
+    ImGui::Text("($%04" PRIX16 ")",gb->cpu.state.af);
 
 
     ImGui::SetNextItemWidth(input_u8_width);
-    ImGui::InputScalar("B",ImGuiDataType_U8,&gb->cpu.b,nullptr,nullptr,input_format_u8,input_flags);
-
-    ImGui::SameLine();
-
-    ImGui::SetNextItemWidth(input_u8_width);
-    ImGui::InputScalar("C",ImGuiDataType_U8,&gb->cpu.c,nullptr,nullptr,input_format_u8,input_flags);
-
-    ImGui::SameLine();
-
-    ImGui::Text("($%04X)",gb->cpu.bc);
-
-
-    ImGui::SetNextItemWidth(input_u8_width);
-    ImGui::InputScalar("D",ImGuiDataType_U8,&gb->cpu.d,nullptr,nullptr,input_format_u8,input_flags);
+    ImGui::InputScalar("B",ImGuiDataType_U8,&gb->cpu.state.b,nullptr,nullptr,input_format_u8,input_flags);
 
     ImGui::SameLine();
 
     ImGui::SetNextItemWidth(input_u8_width);
-    ImGui::InputScalar("E",ImGuiDataType_U8,&gb->cpu.e,nullptr,nullptr,input_format_u8,input_flags);
+    ImGui::InputScalar("C",ImGuiDataType_U8,&gb->cpu.state.c,nullptr,nullptr,input_format_u8,input_flags);
 
     ImGui::SameLine();
 
-    ImGui::Text("($%04X)",gb->cpu.de);
+    ImGui::Text("($%04" PRIX16 ")",gb->cpu.state.bc);
 
 
     ImGui::SetNextItemWidth(input_u8_width);
-    ImGui::InputScalar("H",ImGuiDataType_U8,&gb->cpu.h,nullptr,nullptr,input_format_u8,input_flags);
+    ImGui::InputScalar("D",ImGuiDataType_U8,&gb->cpu.state.d,nullptr,nullptr,input_format_u8,input_flags);
+
+    ImGui::SameLine();
+
+    ImGui::SetNextItemWidth(input_u8_width);
+    ImGui::InputScalar("E",ImGuiDataType_U8,&gb->cpu.state.e,nullptr,nullptr,input_format_u8,input_flags);
+
+    ImGui::SameLine();
+
+    ImGui::Text("($%04" PRIX16 ")",gb->cpu.state.de);
+
+
+    ImGui::SetNextItemWidth(input_u8_width);
+    ImGui::InputScalar("H",ImGuiDataType_U8,&gb->cpu.state.h,nullptr,nullptr,input_format_u8,input_flags);
     
     ImGui::SameLine();
 
     ImGui::SetNextItemWidth(input_u8_width);
-    ImGui::InputScalar("L",ImGuiDataType_U8,&gb->cpu.l,nullptr,nullptr,input_format_u8,input_flags);
+    ImGui::InputScalar("L",ImGuiDataType_U8,&gb->cpu.state.l,nullptr,nullptr,input_format_u8,input_flags);
 
     ImGui::SameLine();
 
-    ImGui::Text("($%04X)",gb->cpu.hl);
+    ImGui::Text("($%04" PRIX16 ")",gb->cpu.state.hl);
 
 
     ImGui::SetNextItemWidth(input_u16_width);
-    ImGui::InputScalar("SP",ImGuiDataType_U16,&gb->cpu.sp,nullptr,nullptr,input_format_u16,input_flags);
+    ImGui::InputScalar("SP",ImGuiDataType_U16,&gb->cpu.state.sp,nullptr,nullptr,input_format_u16,input_flags);
 
     ImGui::SetNextItemWidth(input_u16_width);
-    ImGui::InputScalar("PC",ImGuiDataType_U16,&gb->cpu.pc,nullptr,nullptr,input_format_u16,input_flags);
+    ImGui::InputScalar("PC",ImGuiDataType_U16,&gb->cpu.state.pc,nullptr,nullptr,input_format_u16,input_flags);
 
     ImGui::PopID();
 
@@ -350,35 +350,35 @@ void debugger_t::render_registers(){
 void debugger_t::render_flags(){
     ImGui::SeparatorText("Flags");
 
-    bool z = gb->cpu.f & gb_cpu_zero_flag;
-    bool n = gb->cpu.f & gb_cpu_subtraction_flag;
-    bool h = gb->cpu.f & gb_cpu_half_carry_flag;
-    bool c = gb->cpu.f & gb_cpu_carry_flag;
+    bool z = gb->cpu.state.f & gb_cpu_zero_flag;
+    bool n = gb->cpu.state.f & gb_cpu_subtraction_flag;
+    bool h = gb->cpu.state.f & gb_cpu_half_carry_flag;
+    bool c = gb->cpu.state.f & gb_cpu_carry_flag;
 
     ImGui::BeginDisabled(!gb->paused);
 
     ImGui::PushID("Flags");
 
     if(ImGui::Checkbox("Z",&z)){
-        z ? (gb->cpu.f |= gb_cpu_zero_flag) : (gb->cpu.f &= ~gb_cpu_zero_flag);
+        z ? (gb->cpu.state.f |= gb_cpu_zero_flag) : (gb->cpu.state.f &= ~gb_cpu_zero_flag);
     }
     
     ImGui::SameLine();
 
     if(ImGui::Checkbox("N",&n)){
-        n ? (gb->cpu.f |= gb_cpu_subtraction_flag) : (gb->cpu.f &= ~gb_cpu_subtraction_flag);
+        n ? (gb->cpu.state.f |= gb_cpu_subtraction_flag) : (gb->cpu.state.f &= ~gb_cpu_subtraction_flag);
     }
 
     ImGui::SameLine();
 
     if(ImGui::Checkbox("H",&h)){
-        h ? (gb->cpu.f |= gb_cpu_half_carry_flag) : (gb->cpu.f &= ~gb_cpu_half_carry_flag);
+        h ? (gb->cpu.state.f |= gb_cpu_half_carry_flag) : (gb->cpu.state.f &= ~gb_cpu_half_carry_flag);
     }
 
     ImGui::SameLine();
 
     if(ImGui::Checkbox("C",&c)){
-        c ? (gb->cpu.f |= gb_cpu_carry_flag) : (gb->cpu.f &= ~gb_cpu_carry_flag);
+        c ? (gb->cpu.state.f |= gb_cpu_carry_flag) : (gb->cpu.state.f &= ~gb_cpu_carry_flag);
     }
 
     ImGui::PopID();
@@ -391,19 +391,19 @@ void debugger_t::render_others(){
 
     ImGui::BeginDisabled(!gb->paused);
 
-    if(ImGui::BeginCombo("State",gb_cpu_state_names[gb->cpu.state])){
+    if(ImGui::BeginCombo("State",gb_cpu_mode_names[gb->cpu.state.mode])){
         
-        for(int i = 0; i < gb_cpu_state_count; ++i){
+        for(int i = 0; i < gb_cpu_mode_count; ++i){
 
-            if(ImGui::Selectable(gb_cpu_state_names[i],gb->cpu.state == i)){
-                gb_cpu_set_state(&gb->cpu,i);
+            if(ImGui::Selectable(gb_cpu_mode_names[i],gb->cpu.state.mode == i)){
+                gb_cpu_set_mode(&gb->cpu,i);
             }
         }
 
         ImGui::EndCombo();
     }
 
-    ImGui::Checkbox("IME",&gb->cpu.ime);
+    ImGui::Checkbox("IME",&gb->cpu.state.ime);
 
     ImGui::EndDisabled();
 }
@@ -414,7 +414,7 @@ void debugger_t::render_disassembly(){
 
     char disassembler[256] = {0};
 
-    uint16_t pc = gb->cpu.pc;
+    uint16_t pc = gb->cpu.state.pc;
     
     for(int i = 0; i < 15; ++i){
         pc += gb_disassembler_disassemble(gb,pc,disassembler,sizeof(disassembler));
@@ -476,15 +476,15 @@ void debugger_t::render(){
 
             ImGui::SeparatorText("Game Boy Timing");
             
-            ImGui::Text("T-Cycle: %lu",gb->cycle);
-            ImGui::Text("M-Cycle: %lu",gb->cycle / 4);
+            ImGui::Text("T-Cycle: %" PRIu64,gb->state.cycle);
+            ImGui::Text("M-Cycle: %" PRIu64,gb->state.cycle / 4);
 
             ImGui::TableNextColumn();
 
             ImGui::SeparatorText("PPU Timing");
 
-            ImGui::Text("Scanline: %hhu",gb->ppu.scanline);
-            ImGui::Text("Cycle: %hu",gb->ppu.cycle);
+            ImGui::Text("Scanline: %" PRIu8,gb->ppu.state.scanline);
+            ImGui::Text("Cycle: %" PRIu16,gb->ppu.state.cycle);
 
             ImGui::EndTable();
         }

@@ -25,7 +25,6 @@ void boot_settings_t::update_window_size_constraints(){
 
     float title_bar_height = ImGui::GetFrameHeight();
 
-    //dmg_text_input + cgb_text_input + checkbox and buttons
     float content_height = ImGui::GetFrameHeightWithSpacing() * 3.0f;
 
     float window_height = title_bar_height +  content_height + style.WindowPadding.y * 2.0f;
@@ -134,13 +133,13 @@ void boot_settings_t::render(){
         
         ImGui::TextUnformatted("DMG boot path:");
         
-        ImGui::SameLine();
+        ImGui::SameLine(0.0f,style.ItemInnerSpacing.x);
         
-        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - browser_button_width - style.ItemSpacing.x);
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - browser_button_width - style.ItemInnerSpacing.x);
         
         ImGui::InputText("##DMGBootPathTextInput",temp_dmg_path,sizeof(temp_dmg_path));
         
-        ImGui::SameLine();
+        ImGui::SameLine(0.0f,style.ItemInnerSpacing.x);
 
         if(ImGui::Button("...##DMGBootPathBrowserButton")){
             file_selector.set_callback(file_selector_dmg_callback,this);
@@ -152,13 +151,13 @@ void boot_settings_t::render(){
         
         ImGui::TextUnformatted("CGB boot path:");
 
-        ImGui::SameLine();
+        ImGui::SameLine(0.0f,style.ItemInnerSpacing.x);
 
-        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - browser_button_width - style.ItemSpacing.x);
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - browser_button_width - style.ItemInnerSpacing.x);
         
         ImGui::InputText("##CGBBootPathTextInput",temp_cgb_path,sizeof(temp_cgb_path));
         
-        ImGui::SameLine();
+        ImGui::SameLine(0.0f,style.ItemInnerSpacing.x);
 
         if(ImGui::Button("...##CGBBootPathBrowserButton")){
             file_selector.set_callback(file_selector_cgb_callback,this);
@@ -186,14 +185,10 @@ void boot_settings_t::render(){
         file_selector.render();
     }
     ImGui::End();
-
-    if(!_open){
-        close(true);
-    }
 }
 
 
-void boot_settings_t::open(){
+void boot_settings_t::open() noexcept {
     if(_open) return;
 
     _open = true;
@@ -203,7 +198,7 @@ void boot_settings_t::open(){
     temp_skip_enabled = skip_enabled;
 }
 
-void boot_settings_t::close(bool discard_changes){
+void boot_settings_t::close(bool discard_changes) noexcept {
     if(!_open) return;
 
     _open = false;

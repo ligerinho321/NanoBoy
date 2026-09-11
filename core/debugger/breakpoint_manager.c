@@ -50,7 +50,7 @@ bool gb_breakpoint_manager_check(gb_breakpoint_manager_t* breakpoint_manager,uin
 void gb_breakpoint_manager_enable(gb_t* gb,bool enabled){
     gb->breakpoint_manager.enabled = enabled;
     if(enabled){
-        gb->breakpoint_manager.last_check_address = gb->cpu.pc;
+        gb->breakpoint_manager.last_check_address = gb->cpu.state.pc;
     }
 }
 

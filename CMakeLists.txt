@@ -78,6 +78,7 @@ target_sources(
     core/palette.c
     core/ppu.c
     core/printer.c
+    core/rewind.c
     core/savestate.c
     core/serial.c
     core/timer.c
@@ -132,6 +133,8 @@ target_sources(
     gui/palette_viewer/palette_viewer.cpp
     
     gui/printer/printer.cpp
+    
+    gui/rewind_settings/rewind_settings.cpp
     
     gui/savestate/savestate.cpp
     

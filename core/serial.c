@@ -25,28 +25,30 @@ void gb_serial_remove_callback(gb_serial_t* serial){
 
 void gb_serial_clock(gb_serial_t* serial){
 
-    if(serial->internal_clock){
+    gb_serial_state_t* state = &serial->state;
+
+    if(state->internal_clock){
         
-        serial->timer -= 0x04;
+        state->timer -= 0x04;
 
-        if(serial->timer > 0x00) return;
+        if(state->timer > 0x00) return;
 
-        serial->timer = serial->clock_speed ? 16 : 512;
+        state->timer = state->clock_speed ? 16 : 512;
 
-        bool send_bit = serial->sb & 0x80;
+        bool send_bit = state->sb & 0x80;
 
-        serial->sb <<= 0x01;
+        state->sb <<= 0x01;
 
         if(serial->callback != NULL){
-            serial->sb |= serial->callback(serial->data,send_bit);
+            state->sb |= serial->callback(serial->data,send_bit);
         }
         else{
-            serial->sb |= 0x01;
+            state->sb |= 0x01;
         }
 
-        if(++serial->bits_received >= 0x08){
-            serial->transfer_enabled = false;
-            serial->gb->interrupt.flag |= gb_interrupt_serial_flag;
+        if(++state->bits_received >= 0x08){
+            state->transfer_enabled = false;
+            serial->gb->interrupt.state.flag |= gb_interrupt_serial_flag;
         }
     }
 }
@@ -54,21 +56,22 @@ void gb_serial_clock(gb_serial_t* serial){
 
 void gb_serial_write_register(void* data,uint8_t value,uint16_t address){
     gb_serial_t* serial = (gb_serial_t*)data;
+    gb_serial_state_t* state = &serial->state;
 
     switch(address){
         //Serial Byte
         case 0xFF01:
-            serial->sb = value;
+            state->sb = value;
             break;
         //Serial Control
         case 0xFF02:
-            serial->transfer_enabled = value & 0x80;
+            state->transfer_enabled = value & 0x80;
 
-            if(serial->gb->cgb_mode){
-                serial->clock_speed = value & 0x02;
+            if(serial->gb->state.cgb_mode){
+                state->clock_speed = value & 0x02;
             }
 
-            serial->internal_clock = value & 0x01;
+            state->internal_clock = value & 0x01;
             
             /*
             speed   bit1   freq  Bits/s  Bytes/s
@@ -78,9 +81,9 @@ void gb_serial_write_register(void* data,uint8_t value,uint16_t address){
             double  set    8     524288  65536
             */
 
-            if(serial->transfer_enabled){
-                serial->timer = serial->clock_speed ? 16 : 512;
-                serial->bits_received = 0x00;
+            if(state->transfer_enabled){
+                state->timer = state->clock_speed ? 16 : 512;
+                state->bits_received = 0x00;
             }
 
             break;
@@ -89,29 +92,30 @@ void gb_serial_write_register(void* data,uint8_t value,uint16_t address){
 
 uint8_t gb_serial_read_register(void* data,uint16_t address){
     gb_serial_t* serial = (gb_serial_t*)data;
+    gb_serial_state_t* state = &serial->state;
 
     uint8_t value = 0xFF;
 
     switch(address){
         //Serial Byte
         case 0xFF01:
-            value = serial->sb;
+            value = state->sb;
             break;
         //Serial Control
         case 0xFF02:
-            value = serial->transfer_enabled ? 0x80 : 0x00;
+            value = state->transfer_enabled ? 0x80 : 0x00;
             
-            if(serial->gb->cgb_mode){
+            if(serial->gb->state.cgb_mode){
                 
                 value |= 0x7C;
                 
-                value |= serial->clock_speed ? 0x02 : 0x00;
+                value |= state->clock_speed ? 0x02 : 0x00;
             }
             else{
                 value |= 0x7E;
             }
             
-            value |= serial->internal_clock ? 0x01 : 0x00;
+            value |= state->internal_clock ? 0x01 : 0x00;
 
             break;
     }
@@ -126,35 +130,14 @@ void gb_serial_map_registers(gb_serial_t* serial){
 
 
 void gb_serial_reset(gb_serial_t* serial){
-    serial->sb = 0x00;
-    
-    serial->transfer_enabled = false;
-    serial->clock_speed = false;
-    serial->internal_clock = false;
-
-    serial->bits_received = 0x00;
-    serial->timer = 0x00;
+    memset(&serial->state,0x00,sizeof(serial->state));
 }
 
 
-void gb_serial_save_state(gb_serial_t* serial,gb_state_t* state){
-    gb_state_write(state,serial->sb);
-    gb_state_write(state,serial->bits_received);
-
-    gb_state_write(state,serial->transfer_enabled);
-    gb_state_write(state,serial->clock_speed);
-    gb_state_write(state,serial->internal_clock);
-
-    gb_state_write(state,serial->timer);
+void gb_serial_save_state(gb_serial_t* serial,gb_snapshot_t* snapshot){
+    snapshot->serial = serial->state;
 }
 
-void gb_serial_load_state(gb_serial_t* serial,gb_state_t* state){
-    gb_state_read(state,serial->sb);
-    gb_state_read(state,serial->bits_received);
-
-    gb_state_read(state,serial->transfer_enabled);
-    gb_state_read(state,serial->clock_speed);
-    gb_state_read(state,serial->internal_clock);
-
-    gb_state_read(state,serial->timer);
+void gb_serial_load_state(gb_serial_t* serial,gb_snapshot_t* snapshot){
+    serial->state = snapshot->serial;
 }

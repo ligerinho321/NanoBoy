@@ -50,6 +50,7 @@ const char* gb_event_screen_color_names[gb_event_screen_color_count] = {
     "Object Fetch",
 };
 
+
 static inline void gb_event_frame_clear(gb_event_frame_t* frame){
     memset(frame->range,0,sizeof(frame->range));
     frame->count = 0;
@@ -264,7 +265,7 @@ void gb_event_manager_update_mapping(gb_event_manager_t* event_manager){
 
     gb_event_register_map_t* map = event_manager->registers_map;
 
-    if(gb->is_cgb && (gb->cgb_mode || gb->boot.mapped)){
+    if(gb->state.is_cgb && (gb->state.cgb_mode || gb->boot.state.mapped)){
         //VRAM DMA
         gb_event_register_map_t dma_write = {
             .type = gb_event_dma_type,
@@ -342,7 +343,7 @@ void gb_event_manager_update_mapping(gb_event_manager_t* event_manager){
         map[0x77].type = gb_event_none_type;
     }
 
-    if(gb->is_cgb && gb->boot.mapped){
+    if(gb->state.is_cgb && gb->boot.state.mapped){
         gb_event_register_map_t others = {
             .type = gb_event_others_type,
             .flags = gb_event_write_flag | gb_event_read_flag,
@@ -354,7 +355,7 @@ void gb_event_manager_update_mapping(gb_event_manager_t* event_manager){
         map[0x4C].type = gb_event_none_type;
     }
 
-    if(gb->boot.mapped){
+    if(gb->boot.state.mapped){
         gb_event_register_map_t others = {
             .type = gb_event_others_type,
             .flags = gb_event_write_flag | gb_event_read_flag,
@@ -394,7 +395,7 @@ static void gb_event_manager_push_event(gb_event_manager_t* event_manager,gb_eve
 
     gb_ppu_t* ppu = &event_manager->gb->ppu;
 
-    gb_event_range_t* range = frame->range + ppu->scanline * gb_scanline_cycles + ppu->cycle;
+    gb_event_range_t* range = frame->range + ppu->state.scanline * gb_scanline_cycles + ppu->state.cycle;
 
     if(range->count == 0x00){
         range->start = frame->count;
@@ -427,8 +428,8 @@ void gb_event_manager_halt(gb_t* gb){
     gb_event_manager_t* event_manager = &gb->event_manager;
 
     gb_event_t event = {
-        .scanline = gb->ppu.scanline,
-        .cycle = gb->ppu.cycle,
+        .scanline = gb->ppu.state.scanline,
+        .cycle = gb->ppu.state.cycle,
         .pc = gb->cpu.instruction_pc,
         .type = gb_event_halt_type,
         .flag = gb_event_interrupt_flag,
@@ -443,8 +444,8 @@ void gb_event_manager_stop(gb_t* gb){
     gb_event_manager_t* event_manager = &gb->event_manager;
 
     gb_event_t event = {
-        .scanline = gb->ppu.scanline,
-        .cycle = gb->ppu.cycle,
+        .scanline = gb->ppu.state.scanline,
+        .cycle = gb->ppu.state.cycle,
         .pc = gb->cpu.instruction_pc,
         .type = gb_event_stop_type,
         .flag = gb_event_interrupt_flag,
@@ -480,8 +481,8 @@ void gb_event_manager_irq(gb_t* gb,uint8_t vector){
 
     if(type != gb_event_none_type){
         gb_event_t event = {
-            .scanline = gb->ppu.scanline,
-            .cycle = gb->ppu.cycle,
+            .scanline = gb->ppu.state.scanline,
+            .cycle = gb->ppu.state.cycle,
             .pc = vector,
             .type = type,
             .flag = gb_event_interrupt_flag,
@@ -517,8 +518,8 @@ void gb_event_manager_io(gb_t* gb,uint8_t flag,uint8_t value,uint16_t address){
 
     if(type != gb_event_none_type){
         gb_event_t event = {
-            .scanline = gb->ppu.scanline,
-            .cycle = gb->ppu.cycle,
+            .scanline = gb->ppu.state.scanline,
+            .cycle = gb->ppu.state.cycle,
             .pc = gb->cpu.instruction_pc,
             .type = type,
             .flag = flag,

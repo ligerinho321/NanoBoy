@@ -17,6 +17,7 @@ bool gb_mbc3_init(gb_cartridge_t* cartridge,uint8_t flags){
     mbc3->has_rtc = flags & gb_cartridge_rtc;
 
     cartridge->mapper.data = mbc3;
+    cartridge->mapper.data_length = sizeof(gb_mbc3_t);
 
     cartridge->mapper.rom_absolute_address = gb_mbc3_rom_absolute_address;
     cartridge->mapper.ram_absolute_address = gb_mbc3_ram_absolute_address;
@@ -28,6 +29,7 @@ bool gb_mbc3_init(gb_cartridge_t* cartridge,uint8_t flags){
     }
 
     cartridge->mapper.reset = gb_mbc3_reset;
+
     cartridge->mapper.save_state = gb_mbc3_save_state;
     cartridge->mapper.load_state = gb_mbc3_load_state;
 
@@ -149,7 +151,7 @@ void gb_mbc3_rtc_write_register(void* data,uint8_t value,uint16_t address){
         case 0x08:
             rtc->reg[0x00] = value & 0x3F;
             rtc->cycles = 0;
-            rtc->last_update_cycle = cartridge->gb->cycle;
+            rtc->last_update_cycle = cartridge->gb->state.cycle;
             break;
         case 0x09:
             rtc->reg[0x01] = value & 0x3F;
@@ -162,7 +164,7 @@ void gb_mbc3_rtc_write_register(void* data,uint8_t value,uint16_t address){
             break;
         case 0x0C:
             if((rtc->reg[0x04] & 0x40) && !(value & 0x40)){
-                rtc->last_update_cycle = cartridge->gb->cycle;
+                rtc->last_update_cycle = cartridge->gb->state.cycle;
             }
             rtc->reg[0x04] = value & 0xC1;
             break;
@@ -232,7 +234,7 @@ void gb_mbc3_rtc_update_timer(gb_cartridge_t* cartridge){
 
     if(rtc->reg[0x04] & 0x40) return;
 
-    uint64_t elapsed_cycles = cartridge->gb->cycle - rtc->last_update_cycle;
+    uint64_t elapsed_cycles = cartridge->gb->state.cycle - rtc->last_update_cycle;
 
     uint64_t frequency = gb_get_clock_rate(cartridge->gb) / gb_mbc3_rtc_clock_rate;
 
@@ -245,7 +247,7 @@ void gb_mbc3_rtc_update_timer(gb_cartridge_t* cartridge){
         gb_mbc3_rtc_clock(rtc);
     }
 
-    rtc->last_update_cycle = cartridge->gb->cycle - (elapsed_cycles % frequency);
+    rtc->last_update_cycle = cartridge->gb->state.cycle - (elapsed_cycles % frequency);
 }
 
 
@@ -340,42 +342,20 @@ void gb_mbc3_reset(gb_cartridge_t* cartridge){
 }
 
 
-void gb_mbc3_save_state(gb_cartridge_t* cartridge,gb_state_t* state){
+void gb_mbc3_save_state(gb_cartridge_t* cartridge,gb_snapshot_t* snapshot){
     gb_mbc3_t* mbc3 = (gb_mbc3_t*)cartridge->mapper.data;
 
-    gb_state_write(state,mbc3->rom_bank);
-
-    if(cartridge->ram_length > 0x00 || mbc3->has_rtc){
-        gb_state_write(state,mbc3->ram_or_rtc_enabled);
-        gb_state_write(state,mbc3->ram_or_rtc_bank);
-    }
-
-    if(mbc3->has_rtc){
-        gb_state_write_ex(state,mbc3->rtc.reg,sizeof(mbc3->rtc.reg));
-        gb_state_write_ex(state,mbc3->rtc.latched_reg,sizeof(mbc3->rtc.latched_reg));
-        gb_state_write(state,mbc3->rtc.latch);
-        gb_state_write(state,mbc3->rtc.cycles);
-        gb_state_write(state,mbc3->rtc.last_update_cycle);
-    }
+    memcpy((uint8_t*)snapshot + sizeof(gb_snapshot_t) + cartridge->ram_length,mbc3,sizeof(gb_mbc3_t));
 }
 
-void gb_mbc3_load_state(gb_cartridge_t* cartridge,gb_state_t* state){
+void gb_mbc3_load_state(gb_cartridge_t* cartridge,gb_snapshot_t* snapshot){
     gb_mbc3_t* mbc3 = (gb_mbc3_t*)cartridge->mapper.data;
 
-    gb_state_read(state,mbc3->rom_bank);
+    memcpy(mbc3,(uint8_t*)snapshot + sizeof(gb_snapshot_t) + cartridge->ram_length,sizeof(gb_mbc3_t));
+
     gb_cartridge_set_rom1_bank(cartridge,mbc3->rom_bank);
-
+    
     if(cartridge->ram_length > 0x00 || mbc3->has_rtc){
-        gb_state_read(state,mbc3->ram_or_rtc_enabled);
-        gb_state_read(state,mbc3->ram_or_rtc_bank);
         gb_mbc3_update_ram_or_rtc_mapping(cartridge);
-    }
-
-    if(mbc3->has_rtc){
-        gb_state_read_ex(state,mbc3->rtc.reg,sizeof(mbc3->rtc.reg));
-        gb_state_read_ex(state,mbc3->rtc.latched_reg,sizeof(mbc3->rtc.latched_reg));
-        gb_state_read(state,mbc3->rtc.latch);
-        gb_state_read(state,mbc3->rtc.cycles);
-        gb_state_read(state,mbc3->rtc.last_update_cycle);
     }
 }

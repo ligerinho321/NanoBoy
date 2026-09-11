@@ -50,14 +50,20 @@ typedef struct _gb_cartridge_t {
 
     struct{
         void* data;
+        size_t data_length;
+        
         size_t (*rom_absolute_address)(struct _gb_cartridge_t*,uint16_t);
         size_t (*ram_absolute_address)(struct _gb_cartridge_t*,uint16_t);
+        
         void (*rtc_update_timer)(struct _gb_cartridge_t*);
+        
         void (*rtc_save)(struct _gb_cartridge_t*,const char*);
         void (*rtc_load)(struct _gb_cartridge_t*,const char*);
+        
         void (*reset)(struct _gb_cartridge_t*);
-        void (*save_state)(struct _gb_cartridge_t*,gb_state_t*);
-        void (*load_state)(struct _gb_cartridge_t*,gb_state_t*);
+
+        void (*save_state)(struct _gb_cartridge_t*,gb_snapshot_t*);
+        void (*load_state)(struct _gb_cartridge_t*,gb_snapshot_t*);
     } mapper;
 } gb_cartridge_t;
 
@@ -128,8 +134,8 @@ void gb_cartridge_load_rtc(gb_t* gb,const char* path);
 
 void gb_cartridge_reset(gb_cartridge_t* cartridge);
 
-void gb_cartridge_save_state(gb_cartridge_t* cartridge,gb_state_t* state);
-void gb_cartridge_load_state(gb_cartridge_t* cartridge,gb_state_t* state);
+void gb_cartridge_save_state(gb_cartridge_t* cartridge,gb_snapshot_t* snapshot);
+void gb_cartridge_load_state(gb_cartridge_t* cartridge,gb_snapshot_t* snapshot);
 
 #ifdef __cplusplus
 }

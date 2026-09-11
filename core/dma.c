@@ -19,30 +19,32 @@ void gb_dma_init(gb_dma_t* dma,gb_t* gb){
 
 
 void gb_oam_dma_clock(gb_dma_t* dma){
+    
+    gb_dma_state_t* state = &dma->state;
 
-    switch(dma->oam_state){
+    switch(state->oam_state){
         case gb_oam_dma_state_delay:{
-            dma->oam_state = gb_oam_dma_state_setup;
+            state->oam_state = gb_oam_dma_state_setup;
             break;
         }
         case gb_oam_dma_state_setup:{
-            dma->oam_byte = gb_memory_oam_dma_read(&dma->gb->memory,dma->oam_hi_addr | dma->oam_counter);
-            dma->oam_state = gb_oam_dma_state_transfer;
+            state->oam_byte = gb_memory_oam_dma_read(&dma->gb->memory,state->oam_hi_addr | state->oam_counter);
+            state->oam_state = gb_oam_dma_state_transfer;
             break;
         }
         case gb_oam_dma_state_transfer:{
 
-            dma->gb->ppu.oam[dma->oam_counter] = dma->oam_byte;
+            dma->gb->ppu.state.oam[state->oam_counter] = state->oam_byte;
 
             if(dma->gb->event_manager.enabled){
-                gb_event_manager_io(dma->gb,gb_event_write_flag,dma->oam_byte,0xFE00 | dma->oam_counter);
+                gb_event_manager_io(dma->gb,gb_event_write_flag,state->oam_byte,0xFE00 | state->oam_counter);
             }
             
-            if(++dma->oam_counter >= 0xA0){
-                dma->oam_state = gb_oam_dma_state_none;
+            if(++state->oam_counter >= 0xA0){
+                state->oam_state = gb_oam_dma_state_none;
             }
             else{
-                dma->oam_byte = gb_memory_oam_dma_read(&dma->gb->memory,dma->oam_hi_addr | dma->oam_counter);
+                state->oam_byte = gb_memory_oam_dma_read(&dma->gb->memory,state->oam_hi_addr | state->oam_counter);
             }
             break;
         }
@@ -51,9 +53,9 @@ void gb_oam_dma_clock(gb_dma_t* dma){
 
 
 bool gb_oam_dma_bus_conflict(gb_dma_t* dma,uint16_t address){
-    uint8_t src = dma->oam_src;
+    uint8_t src = dma->state.oam_src;
 
-    if(dma->gb->is_cgb){
+    if(dma->gb->state.is_cgb){
         return (
             //ROM and RAM
             ((src <= 0x7F || (src >= 0xA0 && src <= 0xBF)) && (address <= 0x7FFF || (address >= 0xA000 && address <= 0xBFFF))) ||
@@ -79,15 +81,15 @@ void gb_oam_dma_write_register(void* data,uint8_t value,uint16_t address){
     
     gb_dma_t* dma = (gb_dma_t*)data;
 
-    dma->oam_src = value;
+    dma->state.oam_src = value;
 
-    dma->oam_state = gb_oam_dma_state_delay;
+    dma->state.oam_state = gb_oam_dma_state_delay;
 
-    dma->oam_hi_addr = value << 0x08;
-    if(dma->oam_hi_addr > 0xFD00){
-        dma->oam_hi_addr &= ~0x2000;
+    dma->state.oam_hi_addr = value << 0x08;
+    if(dma->state.oam_hi_addr > 0xFD00){
+        dma->state.oam_hi_addr &= ~0x2000;
     }
-    dma->oam_counter = 0x00;
+    dma->state.oam_counter = 0x00;
 }
 
 uint8_t gb_oam_dma_read_register(void* data,uint16_t address){
@@ -95,13 +97,15 @@ uint8_t gb_oam_dma_read_register(void* data,uint16_t address){
     
     gb_dma_t* dma = (gb_dma_t*)data;
 
-    return dma->oam_src;
+    return dma->state.oam_src;
 }
 
 
 void gb_vram_hblank_dma(gb_dma_t* dma){
+    
+    gb_dma_state_t* state = &dma->state;
 
-    dma->vram_hblank_pending = false;
+    state->vram_hblank_pending = false;
     
     gb_t* gb = dma->gb;
 
@@ -109,98 +113,100 @@ void gb_vram_hblank_dma(gb_dma_t* dma){
 
     for(uint8_t i = 0x00; i < 0x10; ++i){
 
-        if(gb->double_speed){
+        if(gb->state.double_speed){
             gb_machine_cycle(gb);
         }
         else{
             gb_half_machine_cycle(gb);
         }
 
-        uint8_t byte = gb_memory_vram_dma_read(memory,dma->vram_src++);
+        uint8_t byte = gb_memory_vram_dma_read(memory,state->vram_src++);
 
-        gb_memory_vram_dma_write(memory,byte,0x8000 | (dma->vram_dst & 0x1FFF));
+        gb_memory_vram_dma_write(memory,byte,0x8000 | (state->vram_dst & 0x1FFF));
 
-        if(++dma->vram_dst == 0x00){
+        if(++state->vram_dst == 0x00){
             break;
         }
     }
 
-    dma->vram_length = (dma->vram_length - 0x01) & 0x7F;
+    state->vram_length = (state->vram_length - 0x01) & 0x7F;
 
-    if((dma->vram_length == 0x7F) || !dma->vram_dst){
-        dma->vram_hblank_running = false;
+    if((state->vram_length == 0x7F) || !state->vram_dst){
+        state->vram_hblank_running = false;
     }
 }
 
 void gb_vram_general_dma(gb_dma_t* dma){
 
+    gb_dma_state_t* state = &dma->state;
     gb_t* gb = dma->gb;
     gb_memory_t* memory = &dma->gb->memory;
 
     gb_machine_cycle(gb);
 
-    uint16_t len = ((dma->vram_length & 0x7F) + 0x01) << 0x04;
+    uint16_t len = ((state->vram_length & 0x7F) + 0x01) << 0x04;
     
     while(len > 0){
 
-        if(gb->double_speed){
+        if(gb->state.double_speed){
             gb_machine_cycle(gb);
         }
         else{
             gb_half_machine_cycle(gb);
         }
         
-        uint8_t byte = gb_memory_vram_dma_read(memory,dma->vram_src++);
+        uint8_t byte = gb_memory_vram_dma_read(memory,state->vram_src++);
 
-        gb_memory_vram_dma_write(memory,byte,0x8000 | (dma->vram_dst & 0x1FFF));
+        gb_memory_vram_dma_write(memory,byte,0x8000 | (state->vram_dst & 0x1FFF));
 
         --len;
 
-        if(++dma->vram_dst == 0x00){
+        if(++state->vram_dst == 0x00){
             break;
         }
     }
 
-    dma->vram_length = ((len >> 0x04) - 0x01) & 0x7F;
+    state->vram_length = ((len >> 0x04) - 0x01) & 0x7F;
 }
 
 
 void gb_vram_dma_write_register(void* data,uint8_t value,uint16_t address){
     gb_dma_t* dma = (gb_dma_t*)data;
+    gb_dma_state_t* state = &dma->state;
 
     switch(address){
         //Src msb
         case 0xFF51:
-            dma->vram_src = (value << 0x08) | (dma->vram_src & 0xF0);
+            state->vram_src = (value << 0x08) | (state->vram_src & 0xF0);
             break;
         //Src lsb
         case 0xFF52:
-            dma->vram_src = (dma->vram_src & 0xFF00) | (value & 0xF0);
+            state->vram_src = (state->vram_src & 0xFF00) | (value & 0xF0);
             break;
         //Dst msb
         case 0xFF53:
-            dma->vram_dst = (value << 0x08) | (dma->vram_dst & 0xF0);
+            state->vram_dst = (value << 0x08) | (state->vram_dst & 0xF0);
             break;
         //Dst lsb
         case 0xFF54:
-            dma->vram_dst = (dma->vram_dst & 0xFF00) | (value & 0xF0);
+            state->vram_dst = (state->vram_dst & 0xFF00) | (value & 0xF0);
             break;
         //Control
         case 0xFF55:
-            dma->vram_length = value & 0x7F;
+            state->vram_length = value & 0x7F;
 
             //Hblank
             if(value & 0x80){
-                dma->vram_hblank_running = true;
+                state->vram_hblank_running = true;
 
-                if(dma->gb->ppu.status.mode == gb_ppu_hblank_mode){
+                if(dma->gb->ppu.state.status.mode == gb_ppu_hblank_mode){
                     gb_vram_hblank_dma(dma);
                 }
             }
             //General
             else{
-                if(dma->vram_hblank_running){
-                    dma->vram_hblank_running = false;
+                if(state->vram_hblank_running){
+                    state->vram_hblank_running = false;
                     return;
                 }
 
@@ -213,11 +219,12 @@ void gb_vram_dma_write_register(void* data,uint8_t value,uint16_t address){
 
 uint8_t gb_vram_dma_read_register(void* data,uint16_t address){
     gb_dma_t* dma = (gb_dma_t*)data;
-    
+    gb_dma_state_t* state = &dma->state;
+
     uint8_t value = 0xFF;
 
     if(address == 0xFF55){
-        value = (dma->vram_hblank_running ? 0x00 : 0x80) | (dma->vram_length & 0x7F);
+        value = (state->vram_hblank_running ? 0x00 : 0x80) | (state->vram_length & 0x7F);
     }
 
     return value;
@@ -231,58 +238,40 @@ void gb_dma_map(gb_dma_t* dma){
 
 
 void gb_dma_reset(gb_dma_t* dma){
-    dma->oam_state = gb_oam_dma_state_none;
+    gb_dma_state_t* state = &dma->state;
 
-    if(dma->gb->is_cgb){
-        dma->oam_src = 0x00;
+    state->oam_state = gb_oam_dma_state_none;
+
+    if(dma->gb->state.is_cgb){
+        state->oam_src = 0x00;
     }
     else{
-        dma->oam_src = 0xFF;
+        state->oam_src = 0xFF;
     }
     
-    dma->oam_hi_addr = 0x00;
-    dma->oam_counter = 0x00;
-    dma->oam_byte = 0x00;
+    state->oam_hi_addr = 0x00;
+    state->oam_counter = 0x00;
+    state->oam_byte = 0x00;
 
-    dma->vram_src = 0x00;
-    dma->vram_dst = 0x00;
-    dma->vram_length = 0x7F;
-    dma->vram_hblank_running = false;
-    dma->vram_hblank_pending = false;
+    state->vram_src = 0x00;
+    state->vram_dst = 0x00;
+    state->vram_length = 0x7F;
+    state->vram_hblank_running = false;
+    state->vram_hblank_pending = false;
 }
 
 void gb_dma_skip_boot(gb_dma_t* dma){
-    if(dma->gb->is_cgb){
-        dma->vram_src = 0xD430;
-        dma->vram_dst = 0x99D0;
+    if(dma->gb->state.is_cgb){
+        dma->state.vram_src = 0xD430;
+        dma->state.vram_dst = 0x99D0;
     }
 }
 
 
-void gb_dma_save_state(gb_dma_t* dma,gb_state_t* state){
-    gb_state_write(state,dma->oam_state);
-    gb_state_write(state,dma->oam_src);
-    gb_state_write(state,dma->oam_hi_addr);
-    gb_state_write(state,dma->oam_counter);
-    gb_state_write(state,dma->oam_byte);
-
-    gb_state_write(state,dma->vram_src);
-    gb_state_write(state,dma->vram_dst);
-    gb_state_write(state,dma->vram_length);
-    gb_state_write(state,dma->vram_hblank_running);
-    gb_state_write(state,dma->vram_hblank_pending);
+void gb_dma_save_state(gb_dma_t* dma,gb_snapshot_t* snapshot){
+    snapshot->dma = dma->state;
 }
 
-void gb_dma_load_state(gb_dma_t* dma,gb_state_t* state){
-    gb_state_read(state,dma->oam_state);
-    gb_state_read(state,dma->oam_src);
-    gb_state_read(state,dma->oam_hi_addr);
-    gb_state_read(state,dma->oam_counter);
-    gb_state_read(state,dma->oam_byte);
-
-    gb_state_read(state,dma->vram_src);
-    gb_state_read(state,dma->vram_dst);
-    gb_state_read(state,dma->vram_length);
-    gb_state_read(state,dma->vram_hblank_running);
-    gb_state_read(state,dma->vram_hblank_pending);
+void gb_dma_load_state(gb_dma_t* dma,gb_snapshot_t* snapshot){
+    dma->state = snapshot->dma;
 }

@@ -30,17 +30,17 @@ void tilemap_viewer_t::callback(void* data){
     tilemap_viewer_t* tilemap_viewer = (tilemap_viewer_t*)data;
     gb_t* gb = tilemap_viewer->gb;
 
-    tilemap_viewer->cgb_mode = gb->cgb_mode;
+    tilemap_viewer->cgb_mode = gb->state.cgb_mode;
     
-    tilemap_viewer->tiledata_area = gb->ppu.lcdc.tiledata_area;
+    tilemap_viewer->tiledata_area = gb->ppu.state.lcdc.tiledata_area;
     
-    tilemap_viewer->scx = gb->ppu.scx;
-    tilemap_viewer->scy = gb->ppu.scy;
+    tilemap_viewer->scx = gb->ppu.state.scx;
+    tilemap_viewer->scy = gb->ppu.state.scy;
 
     tilemap_viewer->bg_palette.update_data(&gb->palette);
-    tilemap_viewer->bg_palette.update_texture(gb->is_cgb,gb->cgb_mode);
+    tilemap_viewer->bg_palette.update_texture(gb->state.is_cgb,gb->state.cgb_mode);
 
-    memcpy(tilemap_viewer->vram,gb->ppu.vram,sizeof(tilemap_viewer->vram));
+    memcpy(tilemap_viewer->vram,gb->ppu.state.vram,sizeof(tilemap_viewer->vram));
 
     tilemap_viewer->update_tilemap_texture(0);
     tilemap_viewer->update_tilemap_texture(1);
@@ -85,7 +85,7 @@ void tilemap_viewer_t::update_tilemap_texture(uint8_t map_index){
 
                     uint8_t color_index = ((hi & bit) ? 0x02 : 0x00) | ((lo & bit) ? 0x01 : 0x00);
 
-                    if(gb->is_cgb){
+                    if(gb->state.is_cgb){
                         if(cgb_mode){
                             color = bg_palette.get_cgb_color(attribute & gb_tilemap_palette_mask,color_index);
                         }

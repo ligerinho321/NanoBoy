@@ -87,7 +87,7 @@ void gb_ring_buffer_free(gb_ring_buffer_t* ring_buffer){
 void gb_frame_timer_init(gb_frame_timer_t* frame_timer){
 #ifdef _WIN32
     if(!QueryPerformanceFrequency(&frame_timer->freq)){
-        printf("QueryPerformanceFrequency failed");
+        gb_printf_error("QueryPerformanceFrequency");
     }
 #else
     gb_unused(frame_timer);
@@ -280,4 +280,13 @@ uint32_t gb_crc32(const uint8_t* buffer,uint32_t len){
     }
 
 	return crc ^ 0xffffffffL;
+}
+
+
+size_t gb_align_up(size_t value,size_t alignment){
+    size_t remaining = value % alignment;
+    if(remaining){
+        value += alignment - remaining;
+    }
+    return value;
 }

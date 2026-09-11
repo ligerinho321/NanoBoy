@@ -85,11 +85,11 @@ void gb_boot_update_roms(gb_boot_t* boot){
 void gb_boot_map(gb_boot_t* boot){
     gb_memory_t* memory = &boot->gb->memory;
 
-    boot->mapped = true;
+    boot->state.mapped = true;
 
     gb_memory_map_in_range(memory,&boot->rom_descriptor,0x0000,0x00FF);
 
-    if(boot->gb->is_cgb){
+    if(boot->gb->state.is_cgb){
         gb_memory_map_in_range(memory,&boot->rom_descriptor,0x0200,0x08FF);
 
         boot->rom_descriptor.read = gb_boot_cgb_read_rom;
@@ -97,18 +97,19 @@ void gb_boot_map(gb_boot_t* boot){
     else{
         boot->rom_descriptor.read = gb_boot_dmg_read_rom;
     }
+
+    gb_memory_map(memory,&boot->bank_register_descriptor,0xFF50);
 }
 
 void gb_boot_unmap(gb_boot_t* boot){
     gb_memory_t* memory = &boot->gb->memory;
 
-    boot->mapped = false;
+    boot->state.mapped = false;
 
     gb_memory_map_in_range(memory,&boot->gb->cartridge.rom0_descriptor,0x0000,0x00FF);
-    
-    if(boot->gb->is_cgb){
-        gb_memory_map_in_range(memory,&boot->gb->cartridge.rom0_descriptor,0x0200,0x08FF);
-    }
+    gb_memory_map_in_range(memory,&boot->gb->cartridge.rom0_descriptor,0x0200,0x08FF);
+
+    gb_memory_unmap(memory,0xFF50);
 }
 
 
@@ -128,7 +129,7 @@ uint8_t gb_boot_read_bank_register(void* data,uint16_t address){
 
     gb_boot_t* boot = (gb_boot_t*)data;
 
-    return 0xFE | !boot->mapped;
+    return 0xFE | !boot->state.mapped;
 }
 
 
@@ -140,4 +141,20 @@ uint8_t gb_boot_dmg_read_rom(void* data,uint16_t address){
 uint8_t gb_boot_cgb_read_rom(void* data,uint16_t address){
     gb_boot_t* boot = (gb_boot_t*)data;
     return boot->cgb_rom[address];
+}
+
+
+void gb_boot_save_state(gb_boot_t* boot,gb_snapshot_t* snapshot){
+    snapshot->boot = boot->state;
+}
+
+void gb_boot_load_state(gb_boot_t* boot,gb_snapshot_t* snapshot){
+    boot->state = snapshot->boot;
+
+    if(boot->state.mapped){
+        gb_boot_map(boot);
+    }
+    else{
+        gb_boot_unmap(boot);
+    }
 }

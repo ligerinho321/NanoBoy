@@ -16,22 +16,24 @@ void gb_timer_init(gb_timer_t* timer,gb_t* gb){
 
 void gb_timer_schedule_next_event(gb_timer_t* timer){
 
-    timer->last_schedule_event = timer->gb->cycle;
+    gb_timer_state_t *state = &timer->state;
 
-    timer->next_schedule_event = timer->gb->cycle;
+    state->last_schedule_event = timer->gb->state.cycle;
 
-    if(timer->tima_reload_request){
-        timer->next_schedule_event += 4;    
+    state->next_schedule_event = timer->gb->state.cycle;
+
+    if(state->tima_reload_request){
+        state->next_schedule_event += 4;    
     }
     else{
         uint16_t tima_cycles = (uint16_t)-1;
         uint16_t frame_sequencer_cycles = (uint16_t)-1;
 
-        if(timer->enabled){
+        if(state->enabled){
 
-            uint16_t tima_half_period = div_bit[timer->clock_select];
+            uint16_t tima_half_period = div_bit[state->clock_select];
             uint16_t tima_period = tima_half_period << 0x01;
-            uint16_t tima_mod = timer->div % tima_period;
+            uint16_t tima_mod = state->div % tima_period;
             
             if(tima_mod < tima_half_period){
                 tima_cycles = tima_half_period - tima_mod;
@@ -41,9 +43,9 @@ void gb_timer_schedule_next_event(gb_timer_t* timer){
             }
         }
         
-        uint16_t frame_sequencer_half_period = timer->gb->double_speed ? 0x2000 : 0x1000;
-        uint16_t frame_sequencer_period = timer->gb->double_speed ? 0x4000 : 0x2000;
-        uint16_t frame_sequencer_mod = timer->div % frame_sequencer_period;
+        uint16_t frame_sequencer_half_period = timer->gb->state.double_speed ? 0x2000 : 0x1000;
+        uint16_t frame_sequencer_period = timer->gb->state.double_speed ? 0x4000 : 0x2000;
+        uint16_t frame_sequencer_mod = state->div % frame_sequencer_period;
 
         if(frame_sequencer_mod < frame_sequencer_half_period){
             frame_sequencer_cycles = frame_sequencer_half_period - frame_sequencer_mod;
@@ -52,57 +54,65 @@ void gb_timer_schedule_next_event(gb_timer_t* timer){
             frame_sequencer_cycles = frame_sequencer_period - frame_sequencer_mod;
         }
 
-        timer->next_schedule_event += gb_min(tima_cycles,frame_sequencer_cycles);
+        state->next_schedule_event += gb_min(tima_cycles,frame_sequencer_cycles);
     }
 }
 
 
 void gb_timer_set_div(gb_timer_t* timer,uint16_t new_div){
 
-    uint16_t timer_div_bit = div_bit[timer->clock_select];
+    gb_timer_state_t* state = &timer->state;
 
-    if(timer->enabled && (timer->div & timer_div_bit) && !(new_div & timer_div_bit)){
-        if(++timer->tima == 0x00){
-            timer->tima_reload_request = true;
+    uint16_t timer_div_bit = div_bit[state->clock_select];
+
+    if(state->enabled && (state->div & timer_div_bit) && !(new_div & timer_div_bit)){
+        if(++state->tima == 0x00){
+            state->tima_reload_request = true;
         }
     }
 
-    uint16_t apu_div_bit = timer->gb->double_speed ? 0x2000 : 0x1000;
+    uint16_t apu_div_bit = timer->gb->state.double_speed ? 0x2000 : 0x1000;
 
-    if((timer->div & apu_div_bit) && !(new_div & apu_div_bit)){
+    if((state->div & apu_div_bit) && !(new_div & apu_div_bit)){
         gb_apu_frame_sequencer_clock(&timer->gb->apu);
     }
 
-    timer->div = new_div;
+    state->div = new_div;
 }
 
 
 static inline void gb_timer_tima_reload(gb_timer_t* timer){
-    timer->tima_reload_request = false;
-    timer->tima_reloaded = true;
-    timer->tima = timer->tma;
-    timer->gb->interrupt.flag |= gb_interrupt_timer_flag;
+    gb_timer_state_t* state = &timer->state;
+
+    state->tima_reload_request = false;
+    state->tima_reloaded = true;
+    state->tima = state->tma;
+
+    timer->gb->interrupt.state.flag |= gb_interrupt_timer_flag;
 }
 
 
 void gb_timer_update(gb_timer_t* timer){
 
-    uint64_t cycles = timer->gb->cycle - timer->last_schedule_event;
+    gb_timer_state_t* state = &timer->state;
+
+    uint64_t cycles = timer->gb->state.cycle - state->last_schedule_event;
 
     if(!cycles) return;
 
-    timer->tima_reloaded = false;
+    state->tima_reloaded = false;
 
-    if(timer->tima_reload_request){
+    if(state->tima_reload_request){
         gb_timer_tima_reload(timer);
     }
 
-    gb_timer_set_div(timer,timer->div + cycles);
+    gb_timer_set_div(timer,state->div + cycles);
 }
 
 
 void gb_timer_write_register(void* data,uint8_t value,uint16_t address){
     gb_timer_t* timer = (gb_timer_t*)data;
+    gb_timer_state_t* state = &timer->state;
 
     gb_timer_update(timer);
 
@@ -114,33 +124,33 @@ void gb_timer_write_register(void* data,uint8_t value,uint16_t address){
         }
         //TIMA
         case 0xFF05:{
-            timer->tima_reload_request = false;
-            if(!timer->tima_reloaded){
-                timer->tima = value;
+            state->tima_reload_request = false;
+            if(!state->tima_reloaded){
+                state->tima = value;
             }
             break;
         }
         //TMA
         case 0xFF06:{
-            timer->tma = value;
-            if(timer->tima_reloaded){
-                timer->tima = value;
+            state->tma = value;
+            if(state->tima_reloaded){
+                state->tima = value;
             }
             break;
         }
         //TAC
         case 0xFF07:{
-            uint16_t old_div_bit = div_bit[timer->clock_select];
-            bool old_enabled = timer->enabled;
+            uint16_t old_div_bit = div_bit[state->clock_select];
+            bool old_enabled = state->enabled;
 
-            timer->clock_select = value & 0x03;
-            timer->enabled = value & 0x04;
+            state->clock_select = value & 0x03;
+            state->enabled = value & 0x04;
 
-            uint16_t new_div_bit = div_bit[timer->clock_select];
-            bool new_enabled = timer->enabled;
+            uint16_t new_div_bit = div_bit[state->clock_select];
+            bool new_enabled = state->enabled;
 
-            if((old_enabled && (timer->div & old_div_bit)) && !(new_enabled && (timer->div & new_div_bit))){
-                if(++timer->tima == 0x00){
+            if((old_enabled && (state->div & old_div_bit)) && !(new_enabled && (state->div & new_div_bit))){
+                if(++state->tima == 0x00){
                     gb_timer_tima_reload(timer);
                 }
             }
@@ -154,6 +164,7 @@ void gb_timer_write_register(void* data,uint8_t value,uint16_t address){
 
 uint8_t gb_timer_read_register(void* data,uint16_t address){
     gb_timer_t* timer = (gb_timer_t*)data;
+    gb_timer_state_t* state = &timer->state;
 
     gb_timer_update(timer);
 
@@ -161,13 +172,13 @@ uint8_t gb_timer_read_register(void* data,uint16_t address){
 
     switch(address){
         //DIV
-        case 0xFF04: value = timer->div >> 0x08; break;
+        case 0xFF04: value = state->div >> 0x08; break;
         //TIMA
-        case 0xFF05: value = timer->tima; break;
+        case 0xFF05: value = state->tima; break;
         //TMA
-        case 0xFF06: value = timer->tma; break;
+        case 0xFF06: value = state->tma; break;
         //TAC
-        case 0xFF07: value = 0xF8 | (timer->enabled ? 0x04 : 0x00) | (timer->clock_select & 0x03); break;
+        case 0xFF07: value = 0xF8 | (state->enabled ? 0x04 : 0x00) | state->clock_select; break;
     }
 
     gb_timer_schedule_next_event(timer);
@@ -182,63 +193,34 @@ void gb_timer_map_registers(gb_timer_t* timer){
 
 
 void gb_timer_reset(gb_timer_t* timer){
-    timer->div = 0x00;
-    timer->tima = 0x00;
-    timer->tma = 0x00;
-    timer->clock_select = 0x00;
-    timer->enabled = false;
-    timer->tima_reload_request = false;
-    timer->tima_reloaded = false;
-
+    memset(&timer->state,0x00,sizeof(timer->state));
+    
     gb_timer_schedule_next_event(timer);
 }
 
 void gb_timer_skip_boot(gb_timer_t* timer){
-    if(timer->gb->is_cgb){
+    if(timer->gb->state.is_cgb){
         
-        if(timer->gb->cgb_mode){
+        if(timer->gb->state.cgb_mode){
             //Value based on the Shantae ROM
-            timer->div = 0x1CA0;
+            timer->state.div = 0x1CA0;
         }
         else{
             //Value based on the Pokemon Red ROM
-            timer->div = 0x2C00;
+            timer->state.div = 0x2C00;
         }
     }
     else{
-        timer->div = 0xABC4;
+        timer->state.div = 0xABC4;
     }
 
     gb_timer_schedule_next_event(timer);
 }
 
-
-void gb_timer_save_state(gb_timer_t* timer,gb_state_t* state){
-    gb_state_write(state,timer->div);
-    gb_state_write(state,timer->tima);
-    gb_state_write(state,timer->tma);
-    
-    gb_state_write(state,timer->clock_select);
-    gb_state_write(state,timer->enabled);
-
-    gb_state_write(state,timer->tima_reload_request);
-    gb_state_write(state,timer->tima_reloaded);
-    
-    gb_state_write(state,timer->last_schedule_event);
-    gb_state_write(state,timer->next_schedule_event);
+void gb_timer_save_state(gb_timer_t* timer,gb_snapshot_t* snapshot){
+    snapshot->timer = timer->state;
 }
 
-void gb_timer_load_state(gb_timer_t* timer,gb_state_t* state){
-    gb_state_read(state,timer->div);
-    gb_state_read(state,timer->tima);
-    gb_state_read(state,timer->tma);
-
-    gb_state_read(state,timer->clock_select);
-    gb_state_read(state,timer->enabled);
-
-    gb_state_read(state,timer->tima_reload_request);
-    gb_state_read(state,timer->tima_reloaded);
-
-    gb_state_read(state,timer->last_schedule_event);
-    gb_state_read(state,timer->next_schedule_event);
+void gb_timer_load_state(gb_timer_t* timer,gb_snapshot_t* snapshot){
+    timer->state = snapshot->timer;
 }

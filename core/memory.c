@@ -75,7 +75,7 @@ void gb_memory_remove_cheat_code(gb_t* gb,gb_cheat_code_t* code){
 void gb_memory_cpu_write(gb_memory_t* memory,uint8_t value,uint16_t address){
     gb_memory_descriptor_t* descriptor = memory->bus[address];
 
-    if(memory->gb->dma.oam_state != gb_oam_dma_state_transfer || !gb_oam_dma_bus_conflict(&memory->gb->dma,address)){
+    if(memory->gb->dma.state.oam_state != gb_oam_dma_state_transfer || !gb_oam_dma_bus_conflict(&memory->gb->dma,address)){
         
         descriptor->write(descriptor->data,value,address);
 
@@ -90,7 +90,7 @@ uint8_t gb_memory_cpu_read(gb_memory_t* memory,uint16_t address){
     
     uint8_t value = 0xFF;
 
-    if(memory->gb->dma.oam_state != gb_oam_dma_state_transfer || !gb_oam_dma_bus_conflict(&memory->gb->dma,address)){
+    if(memory->gb->dma.state.oam_state != gb_oam_dma_state_transfer || !gb_oam_dma_bus_conflict(&memory->gb->dma,address)){
         
         value = descriptor->read(descriptor->data,address);
 
@@ -101,7 +101,7 @@ uint8_t gb_memory_cpu_read(gb_memory_t* memory,uint16_t address){
         }
     }
     else{
-        value = memory->gb->dma.oam_byte;
+        value = memory->gb->dma.state.oam_byte;
     }
 
     return value;
@@ -155,12 +155,12 @@ uint8_t gb_memory_vram_dma_read(gb_memory_t* memory,uint16_t address){
 
 void gb_memory_write_wram0(void* data,uint8_t value,uint16_t address){
     gb_memory_t* memory = (gb_memory_t*)data;
-    memory->wram[address & 0x0FFF] = value;
+    memory->state.wram[address & 0x0FFF] = value;
 }
 
 uint8_t gb_memory_read_wram0(void* data,uint16_t address){
     gb_memory_t* memory = (gb_memory_t*)data;
-    return memory->wram[address & 0x0FFF];
+    return memory->state.wram[address & 0x0FFF];
 }
 
 void gb_memory_write_wram1(void* data,uint8_t value,uint16_t address){
@@ -186,19 +186,19 @@ size_t gb_memory_wram_absolute_address(gb_memory_t* memory,uint16_t relative_add
         return relative_address & 0x0FFF;
     }
     else{
-        return ((memory->wram_bank ? memory->wram_bank : 0x01) << 0x0C) | (relative_address & 0x0FFF);
+        return ((memory->state.wram_bank ? memory->state.wram_bank : 0x01) << 0x0C) | (relative_address & 0x0FFF);
     }
 }
 
 
 void gb_memory_write_hram(void* data,uint8_t value,uint16_t address){
     gb_memory_t* memory = (gb_memory_t*)data;
-    memory->hram[address & 0x7F] = value;
+    memory->state.hram[address & 0x7F] = value;
 }
 
 uint8_t gb_memory_read_hram(void* data,uint16_t address){
     gb_memory_t* memory = (gb_memory_t*)data;
-    return memory->hram[address & 0x7F];
+    return memory->state.hram[address & 0x7F];
 }
 
 void gb_memory_map_hram(gb_memory_t* memory){
@@ -212,7 +212,7 @@ size_t gb_memory_hram_absolute_address(gb_memory_t* memory,uint16_t relative_add
 
 
 #define gb_memory_update_wram_bank_ptr(memory)\
-    (memory)->wram_bank_ptr = (memory)->wram + (((memory)->wram_bank ? (memory)->wram_bank : 0x01) << 0x0C);
+    (memory)->wram_bank_ptr = (memory)->state.wram + (((memory)->state.wram_bank ? (memory)->state.wram_bank : 0x01) << 0x0C);
 
 
 void gb_memory_write_wbk_register(void* data,uint8_t value,uint16_t address){
@@ -220,7 +220,7 @@ void gb_memory_write_wbk_register(void* data,uint8_t value,uint16_t address){
 
     gb_memory_t* memory = (gb_memory_t*)data;
 
-    memory->wram_bank = value & 0x07;
+    memory->state.wram_bank = value & 0x07;
 
     gb_memory_update_wram_bank_ptr(memory);
 }
@@ -230,31 +230,29 @@ uint8_t gb_memory_read_wbk_register(void* data,uint16_t address){
     
     gb_memory_t* memory = (gb_memory_t*)data;
 
-    return 0xF8 | (memory->wram_bank & 0x07);
+    return 0xF8 | (memory->state.wram_bank & 0x07);
 }
 
 
 void gb_memory_reset(gb_memory_t* memory){
-    
-    memset(memory->wram,0x00,sizeof(memory->wram));
-    memory->wram_bank = 0x00;
+
+    memset(&memory->state,0x00,sizeof(memory->state));
+
     gb_memory_update_wram_bank_ptr(memory);
 
-    memset(memory->hram,0x00,sizeof(memory->hram));
-
-    if(memory->gb->is_cgb){
-        memory->hram[0x7E] = 0xC0;
+    if(memory->gb->state.is_cgb){
+        memory->state.hram[0x7E] = 0xC0;
     }
     else{
-        memory->hram[0x7E] = 0x4C;
+        memory->state.hram[0x7E] = 0x4C;
     }
 }
 
 void gb_memory_skip_boot(gb_memory_t* memory){
 
-    if(memory->gb->is_cgb){
+    if(memory->gb->state.is_cgb){
         
-        if(memory->gb->cgb_mode){
+        if(memory->gb->state.cgb_mode){
 
             const uint8_t hram[127] = {
                 0xCE, 0xED, 0x66, 0x66, 0xCC, 0x0D, 0x00, 0x0B, 
@@ -275,7 +273,7 @@ void gb_memory_skip_boot(gb_memory_t* memory){
                 0x0D, 0x00, 0xD3, 0x05, 0xF9, 0x00, 0xC0,
             };
 
-            memcpy(memory->hram,hram,sizeof(memory->hram));
+            memcpy(memory->state.hram,hram,sizeof(memory->state.hram));
         }
         else{
             const uint8_t hram[127] = {
@@ -297,7 +295,7 @@ void gb_memory_skip_boot(gb_memory_t* memory){
                 0x0D, 0x00, 0xF5, 0x05, 0xF9, 0x00, 0xC0
             };
 
-            memcpy(memory->hram,hram,sizeof(memory->hram));
+            memcpy(memory->state.hram,hram,sizeof(memory->state.hram));
         }
     }
     else{
@@ -320,22 +318,17 @@ void gb_memory_skip_boot(gb_memory_t* memory){
             0x00, 0x00, 0x39, 0x01, 0x2E, 0x00, 0x4C,
         };
 
-        memcpy(memory->hram,hram,sizeof(memory->hram));
+        memcpy(memory->state.hram,hram,sizeof(memory->state.hram));
     }
 }
 
 
-void gb_memory_save_state(gb_memory_t* memory,gb_state_t* state){
-    gb_state_write_ex(state,memory->wram,sizeof(memory->wram));
-    gb_state_write(state,memory->wram_bank);
-
-    gb_state_write_ex(state,memory->hram,sizeof(memory->hram));
+void gb_memory_save_state(gb_memory_t* memory,gb_snapshot_t* snapshot){
+    snapshot->memory = memory->state;
 }
 
-void gb_memory_load_state(gb_memory_t* memory,gb_state_t* state){
-    gb_state_read_ex(state,memory->wram,sizeof(memory->wram));
-    gb_state_read(state,memory->wram_bank);
-    gb_memory_update_wram_bank_ptr(memory);
+void gb_memory_load_state(gb_memory_t* memory,gb_snapshot_t* snapshot){
+    memory->state = snapshot->memory;
 
-    gb_state_read_ex(state,memory->hram,sizeof(memory->hram));
+    gb_memory_update_wram_bank_ptr(memory);
 }

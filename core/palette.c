@@ -200,16 +200,16 @@ void gb_palette_cgb_dmg_colorization(gb_palette_t* palette){
     }
 
 
-    uint8_t* bgp_dst = palette->bg_cram;
-    uint8_t* obp0_dst = palette->obj_cram + 0;
-    uint8_t* obp1_dst = palette->obj_cram + 8;
+    uint8_t* bgp_dst = palette->state.bg_cram;
+    uint8_t* obp0_dst = palette->state.obj_cram + 0;
+    uint8_t* obp1_dst = palette->state.obj_cram + 8;
 
     for(int i = 0; i < 4; ++i){
 
         bgp_dst[0] = bgp_src[0];
         bgp_dst[1] = bgp_src[1];
         
-        palette->bg_cram_converted[i] = gb_palette_rgb555_to_rgb888((bgp_src[1] << 0x08) | bgp_src[0]);
+        palette->state.bg_cram_converted[i] = gb_palette_rgb555_to_rgb888((bgp_src[1] << 0x08) | bgp_src[0]);
         
         bgp_dst += 2;
         bgp_src += 2;
@@ -217,7 +217,7 @@ void gb_palette_cgb_dmg_colorization(gb_palette_t* palette){
         obp0_dst[0] = obp0_src[0];
         obp0_dst[1] = obp0_src[1];
         
-        palette->obj_cram_converted[0 + i] = gb_palette_rgb555_to_rgb888((obp0_src[1] << 0x08) | obp0_src[0]);
+        palette->state.obj_cram_converted[0 + i] = gb_palette_rgb555_to_rgb888((obp0_src[1] << 0x08) | obp0_src[0]);
         
         obp0_dst += 2;
         obp0_src += 2;
@@ -225,7 +225,7 @@ void gb_palette_cgb_dmg_colorization(gb_palette_t* palette){
         obp1_dst[0] = obp1_src[0];
         obp1_dst[1] = obp1_src[1];
         
-        palette->obj_cram_converted[4 + i] = gb_palette_rgb555_to_rgb888((obp1_src[1] << 0x08) | obp1_src[0]);
+        palette->state.obj_cram_converted[4 + i] = gb_palette_rgb555_to_rgb888((obp1_src[1] << 0x08) | obp1_src[0]);
         
         obp1_dst += 2;
         obp1_src += 2;
@@ -247,29 +247,31 @@ gb_rgb_t gb_palette_rgb555_to_rgb888(uint16_t color){
 
 void gb_palette_write_dmg_register(void* data,uint8_t value,uint16_t address){
     gb_palette_t* palette = (gb_palette_t*)data;
+    gb_palette_state_t* state = &palette->state;
 
     switch(address){
         //BGP
-        case 0xFF47: palette->bgp = value; break;
+        case 0xFF47: state->bgp = value; break;
         //OBP0
-        case 0xFF48: palette->obp[0] = value; break;
+        case 0xFF48: state->obp[0] = value; break;
         //OBP1
-        case 0xFF49: palette->obp[1] = value; break;
+        case 0xFF49: state->obp[1] = value; break;
     }
 }
 
 uint8_t gb_palette_read_dmg_register(void* data,uint16_t address){
     gb_palette_t* palette = (gb_palette_t*)data;
+    gb_palette_state_t* state = &palette->state;
 
     uint8_t value = 0xFF;
 
     switch(address){
         //BGP
-        case 0xFF47: value = palette->bgp; break;
+        case 0xFF47: value = state->bgp; break;
         //OBP0
-        case 0xFF48: value = palette->obp[0]; break;
+        case 0xFF48: value = state->obp[0]; break;
         //OBP1
-        case 0xFF49: value = palette->obp[1]; break;
+        case 0xFF49: value = state->obp[1]; break;
     }
 
     return value;
@@ -278,45 +280,46 @@ uint8_t gb_palette_read_dmg_register(void* data,uint16_t address){
 
 void gb_palette_write_cgb_register(void* data,uint8_t value,uint16_t address){
     gb_palette_t* palette = (gb_palette_t*)data;
+    gb_palette_state_t* state = &palette->state;
 
     switch(address){
         //BGPI
         case 0xFF68:{
-            palette->bgpi = value & 0xBF;
+            state->bgpi = value & 0xBF;
             break;
         }
         //BGPD
         case 0xFF69:{
-            uint8_t address = palette->bgpi & 0x3F;
+            uint8_t address = state->bgpi & 0x3F;
             
-            palette->bg_cram[address] = value;
+            state->bg_cram[address] = value;
 
-            uint16_t color = (palette->bg_cram[(address & 0x3E) | 0x01] << 0x08) | palette->bg_cram[address & 0x3E];
+            uint16_t color = (state->bg_cram[(address & 0x3E) | 0x01] << 0x08) | state->bg_cram[address & 0x3E];
 
-            palette->bg_cram_converted[address >> 0x01] = gb_palette_rgb555_to_rgb888(color);
+            state->bg_cram_converted[address >> 0x01] = gb_palette_rgb555_to_rgb888(color);
 
-            if(palette->bgpi & 0x80){
-                palette->bgpi = (palette->bgpi & 0x80) | ((address + 0x01) & 0x3F);
+            if(state->bgpi & 0x80){
+                state->bgpi = (state->bgpi & 0x80) | ((address + 0x01) & 0x3F);
             }
             break;
         }
         //OBPI
         case 0xFF6A:{
-            palette->obpi = value & 0xBF;
+            state->obpi = value & 0xBF;
             break;
         }
         //OBPD
         case 0xFF6B:{
-            uint8_t address = palette->obpi & 0x3F;
+            uint8_t address = state->obpi & 0x3F;
             
-            palette->obj_cram[address] = value;
+            state->obj_cram[address] = value;
 
-            uint16_t color = (palette->obj_cram[(address & 0x3E) | 0x01] << 0x08) | palette->obj_cram[address & 0x3E];
+            uint16_t color = (state->obj_cram[(address & 0x3E) | 0x01] << 0x08) | state->obj_cram[address & 0x3E];
 
-            palette->obj_cram_converted[address >> 0x01] = gb_palette_rgb555_to_rgb888(color);
+            state->obj_cram_converted[address >> 0x01] = gb_palette_rgb555_to_rgb888(color);
 
-            if(palette->obpi & 0x80){
-                palette->obpi = (palette->obpi & 0x80) | ((address + 0x01) & 0x3F);
+            if(state->obpi & 0x80){
+                state->obpi = (state->obpi & 0x80) | ((address + 0x01) & 0x3F);
             }
             break;
         }
@@ -325,18 +328,19 @@ void gb_palette_write_cgb_register(void* data,uint8_t value,uint16_t address){
 
 uint8_t gb_palette_read_cgb_register(void* data,uint16_t address){
     gb_palette_t* palette = (gb_palette_t*)data;
+    gb_palette_state_t* state = &palette->state;
 
     uint8_t value = 0xFF;
 
     switch(address){
         //BGPI
-        case 0xFF68: value = palette->bgpi | 0x40; break;
+        case 0xFF68: value = state->bgpi | 0x40; break;
         //BGPD
-        case 0xFF69: value = palette->bg_cram[palette->bgpi & 0x3F]; break;
+        case 0xFF69: value = state->bg_cram[state->bgpi & 0x3F]; break;
         //OBPI
-        case 0xFF6A: value = palette->obpi | 0x40; break;
+        case 0xFF6A: value = state->obpi | 0x40; break;
         //OBJD
-        case 0xFF6B: value = palette->obj_cram[palette->obpi & 0x3F]; break;
+        case 0xFF6B: value = state->obj_cram[state->obpi & 0x3F]; break;
     }
 
     return value;
@@ -350,69 +354,37 @@ void gb_palette_map(gb_palette_t* palette){
 
 
 void gb_palette_reset(gb_palette_t* palette){
-
-    palette->bgp = 0x00;
-    palette->obp[0] = 0x00;
-    palette->obp[1] = 0x00;
-
-    palette->bgpi = 0x00;
-    palette->obpi = 0x00;
-
-    memset(palette->bg_cram,0x00,sizeof(palette->bg_cram));
-    memset(palette->obj_cram,0x00,sizeof(palette->obj_cram));
-
-    memset(palette->bg_cram_converted,0x00,sizeof(palette->bg_cram_converted));
-    memset(palette->obj_cram_converted,0x00,sizeof(palette->obj_cram_converted));
+    memset(&palette->state,0x00,sizeof(palette->state));
 }
 
 void gb_palette_skip_boot(gb_palette_t* palette){
-    if(palette->gb->is_cgb){
+    if(palette->gb->state.is_cgb){
         
-        if(palette->gb->cgb_mode){
+        if(palette->gb->state.cgb_mode){
 
-            palette->bgpi = 0x80;
-            palette->obpi = 0x81;
+            palette->state.bgpi = 0x80;
+            palette->state.obpi = 0x81;
             
             for(int i = 0; i < gb_cgb_cram_length; ++i){
                 gb_palette_write_cgb_register(palette,(i & 0x01) ? 0x7F : 0xFF,0xFF69);
             }
         }
         else{
-            palette->bgpi = 0x88;
-            palette->obpi = 0x90;
+            palette->state.bgpi = 0x88;
+            palette->state.obpi = 0x90;
 
             gb_palette_cgb_dmg_colorization(palette);
         }
     }
 
-    palette->bgp = 0xFC;
+    palette->state.bgp = 0xFC;
 }
 
 
-void gb_palette_save_state(gb_palette_t* palette,gb_state_t* state){
-    gb_state_write(state,palette->bgp);
-    gb_state_write(state,palette->obp);
-    
-    gb_state_write(state,palette->bgpi);
-    gb_state_write(state,palette->obpi);
-
-    gb_state_write(state,palette->bg_cram);
-    gb_state_write(state,palette->obj_cram);
-
-    gb_state_write(state,palette->bg_cram_converted);
-    gb_state_write(state,palette->obj_cram_converted);
+void gb_palette_save_state(gb_palette_t* palette,gb_snapshot_t* snapshot){
+    snapshot->palette = palette->state;
 }
 
-void gb_palette_load_state(gb_palette_t* palette,gb_state_t* state){
-    gb_state_read(state,palette->bgp);
-    gb_state_read(state,palette->obp);
-    
-    gb_state_read(state,palette->bgpi);
-    gb_state_read(state,palette->obpi);
-
-    gb_state_read(state,palette->bg_cram);
-    gb_state_read(state,palette->obj_cram);
-
-    gb_state_read(state,palette->bg_cram_converted);
-    gb_state_read(state,palette->obj_cram_converted);
+void gb_palette_load_state(gb_palette_t* palette,gb_snapshot_t* snapshot){
+    palette->state = snapshot->palette;
 }

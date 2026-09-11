@@ -44,8 +44,8 @@ size_t gb_mmm01_ram_absolute_address(gb_cartridge_t* cartridge,uint16_t relative
 
 void gb_mmm01_reset(gb_cartridge_t* cartridge);
 
-void gb_mmm01_save_state(gb_cartridge_t* cartridge,gb_state_t* state);
-void gb_mmm01_load_state(gb_cartridge_t* cartridge,gb_state_t* state);
+void gb_mmm01_save_state(gb_cartridge_t* cartridge,gb_snapshot_t* snapshot);
+void gb_mmm01_load_state(gb_cartridge_t* cartridge,gb_snapshot_t* snapshot);
 
 #ifdef __cplusplus
 }

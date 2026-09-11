@@ -23,7 +23,7 @@ void gb_interrupt_write_flag_register(void* data,uint8_t value,uint16_t address)
 
     gb_interrupt_t* interrupt = (gb_interrupt_t*)data;
     
-    interrupt->flag = value & 0x1F;
+    interrupt->state.flag = value & 0x1F;
 }
 
 uint8_t gb_interrupt_read_flag_register(void* data,uint16_t address){
@@ -31,7 +31,7 @@ uint8_t gb_interrupt_read_flag_register(void* data,uint16_t address){
 
     gb_interrupt_t* interrupt = (gb_interrupt_t*)data;
     
-    return 0xE0 | (interrupt->flag & 0x1F);
+    return 0xE0 | (interrupt->state.flag & 0x1F);
 }
 
 
@@ -40,7 +40,7 @@ void gb_interrupt_write_enable_register(void* data,uint8_t value,uint16_t addres
 
     gb_interrupt_t* interrupt = (gb_interrupt_t*)data;
     
-    interrupt->enable = value;
+    interrupt->state.enable = value;
 }
 
 uint8_t gb_interrupt_read_enable_register(void* data,uint16_t address){
@@ -48,16 +48,19 @@ uint8_t gb_interrupt_read_enable_register(void* data,uint16_t address){
     
     gb_interrupt_t* interrupt = (gb_interrupt_t*)data;
 
-    return interrupt->enable;
+    return interrupt->state.enable;
 }
 
 
 uint8_t gb_interrupt_get_vector(gb_interrupt_t* interrupt){
+    
+    gb_interrupt_state_t* state = &interrupt->state;
+
     uint8_t vector = 0x00;
 
     for(uint8_t bit = gb_interrupt_vblank_flag; bit <= gb_interrupt_joypad_flag; bit <<= 0x01){
         
-        if(!(interrupt->enable & bit) || !(interrupt->flag & bit)) continue;
+        if(!(state->enable & bit) || !(state->flag & bit)) continue;
 
         switch(bit){
             case gb_interrupt_vblank_flag: vector = gb_interrupt_vblank_vector; break;
@@ -67,7 +70,7 @@ uint8_t gb_interrupt_get_vector(gb_interrupt_t* interrupt){
             case gb_interrupt_joypad_flag: vector = gb_interrupt_joypad_vector; break;
         }
 
-        interrupt->flag &= ~bit;
+        state->flag &= ~bit;
 
         break;
     }
@@ -84,21 +87,20 @@ void gb_interrupt_map_registers(gb_interrupt_t* interrupt){
 
 
 void gb_interrupt_reset(gb_interrupt_t* interrupt){
-    interrupt->enable = 0x00;
-    interrupt->flag = 0x00;
+    interrupt->state.enable = 0x00;
+    interrupt->state.flag = 0x00;
 }
 
 void gb_interrupt_skip_boot(gb_interrupt_t* interrupt){
-    interrupt->flag = 0x01;
+    interrupt->state.flag = 0x01;
 }
 
 
-void gb_interrupt_save_state(gb_interrupt_t* interrupt,gb_state_t* state){
-    gb_state_write(state,interrupt->enable);
-    gb_state_write(state,interrupt->flag);
+
+void gb_interrupt_save_state(gb_interrupt_t* interrupt,gb_snapshot_t* snapshot){
+    snapshot->interrupt = interrupt->state;
 }
 
-void gb_interrupt_load_state(gb_interrupt_t* interrupt,gb_state_t* state){
-    gb_state_read(state,interrupt->enable);
-    gb_state_read(state,interrupt->flag);
+void gb_interrupt_load_state(gb_interrupt_t* interrupt,gb_snapshot_t* snapshot){
+    interrupt->state = snapshot->interrupt;
 }

@@ -386,7 +386,7 @@ void event_viewer_t::update_event_list(){
     
     event_list.clear();
 
-    int current_cycle = gb->ppu.scanline * gb_scanline_cycles + gb->ppu.cycle;
+    int current_cycle = gb->ppu.state.scanline * gb_scanline_cycles + gb->ppu.state.cycle;
 
     const gb_event_frame_t* current_frame = gb_event_manager_current_frame(gb);
     push_frame_in_list(current_frame,0,current_cycle + 1);
@@ -462,8 +462,8 @@ void event_viewer_t::render_pc_marker(){
     ImVec2 rect_max = ImGui::GetItemRectMax();
 
     ImVec2 pos(
-        rect_min.x + (gb->ppu.cycle * scale),
-        rect_min.y + (gb->ppu.scanline * scale)
+        rect_min.x + (gb->ppu.state.cycle * scale),
+        rect_min.y + (gb->ppu.state.scanline * scale)
     );
 
     draw_list->AddRectFilled(ImVec2(rect_min.x,pos.y),ImVec2(rect_max.x,pos.y + scale),pc_crosshair_color);

@@ -46,18 +46,18 @@ private:
 
     bool open = false;
 
-    void save_slot(int index);
-    void load_slot(int index);
-    void delete_slot(int index);
-
-    void update_slots();
-
 public:
     savestate_t(nanoboy_t* nanoboy);
 
     void load(std::filesystem::path path,std::string rom_name);
     void unload();
 
+    void save_slot(int index);
+    void load_slot(int index);
+    void delete_slot(int index);
+
+    void update_slots();
+    
     void event(SDL_Event& event);
 
     void render_menu_bar();

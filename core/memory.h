@@ -2,17 +2,24 @@
 
 #include "utils.h"
 
+typedef struct _gb_memory_state_t {
+    uint8_t wram[gb_wram_length];
+    uint8_t wram_bank;
+
+    uint8_t hram[gb_hram_length];
+} gb_memory_state_t;
+
 typedef struct _gb_memory_t {
     gb_t *gb;
 
-    uint8_t wram[gb_wram_length];
+    gb_memory_state_t state;
+    
     uint8_t* wram_bank_ptr;
-    uint8_t wram_bank;
+
     gb_memory_descriptor_t wram0_descriptor;
     gb_memory_descriptor_t wram1_descriptor;
     gb_memory_descriptor_t wbk_register_descriptor;
         
-    uint8_t hram[gb_hram_length];
     gb_memory_descriptor_t hram_descriptor;
 
     gb_memory_descriptor_t empty_descriptor;
@@ -76,8 +83,8 @@ uint8_t gb_memory_read_wbk_register(void* data,uint16_t address);
 void gb_memory_reset(gb_memory_t* memory);
 void gb_memory_skip_boot(gb_memory_t* memory);
 
-void gb_memory_save_state(gb_memory_t* memory,gb_state_t* state);
-void gb_memory_load_state(gb_memory_t* memory,gb_state_t* state);
+void gb_memory_save_state(gb_memory_t* memory,gb_snapshot_t* snapshot);
+void gb_memory_load_state(gb_memory_t* memory,gb_snapshot_t* snapshot);
 
 #ifdef __cplusplus
 }

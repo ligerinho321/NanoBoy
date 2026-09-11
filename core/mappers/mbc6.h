@@ -27,17 +27,7 @@ typedef enum _gb_mbc6_flash_command_t {
     gb_mbc6_flash_erase_flash_sector_command = 0x30
 } gb_mbc6_flash_command_t;
 
-typedef struct _gb_mbc6_t {
-    uint8_t* rom_or_flash_0_ptr;
-    uint8_t* rom_or_flash_1_ptr;
-
-    uint8_t* ram_0_ptr;
-    uint8_t* ram_1_ptr;
-    
-    uint16_t rom_bank_mask;
-    uint8_t ram_bank_mask;
-    uint16_t ram_address_mask;
-
+typedef struct _gb_mbc6_state_t {
     bool ram_enabled;
     
     bool flash_enabled;
@@ -64,6 +54,20 @@ typedef struct _gb_mbc6_t {
 
     uint8_t flash_buffer[gb_mbc6_flash_buffer_size];
     uint8_t flash_buffer_last_write_address;
+} gb_mbc6_state_t;
+
+typedef struct _gb_mbc6_t {
+    uint8_t* rom_or_flash_0_ptr;
+    uint8_t* rom_or_flash_1_ptr;
+
+    uint8_t* ram_0_ptr;
+    uint8_t* ram_1_ptr;
+    
+    uint16_t rom_bank_mask;
+    uint8_t ram_bank_mask;
+    uint16_t ram_address_mask;
+
+    gb_mbc6_state_t state;
 } gb_mbc6_t;
 
 #ifdef __cplusplus
@@ -85,8 +89,8 @@ size_t gb_mbc6_ram_absolute_address(gb_cartridge_t* cartridge,uint16_t relative_
 
 void gb_mbc6_reset(gb_cartridge_t* cartridge);
 
-void gb_mbc6_save_state(gb_cartridge_t* cartridge,gb_state_t* state);
-void gb_mbc6_load_state(gb_cartridge_t* cartridge,gb_state_t* state);
+void gb_mbc6_save_state(gb_cartridge_t* cartridge,gb_snapshot_t* snapshot);
+void gb_mbc6_load_state(gb_cartridge_t* cartridge,gb_snapshot_t* snapshot);
 
 #ifdef __cplusplus
 }

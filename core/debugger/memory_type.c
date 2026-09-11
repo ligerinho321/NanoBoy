@@ -14,7 +14,7 @@ const char* gb_memory_type_names[7] = {
 uint8_t gb_memory_type(gb_t* gb,uint16_t address){
     //$0000-$7FFF
     if(address < 0x8000){
-        if(!gb->boot.mapped){
+        if(!gb->boot.state.mapped){
             return gb_memory_rom_type;
         }
         else{
@@ -27,7 +27,7 @@ uint8_t gb_memory_type(gb_t* gb,uint16_t address){
                 return gb_memory_rom_type;
             }
             //$0200-$08FF
-            else if(gb->is_cgb && address < 0x0900){
+            else if(gb->state.is_cgb && address < 0x0900){
                 return -1;
             }
             else{
@@ -144,7 +144,7 @@ void gb_memory_type_write_byte(gb_t* gb,uint8_t memory_type,uint8_t value,size_t
             break;
         }
         case gb_memory_vram_type:{
-            gb->ppu.vram[address % gb_vram_length] = value;
+            gb->ppu.state.vram[address % gb_vram_length] = value;
             break;
         }
         case gb_memory_ram_type:{
@@ -152,15 +152,15 @@ void gb_memory_type_write_byte(gb_t* gb,uint8_t memory_type,uint8_t value,size_t
             break;
         }
         case gb_memory_wram_type:{
-            gb->memory.wram[address % gb_wram_length] = value;
+            gb->memory.state.wram[address % gb_wram_length] = value;
             break;
         }
         case gb_memory_oam_type:{
-            gb->ppu.oam[address % gb_oam_length] = value;
+            gb->ppu.state.oam[address % gb_oam_length] = value;
             break;
         }
         case gb_memory_hram_type:{
-            gb->memory.hram[address % gb_hram_length] = value;
+            gb->memory.state.hram[address % gb_hram_length] = value;
             break;
         }
     }
@@ -179,7 +179,7 @@ uint8_t gb_memory_type_read_byte(gb_t* gb,uint8_t memory_type,size_t address){
             break;
         }
         case gb_memory_vram_type:{
-            byte = gb->ppu.vram[address % gb_vram_length];
+            byte = gb->ppu.state.vram[address % gb_vram_length];
             break;
         }
         case gb_memory_ram_type:{
@@ -187,15 +187,15 @@ uint8_t gb_memory_type_read_byte(gb_t* gb,uint8_t memory_type,size_t address){
             break;
         }
         case gb_memory_wram_type:{
-            byte = gb->memory.wram[address % gb_wram_length];
+            byte = gb->memory.state.wram[address % gb_wram_length];
             break;
         }
         case gb_memory_oam_type:{
-            byte = gb->ppu.oam[address % gb_oam_length];
+            byte = gb->ppu.state.oam[address % gb_oam_length];
             break;
         }
         case gb_memory_hram_type:{
-            byte = gb->memory.hram[address % gb_hram_length];
+            byte = gb->memory.state.hram[address % gb_hram_length];
             break;
         }
     }
@@ -217,7 +217,7 @@ void gb_memory_type_write(gb_t* gb,uint8_t memory_type,size_t address,uint8_t* s
             break;
         }
         case gb_memory_vram_type:{
-            uint8_t* vram = gb->ppu.vram;
+            uint8_t* vram = gb->ppu.state.vram;
             while(len--) vram[address++ % gb_vram_length] = *src++;
             break;
         }
@@ -227,17 +227,17 @@ void gb_memory_type_write(gb_t* gb,uint8_t memory_type,size_t address,uint8_t* s
             break;
         }
         case gb_memory_wram_type:{
-            uint8_t* wram = gb->memory.wram;
+            uint8_t* wram = gb->memory.state.wram;
             while(len--) wram[address++ % gb_wram_length] = *src++;
             break;
         }
         case gb_memory_oam_type:{
-            uint8_t* oam = gb->ppu.oam;
+            uint8_t* oam = gb->ppu.state.oam;
             while(len--) oam[address++ % gb_oam_length] = *src++;
             break;
         }
         case gb_memory_hram_type:{
-            uint8_t* hram = gb->memory.hram;
+            uint8_t* hram = gb->memory.state.hram;
             while(len--) hram[address++ % gb_hram_length] = *src++;
             break;
         }
@@ -257,7 +257,7 @@ void gb_memory_type_read(gb_t* gb,uint8_t memory_type,size_t address,uint8_t* ds
             break;
         }
         case gb_memory_vram_type:{
-            uint8_t* vram = gb->ppu.vram;
+            uint8_t* vram = gb->ppu.state.vram;
             while(len--) *dst++ = vram[address++ % gb_vram_length];
             break;
         }
@@ -267,17 +267,17 @@ void gb_memory_type_read(gb_t* gb,uint8_t memory_type,size_t address,uint8_t* ds
             break;
         }
         case gb_memory_wram_type:{
-            uint8_t* wram = gb->memory.wram;
+            uint8_t* wram = gb->memory.state.wram;
             while(len--) *dst++ = wram[address++ % gb_wram_length];
             break;
         }
         case gb_memory_oam_type:{
-            uint8_t* oam = gb->ppu.oam;
+            uint8_t* oam = gb->ppu.state.oam;
             while(len--) *dst++ = oam[address++ % gb_oam_length];
             break;
         }
         case gb_memory_hram_type:{
-            uint8_t* hram = gb->memory.hram;
+            uint8_t* hram = gb->memory.state.hram;
             while(len--) *dst++ = hram[address++ % gb_hram_length];
             break;
         }
@@ -338,7 +338,7 @@ void gb_memory_type_export(gb_t* gb,uint8_t memory_type,const char* filename){
             break;
         }
         case gb_memory_vram_type:{
-            gb_save_file(filename,gb->ppu.vram,gb_vram_length);
+            gb_save_file(filename,gb->ppu.state.vram,gb_vram_length);
             break;
         }
         case gb_memory_ram_type:{
@@ -346,15 +346,15 @@ void gb_memory_type_export(gb_t* gb,uint8_t memory_type,const char* filename){
             break;
         }
         case gb_memory_wram_type:{
-            gb_save_file(filename,gb->memory.wram,gb_wram_length);
+            gb_save_file(filename,gb->memory.state.wram,gb_wram_length);
             break;
         }
         case gb_memory_oam_type:{
-            gb_save_file(filename,gb->ppu.oam,gb_oam_length);
+            gb_save_file(filename,gb->ppu.state.oam,gb_oam_length);
             break;
         }
         case gb_memory_hram_type:{
-            gb_save_file(filename,gb->memory.hram,gb_hram_length);
+            gb_save_file(filename,gb->memory.state.hram,gb_hram_length);
             break;
         }
     }

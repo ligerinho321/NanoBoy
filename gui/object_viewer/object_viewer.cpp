@@ -41,14 +41,14 @@ void object_viewer_t::callback(void* data){
     object_viewer_t* object_viewer = (object_viewer_t*)data;
     gb_t* gb = object_viewer->gb;
 
-    object_viewer->cgb_mode = gb->cgb_mode;
+    object_viewer->cgb_mode = gb->state.cgb_mode;
 
-    object_viewer->object_size = gb->ppu.lcdc.object_size;
+    object_viewer->object_size = gb->ppu.state.lcdc.object_size;
     
     object_viewer->object_texture_uv1.y = object_viewer->object_size ? 1.0f : 0.5f;
 
     object_viewer->obj_palette.update_data(&gb->palette);
-    object_viewer->obj_palette.update_texture(gb->is_cgb,gb->cgb_mode);
+    object_viewer->obj_palette.update_texture(gb->state.is_cgb,gb->state.cgb_mode);
 
     object_viewer->update_objects();
 }
@@ -135,7 +135,7 @@ void object_viewer_t::update_object_texture(object_t& object){
 
     SDL_LockTexture(object.texture,nullptr,(void**)&pixels,&pitch);
 
-    uint8_t* vram = gb->ppu.vram;
+    uint8_t* vram = gb->ppu.state.vram;
 
     for(uint8_t y = 0; y < object_height; ++y){
 
@@ -150,7 +150,7 @@ void object_viewer_t::update_object_texture(object_t& object){
 
             uint8_t color_index = ((hi & bit) ? 0x02 : 0x00) | ((lo & bit) ? 0x01 : 0x00);
 
-            if(gb->is_cgb){
+            if(gb->state.is_cgb){
                 if(cgb_mode){
                     color = obj_palette.get_cgb_color(object.palette_index,color_index);
                 }
@@ -174,7 +174,7 @@ void object_viewer_t::update_object_texture(object_t& object){
 }
 
 void object_viewer_t::update_objects(){
-    gb_object_t* oam_entry = (gb_object_t*)gb->ppu.oam;
+    gb_object_t* oam_entry = (gb_object_t*)gb->ppu.state.oam;
 
     for(auto& object : objects){
 
@@ -198,7 +198,7 @@ void object_viewer_t::update_objects(){
     }
 
     //DMG priority mode
-    if(gb->obj_priority_mode){
+    if(gb->state.obj_priority_mode){
         std::sort(objects_sorted.begin(),objects_sorted.end(),[](object_t* a,object_t* b)->bool{
             if(a->x != b->x){
                 return a->x > b->x;

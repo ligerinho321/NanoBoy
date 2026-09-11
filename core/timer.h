@@ -2,21 +2,25 @@
 
 #include "utils.h"
 
-typedef struct _gb_timer_t {
-    gb_t* gb;
-
+typedef struct _gb_timer_state_t {
     uint16_t div;
     uint8_t tima;
     uint8_t tma;
 
-    uint8_t clock_select;
-    bool enabled;
+    uint8_t clock_select : 2;
+    bool enabled : 1;
 
-    bool tima_reload_request;
-    bool tima_reloaded;
+    bool tima_reload_request : 1;
+    bool tima_reloaded : 1;
     
     uint64_t last_schedule_event;
     uint64_t next_schedule_event;
+} gb_timer_state_t;
+
+typedef struct _gb_timer_t {
+    gb_t* gb;
+
+    gb_timer_state_t state;
 
     gb_memory_descriptor_t register_descriptor;
 } gb_timer_t;
@@ -42,8 +46,8 @@ void gb_timer_map_registers(gb_timer_t* timer);
 void gb_timer_reset(gb_timer_t* timer);
 void gb_timer_skip_boot(gb_timer_t* timer);
 
-void gb_timer_save_state(gb_timer_t* timer,gb_state_t* state);
-void gb_timer_load_state(gb_timer_t* timer,gb_state_t* state);
+void gb_timer_save_state(gb_timer_t* timer,gb_snapshot_t* snapshot);
+void gb_timer_load_state(gb_timer_t* timer,gb_snapshot_t* snapshot);
 
 #ifdef __cplusplus
 }

@@ -9,9 +9,7 @@ typedef enum _gb_oam_dma_state_t {
     gb_oam_dma_state_transfer
 } gb_oam_dma_state_t;
 
-typedef struct _gb_dma_t {
-    gb_t* gb;
-
+typedef struct _gb_dma_state_t {
     uint8_t oam_state;
     uint8_t oam_src;
     uint16_t oam_hi_addr;
@@ -23,7 +21,13 @@ typedef struct _gb_dma_t {
     uint8_t vram_length;
     bool vram_hblank_running;
     bool vram_hblank_pending;
+} gb_dma_state_t;
 
+typedef struct _gb_dma_t {
+    gb_t* gb;
+
+    gb_dma_state_t state;
+    
     gb_memory_descriptor_t oam_register_descriptor;
     gb_memory_descriptor_t vram_register_descriptor;
 } gb_dma_t;
@@ -52,8 +56,8 @@ void gb_dma_map(gb_dma_t* dma);
 void gb_dma_reset(gb_dma_t* dma);
 void gb_dma_skip_boot(gb_dma_t* dma);
 
-void gb_dma_save_state(gb_dma_t* dma,gb_state_t* state);
-void gb_dma_load_state(gb_dma_t* dma,gb_state_t* state);
+void gb_dma_save_state(gb_dma_t* dma,gb_snapshot_t* snapshot);
+void gb_dma_load_state(gb_dma_t* dma,gb_snapshot_t* snapshot);
 
 #ifdef __cplusplus
 }

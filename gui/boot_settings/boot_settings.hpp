@@ -41,7 +41,7 @@ public:
     
     void render();
 
-    void open();
+    void open() noexcept;
 
-    void close(bool discard_changes);
+    void close(bool discard_changes) noexcept;
 };

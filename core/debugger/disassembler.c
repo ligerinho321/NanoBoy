@@ -313,5 +313,5 @@ uint8_t gb_disassembler_disassemble(gb_t* gb,uint16_t pc,char *dst,size_t capaci
 }
 
 uint8_t gb_disassembler_disassemble_current_pc(gb_t* gb,char* dst,size_t capacity){
-    return gb_disassembler_disassemble(gb,gb->cpu.pc,dst,capacity);
+    return gb_disassembler_disassemble(gb,gb->cpu.state.pc,dst,capacity);
 }

@@ -13,6 +13,7 @@
 #include <gui/screen/screen.hpp>
 
 #include <gui/boot_settings/boot_settings.hpp>
+#include <gui/rewind_settings/rewind_settings.hpp>
 #include <gui/input_settings/input_settings.hpp>
 
 #include <gui/debugger/debugger.hpp>
@@ -100,6 +101,7 @@ public:
     notification_manager_t* notification_manager = nullptr;
     
     boot_settings_t* boot_settings = nullptr;
+    rewind_settings_t* rewind_settings = nullptr;
     input_settings_t* input_settings = nullptr;
     
     file_selector_t* file_selector = nullptr;

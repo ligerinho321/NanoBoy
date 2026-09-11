@@ -15,9 +15,13 @@ bool gb_mbc2_init(gb_cartridge_t* cartridge,uint8_t flags){
     memset(mbc2,0x00,sizeof(gb_mbc2_t));
 
     cartridge->mapper.data = mbc2;
+    cartridge->mapper.data_length = sizeof(gb_mbc2_t);
+    
     cartridge->mapper.rom_absolute_address = gb_mbc2_rom_absolute_address;
     cartridge->mapper.ram_absolute_address = gb_mbc2_ram_absolute_address;
+    
     cartridge->mapper.reset = gb_mbc2_reset;
+
     cartridge->mapper.save_state = gb_mbc2_save_state;
     cartridge->mapper.load_state = gb_mbc2_load_state;
 
@@ -114,17 +118,16 @@ void gb_mbc2_reset(gb_cartridge_t* cartridge){
 }
 
 
-void gb_mbc2_save_state(gb_cartridge_t* cartridge,gb_state_t* state){
+void gb_mbc2_save_state(gb_cartridge_t* cartridge,gb_snapshot_t* snapshot){
     gb_mbc2_t* mbc2 = (gb_mbc2_t*)cartridge->mapper.data;
 
-    gb_state_write(state,mbc2->ram_enabled);
-    gb_state_write(state,mbc2->rom_bank);
+    memcpy((uint8_t*)snapshot + sizeof(gb_snapshot_t) + cartridge->ram_length,mbc2,sizeof(gb_mbc2_t));
 }
 
-void gb_mbc2_load_state(gb_cartridge_t* cartridge,gb_state_t* state){
+void gb_mbc2_load_state(gb_cartridge_t* cartridge,gb_snapshot_t* snapshot){
     gb_mbc2_t* mbc2 = (gb_mbc2_t*)cartridge->mapper.data;
 
-    gb_state_read(state,mbc2->ram_enabled);
+    memcpy(mbc2,(uint8_t*)snapshot + sizeof(gb_snapshot_t) + cartridge->ram_length,sizeof(gb_mbc2_t));
 
     if(mbc2->ram_enabled){
         cartridge->ram_descriptor.write = gb_mbc2_write_ram;
@@ -134,8 +137,6 @@ void gb_mbc2_load_state(gb_cartridge_t* cartridge,gb_state_t* state){
         cartridge->ram_descriptor.write = gb_memory_write_empty;
         cartridge->ram_descriptor.read = gb_memory_read_empty;
     }
-
-    gb_state_read(state,mbc2->rom_bank);
     
     gb_cartridge_set_rom1_bank(cartridge,mbc2->rom_bank);
 }

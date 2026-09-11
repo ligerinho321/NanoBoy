@@ -5,93 +5,16 @@
 
 typedef struct _gb_apu_t gb_apu_t;
 
-typedef struct _gb_apu_panning_t {
-    bool left;
-    bool right;
-} gb_apu_panning_t;
 
-typedef struct _gb_apu_volume_t {
-    uint8_t left;
-    uint8_t right;
-} gb_apu_volume_t;
-
-typedef struct _gb_apu_sweep_t {
-    bool enabled;
-    uint8_t period;
-    uint8_t timer;
-    bool negate;
-    bool calc_negate;
-    uint8_t shift;
-    uint16_t shadow_frequency;
-} gb_apu_sweep_t;
-
-typedef struct _gb_apu_envelope_t {
-    uint8_t initial_volume;
-    uint8_t current_volume;
-    bool add_mode;
-    uint8_t period;
-    uint8_t timer;
-    bool automatic_change;
-} gb_apu_envelope_t;
-
-typedef struct _gb_apu_length_counter_t {
-    bool enabled;
-    uint16_t counter;
-} gb_apu_length_counter_t;
-
-typedef struct _gb_apu_square_t {
-    gb_apu_t* apu;
-    bool external_enabled;
-    bool has_sweep;
-
-    bool enabled;
-    gb_apu_sweep_t sweep;
-    gb_apu_envelope_t envelope;
-    gb_apu_length_counter_t length_counter;
-    uint8_t duty;
-    uint8_t duty_pos;
-    uint16_t frequency;
-    uint32_t timer;
-} gb_apu_square_t;
-
-typedef struct _gb_apu_wave_t {
-    gb_apu_t* apu;
-    bool external_enabled;
-
-    bool enabled;
-    bool dac_enabled;
-    gb_apu_length_counter_t length_counter;
-    uint8_t volume_code;
-    uint16_t frequency;
-    uint32_t timer;
-    uint8_t sample_buffer;
-    uint8_t ram_pos;
-    uint8_t ram[0x10];
-} gb_apu_wave_t;
-
-typedef struct _gb_apu_noise_t {
-    gb_apu_t* apu;
-    bool external_enabled;
-
-    bool enabled;
-    gb_apu_envelope_t envelope;
-    gb_apu_length_counter_t length_counter;
-    uint8_t clock_shift;
-    bool width_mode;
-    uint8_t divisor_code;
-    uint16_t lfsr;
-    uint32_t timer;
-} gb_apu_noise_t;
-
-typedef struct _gb_apu_channel_frame_t {
+typedef struct _gb_channel_frame_t {
     blip_t* blip;
     int last_output;
     int16_t samples[gb_audio_frame_samples];
     int samples_count;
     float capacitor;
-} gb_apu_channel_frame_t;
+} gb_channel_frame_t;
 
-typedef struct _gb_apu_mixer_frame_t {
+typedef struct _gb_mixer_frame_t {
     blip_t* blip_left;
     blip_t* blip_right;
     int last_left_output;
@@ -100,23 +23,108 @@ typedef struct _gb_apu_mixer_frame_t {
     int samples_count;
     float left_capacitor;
     float right_capacitor;
-} gb_apu_mixer_frame_t;
+} gb_mixer_frame_t;
 
-typedef struct _gb_apu_t {
-    gb_t* gb;
 
-    gb_apu_square_t square1;
-    gb_apu_square_t square2;
-    gb_apu_wave_t wave;
-    gb_apu_noise_t noise;
+typedef struct _gb_panning_t {
+    bool left;
+    bool right;
+} gb_panning_t;
 
-    gb_apu_panning_t square1_panning;
-    gb_apu_panning_t square2_panning;
-    gb_apu_panning_t wave_panning;
-    gb_apu_panning_t noise_panning;
-    gb_apu_panning_t vin_panning;
+typedef struct _gb_volume_t {
+    uint8_t left;
+    uint8_t right;
+} gb_volume_t;
+
+typedef struct _gb_sweep_t {
+    bool enabled;
+    uint8_t period;
+    uint8_t timer;
+    bool negate;
+    bool calc_negate;
+    uint8_t shift;
+    uint16_t shadow_frequency;
+} gb_sweep_t;
+
+typedef struct _gb_envelope_t {
+    uint8_t initial_volume;
+    uint8_t current_volume;
+    bool add_mode;
+    uint8_t period;
+    uint8_t timer;
+    bool automatic_change;
+} gb_envelope_t;
+
+typedef struct _gb_length_counter_t {
+    bool enabled;
+    uint16_t counter;
+} gb_length_counter_t;
+
+
+typedef struct _gb_square_state_t {
+    bool enabled;
+    gb_sweep_t sweep;
+    gb_envelope_t envelope;
+    gb_length_counter_t length_counter;
+    uint8_t duty;
+    uint8_t duty_pos;
+    uint16_t frequency;
+    uint32_t timer;
+} gb_square_state_t;
+
+typedef struct _gb_square_t {
+    gb_apu_t* apu;
+    bool external_enabled;
+    bool has_sweep;
+    gb_square_state_t state;
+} gb_square_t;
+
+
+typedef struct _gb_wave_state_t {
+    bool enabled;
+    bool dac_enabled;
+    gb_length_counter_t length_counter;
+    uint8_t volume_code;
+    uint16_t frequency;
+    uint32_t timer;
+    uint8_t sample_buffer;
+    uint8_t ram_pos;
+    uint8_t ram[0x10];
+} gb_wave_state_t;
+
+typedef struct _gb_wave_t {
+    gb_apu_t* apu;
+    bool external_enabled;
+    gb_wave_state_t state;
+} gb_wave_t;
+
+
+typedef struct _gb_noise_state_t {
+    bool enabled;
+    gb_envelope_t envelope;
+    gb_length_counter_t length_counter;
+    uint8_t clock_shift;
+    bool width_mode;
+    uint8_t divisor_code;
+    uint16_t lfsr;
+    uint32_t timer;
+} gb_noise_state_t;
+
+typedef struct _gb_noise_t {
+    gb_apu_t* apu;
+    bool external_enabled;
+    gb_noise_state_t state;
+} gb_noise_t;
+
+
+typedef struct _gb_apu_state_t {
+    gb_panning_t square1_panning;
+    gb_panning_t square2_panning;
+    gb_panning_t wave_panning;
+    gb_panning_t noise_panning;
+    gb_panning_t vin_panning;
     
-    gb_apu_volume_t volume;
+    gb_volume_t volume;
 
     bool enabled;
 
@@ -125,7 +133,28 @@ typedef struct _gb_apu_t {
 
     uint64_t last_clock_cycle;
     uint64_t cycle;
+} gb_apu_state_t;
+
+typedef struct _gb_apu_t {
+    gb_t* gb;
+
+    gb_apu_state_t state;
+
+    gb_square_t square1;
+    gb_square_t square2;
+    gb_wave_t wave;
+    gb_noise_t noise;
     
+    uint32_t frame_cycles;
+
+    gb_channel_frame_t square1_frame;
+    gb_channel_frame_t square2_frame;
+    gb_channel_frame_t wave_frame;
+    gb_channel_frame_t noise_frame;
+    gb_mixer_frame_t mixer_frame;
+
+    gb_ring_buffer_t ring_buffer;
+
     gb_memory_descriptor_t square1_register_descriptor;
     gb_memory_descriptor_t square2_register_descriptor;
     gb_memory_descriptor_t wave_register_descriptor;
@@ -135,31 +164,21 @@ typedef struct _gb_apu_t {
     gb_memory_descriptor_t pcm12_register_descriptor;
     gb_memory_descriptor_t pcm34_register_descriptor;
 
-    gb_ring_buffer_t ring_buffer;
-    
-    gb_apu_channel_frame_t square1_frame;
-    gb_apu_channel_frame_t square2_frame;
-    gb_apu_channel_frame_t wave_frame;
-    gb_apu_channel_frame_t noise_frame;
-    gb_apu_mixer_frame_t mixer_frame;
-
-    uint32_t frame_cycles;
-
     gb_apu_handler_t* handlers;
 } gb_apu_t;
 
 
-#define gb_read_samples(gb,data,len) gb_ring_buffer_read(&gb->apu.ring_buffer,data,len);
+#define gb_read_samples(gb,data,len) gb_ring_buffer_read(&(gb)->apu.ring_buffer,data,len);
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void gb_apu_channel_frame_end(gb_apu_channel_frame_t* channel_frame);
-void gb_apu_channel_frame_reset(gb_apu_channel_frame_t* channel_frame);
+void gb_channel_frame_end(gb_channel_frame_t* channel_frame);
+void gb_channel_frame_reset(gb_channel_frame_t* channel_frame);
 
-void gb_apu_mixer_frame_end(gb_apu_mixer_frame_t* mixer_frame);
-void gb_apu_mixer_frame_reset(gb_apu_mixer_frame_t* mixer_frame);
+void gb_mixer_frame_end(gb_mixer_frame_t* mixer_frame);
+void gb_mixer_frame_reset(gb_mixer_frame_t* mixer_frame);
 
 void gb_apu_init(gb_apu_t* apu,gb_t* gb);
 
@@ -175,63 +194,49 @@ void gb_apu_frame_sequencer_clock(gb_apu_t* apu);
 void gb_apu_write_register(void* data,uint8_t value,uint16_t address);
 uint8_t gb_apu_read_register(void* data,uint16_t address);
 
-void gb_apu_sweep_clock(gb_apu_square_t* square);
-void gb_apu_sweep_save_state(gb_apu_sweep_t* sweep,gb_state_t* state);
-void gb_apu_sweep_load_state(gb_apu_sweep_t* sweep,gb_state_t* state);
+void gb_sweep_clock(gb_square_t* square);
 
-void gb_apu_envelope_clock(gb_apu_envelope_t* envelope);
-void gb_apu_envelope_save_state(gb_apu_envelope_t* envelope,gb_state_t* state);
-void gb_apu_envelope_load_state(gb_apu_envelope_t* envelope,gb_state_t* state);
+void gb_envelope_clock(gb_envelope_t* envelope);
 
-void gb_apu_length_counter_extra_clock(gb_apu_t* apu,gb_apu_length_counter_t* length_counter,uint8_t value,uint16_t length,bool* channel_enabled);
-void gb_apu_length_counter_clock(gb_apu_length_counter_t* length_counter,bool* channel_enabled);
-void gb_apu_length_counter_save_state(gb_apu_length_counter_t* length_counter,gb_state_t* state);
-void gb_apu_length_counter_load_state(gb_apu_length_counter_t* length_counter,gb_state_t* state);
+void gb_length_counter_extra_clock(gb_apu_t* apu,gb_length_counter_t* length_counter,uint8_t value,uint16_t length,bool* channel_enabled);
+void gb_length_counter_clock(gb_length_counter_t* length_counter,bool* channel_enabled);
 
 
-void gb_apu_square_clock(gb_apu_square_t* square,int timer);
+void gb_square_clock(gb_square_state_t* square_state,int timer);
 
-void gb_apu_write_square_register(void* data,uint8_t value,uint16_t address);
-uint8_t gb_apu_read_square_register(void* data,uint16_t address);
+void gb_square_write_register(void* data,uint8_t value,uint16_t address);
+uint8_t gb_square_read_register(void* data,uint16_t address);
 
-uint8_t gb_apu_square_raw_output(gb_apu_square_t* square);
-int gb_apu_square_output(gb_apu_square_t* square);
+uint8_t gb_square_raw_output(gb_square_state_t* square_state);
+int gb_square_output(gb_square_t* square);
 
-void gb_apu_square_reset(gb_apu_square_t* square,bool hardware);
-
-void gb_apu_square_save_state(gb_apu_square_t* square,gb_state_t* state);
-void gb_apu_square_load_state(gb_apu_square_t* square,gb_state_t* state);
+void gb_square_reset(gb_square_t* square,bool hardware);
 
 
-void gb_apu_wave_clock(gb_apu_wave_t* wave,int timer);
+void gb_wave_clock(gb_wave_state_t* wave_state,int timer);
 
-void gb_apu_write_wave_register(void* data,uint8_t value,uint16_t address);
-uint8_t gb_apu_read_wave_register(void* data,uint16_t address);
+void gb_wave_write_register(void* data,uint8_t value,uint16_t address);
+uint8_t gb_wave_read_register(void* data,uint16_t address);
 
-void gb_apu_write_wave_ram(void* data,uint8_t value,uint16_t address);
-uint8_t gb_apu_read_wave_ram(void* data,uint16_t address);
+void gb_wave_write_ram(void* data,uint8_t value,uint16_t address);
+uint8_t gb_wave_read_ram(void* data,uint16_t address);
 
-uint8_t gb_apu_wave_raw_output(gb_apu_wave_t* wave);
-int gb_apu_wave_output(gb_apu_wave_t* wave);
+uint8_t gb_wave_raw_output(gb_wave_state_t* wave_state);
+int gb_wave_output(gb_wave_t* wave);
 
-void gb_apu_wave_reset(gb_apu_wave_t* wave,bool hardware);
-
-void gb_apu_wave_save_state(gb_apu_wave_t* wave,gb_state_t* state);
-void gb_apu_wave_load_state(gb_apu_wave_t* wave,gb_state_t* state);
+void gb_wave_reset(gb_wave_t* wave,bool hardware);
 
 
-void gb_apu_noise_clock(gb_apu_noise_t* noise,int timer);
+void gb_noise_clock(gb_noise_state_t* noise_state,int timer);
 
-void gb_apu_write_noise_register(void* data,uint8_t value,uint16_t address);
-uint8_t gb_apu_read_noise_register(void* data,uint16_t address);
+void gb_noise_write_register(void* data,uint8_t value,uint16_t address);
+uint8_t gb_noise_read_register(void* data,uint16_t address);
 
-uint8_t gb_apu_noise_raw_output(gb_apu_noise_t* noise);
-int gb_apu_noise_output(gb_apu_noise_t* noise);
+uint8_t gb_noise_raw_output(gb_noise_state_t* noise_state);
+int gb_noise_output(gb_noise_t* noise);
 
-void gb_apu_noise_reset(gb_apu_noise_t* noise,bool hardware);
+void gb_noise_reset(gb_noise_t* noise,bool hardware);
 
-void gb_apu_noise_save_state(gb_apu_noise_t* noise,gb_state_t* state);
-void gb_apu_noise_load_state(gb_apu_noise_t* noise,gb_state_t* state);
 
 uint8_t gb_apu_read_pcm12_register(void* data,uint16_t address);
 uint8_t gb_apu_read_pcm34_register(void* data,uint16_t address);
@@ -243,8 +248,8 @@ void gb_apu_skip_boot(gb_apu_t* apu);
 
 void gb_apu_free(gb_apu_t* apu);
 
-void gb_apu_save_state(gb_apu_t* apu,gb_state_t* state);
-void gb_apu_load_state(gb_apu_t* apu,gb_state_t* state);
+void gb_apu_save_state(gb_apu_t* apu,gb_snapshot_t* snapshot);
+void gb_apu_load_state(gb_apu_t* apu,gb_snapshot_t* snapshot);
 
 #ifdef __cplusplus
 }

@@ -35,8 +35,6 @@ typedef struct _gb_eeprom93lc56_t {
 
     uint16_t write_data;
     uint8_t write_count;
-
-    uint8_t *ram;
 } gb_eeprom93lc56_t;
 
 typedef struct _gb_mbc7_t {
@@ -68,16 +66,11 @@ size_t gb_mbc7_rom_absolute_address(gb_cartridge_t* cartridge,uint16_t relative_
 
 void gb_mbc7_reset(gb_cartridge_t* cartridge);
 
-void gb_mbc7_save_state(gb_cartridge_t* cartridge,gb_state_t* state);
-void gb_mbc7_load_state(gb_cartridge_t* cartridge,gb_state_t* state);
+void gb_mbc7_save_state(gb_cartridge_t* cartridge,gb_snapshot_t* snapshot);
+void gb_mbc7_load_state(gb_cartridge_t* cartridge,gb_snapshot_t* snapshot);
 
-void gb_eeprom93lc56_write(gb_eeprom93lc56_t* eeprom,uint8_t value);
+void gb_eeprom93lc56_write(gb_eeprom93lc56_t* eeprom,uint8_t* ram,uint8_t value);
 uint8_t gb_eeprom93lc56_read(gb_eeprom93lc56_t* eeprom);
-
-void gb_eeprom93lc56_reset(gb_eeprom93lc56_t* eeprom);
-
-void gb_eeprom93lc56_save_state(gb_eeprom93lc56_t* eeprom,gb_state_t* state);
-void gb_eeprom93lc56_load_state(gb_eeprom93lc56_t* eeprom,gb_state_t* state);
 
 #ifdef __cplusplus
 }

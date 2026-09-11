@@ -18,16 +18,16 @@ void palette_viewer_t::callback(void* data){
     palette_viewer_t* palette_viewer = (palette_viewer_t*)data;
     gb_t* gb = palette_viewer->gb;
 
-    palette_viewer->cgb_mode = gb->cgb_mode;
+    palette_viewer->cgb_mode = gb->state.cgb_mode;
 
     palette_viewer->bg_palette.update_data(&gb->palette);
-    palette_viewer->bg_palette.update_texture(gb->is_cgb,gb->cgb_mode);
+    palette_viewer->bg_palette.update_texture(gb->state.is_cgb,gb->state.cgb_mode);
 
     palette_viewer->obj_palette.update_data(&gb->palette);
-    palette_viewer->obj_palette.update_texture(gb->is_cgb,gb->cgb_mode);
+    palette_viewer->obj_palette.update_texture(gb->state.is_cgb,gb->state.cgb_mode);
 
-    memcpy(palette_viewer->bg_cram,gb->palette.bg_cram,sizeof(palette_viewer->bg_cram));
-    memcpy(palette_viewer->obj_cram,gb->palette.obj_cram,sizeof(palette_viewer->obj_cram));
+    memcpy(palette_viewer->bg_cram,gb->palette.state.bg_cram,sizeof(palette_viewer->bg_cram));
+    memcpy(palette_viewer->obj_cram,gb->palette.state.obj_cram,sizeof(palette_viewer->obj_cram));
 }
 
 
@@ -78,7 +78,7 @@ void palette_viewer_t::render_tooltip_color(palette_t& palette,uint8_t* cram,uin
 
         gb_rgb_t color{};
 
-        if(gb->is_cgb){
+        if(gb->state.is_cgb){
 
             uint16_t address = 0x00;
 

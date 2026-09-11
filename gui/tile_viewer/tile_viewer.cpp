@@ -42,13 +42,13 @@ void tile_viewer_t::ppu_callback(void* userdata){
     tile_viewer_t* tile_viewer = (tile_viewer_t*)userdata;
     gb_t* gb = tile_viewer->gb;
 
-    tile_viewer->cgb_mode = gb->cgb_mode;
+    tile_viewer->cgb_mode = gb->state.cgb_mode;
 
     tile_viewer->bg_palette.update_data(&gb->palette);
-    tile_viewer->bg_palette.update_texture(gb->is_cgb,gb->cgb_mode);
+    tile_viewer->bg_palette.update_texture(gb->state.is_cgb,gb->state.cgb_mode);
 
     tile_viewer->obj_palette.update_data(&gb->palette);
-    tile_viewer->obj_palette.update_texture(gb->is_cgb,gb->cgb_mode);
+    tile_viewer->obj_palette.update_texture(gb->state.is_cgb,gb->state.cgb_mode);
     
     gb_memory_type_read(
         gb,
@@ -169,7 +169,7 @@ void tile_viewer_t::update_texture() noexcept {
 
     palette_t& palette = obj_palette_selected ? (palette_t&)obj_palette : (palette_t&)bg_palette;
 
-    if(gb->is_cgb){
+    if(gb->state.is_cgb){
         if(cgb_mode){
             for(uint8_t i = 0; i < 4; ++i){
                 colors[i] = palette.get_cgb_color(palette_index,i);

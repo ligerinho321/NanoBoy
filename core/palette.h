@@ -17,9 +17,7 @@ enum{
     gb_cgb_cram_length = gb_cgb_colors * gb_cgb_bytes_per_color,
 };
 
-typedef struct _gb_palette_t {
-    gb_t* gb;
-
+typedef struct _gb_palette_state_t {
     uint8_t bgp;
     uint8_t obp[0x02];
 
@@ -31,6 +29,12 @@ typedef struct _gb_palette_t {
 
     gb_rgb_t bg_cram_converted[gb_cgb_colors];
     gb_rgb_t obj_cram_converted[gb_cgb_colors];
+} gb_palette_state_t;
+
+typedef struct _gb_palette_t {
+    gb_t* gb;
+
+    gb_palette_state_t state;
 
     gb_memory_descriptor_t dmg_register_descriptor;
     gb_memory_descriptor_t cgb_register_descriptor;
@@ -40,24 +44,24 @@ extern const gb_rgb_t dmg_colors[gb_dmg_colors];
 
 
 #define gb_palette_get_dmg_bgp_color(palette,palette_index)\
-    dmg_colors[((palette)->bgp >> (((palette_index) & 0x03) << 0x01)) & 0x03]
+    dmg_colors[((palette)->state.bgp >> (((palette_index) & 0x03) << 0x01)) & 0x03]
 
 #define gb_palette_get_dmg_obp_color(palette,palette_index,color_index)\
-    dmg_colors[((palette)->obp[(palette_index) & 0x01] >> (((color_index) & 0x03) << 0x01)) & 0x03]
+    dmg_colors[((palette)->state.obp[(palette_index) & 0x01] >> (((color_index) & 0x03) << 0x01)) & 0x03]
 
 
 #define gb_palette_get_cgb_bgp_color(palette,palette_index,color_index)\
-    (palette)->bg_cram_converted[(((palette_index) & 0x07) << 0x02) | ((color_index) & 0x03)]
+    (palette)->state.bg_cram_converted[(((palette_index) & 0x07) << 0x02) | ((color_index) & 0x03)]
 
 #define gb_palette_get_cgb_obp_color(palette,palette_index,color_index)\
-    (palette)->obj_cram_converted[(((palette_index) & 0x07) << 0x02) | ((color_index) & 0x03)]
+    (palette)->state.obj_cram_converted[(((palette_index) & 0x07) << 0x02) | ((color_index) & 0x03)]
 
 
 #define gb_palette_get_cgb_dmg_bgp_color(palette,palette_index)\
-    (palette)->bg_cram_converted[((palette)->bgp >> (((palette_index) & 0x03) << 0x01)) & 0x03]
+    (palette)->state.bg_cram_converted[((palette)->state.bgp >> (((palette_index) & 0x03) << 0x01)) & 0x03]
 
 #define gb_palette_get_cgb_dmg_obp_color(palette,palette_index,color_index)\
-    (palette)->obj_cram_converted[(((palette_index) & 0x01) << 0x02) | (((palette)->obp[(palette_index) & 0x01] >> (((color_index) & 0x03) << 0x01)) & 0x03)]
+    (palette)->state.obj_cram_converted[(((palette_index) & 0x01) << 0x02) | (((palette)->state.obp[(palette_index) & 0x01] >> (((color_index) & 0x03) << 0x01)) & 0x03)]
 
     
 #ifdef __cplusplus
@@ -81,8 +85,8 @@ void gb_palette_map(gb_palette_t* palette);
 void gb_palette_reset(gb_palette_t* palette);
 void gb_palette_skip_boot(gb_palette_t* palette);
 
-void gb_palette_save_state(gb_palette_t* palette,gb_state_t* state);
-void gb_palette_load_state(gb_palette_t* palette,gb_state_t* state);
+void gb_palette_save_state(gb_palette_t* palette,gb_snapshot_t* snapshot);
+void gb_palette_load_state(gb_palette_t* palette,gb_snapshot_t* snapshot);
 
 #ifdef __cplusplus
 }

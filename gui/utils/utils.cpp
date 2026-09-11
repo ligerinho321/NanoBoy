@@ -54,33 +54,34 @@ void obj_palette_t::clear(){
 }
 
 
-void render_size_text(unsigned long long size){
+void render_size_text(size_t size){
+
     if(size >= gigabytes){
-        ImGui::Text("%.1f GB",(float)size / (float)gigabytes);
+        ImGui::Text("%.1f GB",(double)size / (double)gigabytes);
     }
     else if(size >= megabytes){
-        ImGui::Text("%.1f MB",(float)size / (float)megabytes);
+        ImGui::Text("%.1f MB",(double)size / (double)megabytes);
     }
     else if(size >= kilobytes){
-        ImGui::Text("%.1f KB",(float)size / (float)kilobytes);
+        ImGui::Text("%.1f KB",(double)size / (double)kilobytes);
     }
     else{
-        ImGui::Text("%llu B",size);
+        ImGui::Text("%zu B",size);
     }
 }
 
-void render_hertz_text(unsigned long long hertz){
+void render_hertz_text(size_t hertz){
     if(hertz >= gigahertz){
-        ImGui::Text("%.1f gHz",(float)hertz / (float)gigahertz);
+        ImGui::Text("%.1f gHz",(double)hertz / (double)gigahertz);
     }
     else if(hertz >= megahertz){
-        ImGui::Text("%.1f mHz",(float)hertz / (float)megahertz);
+        ImGui::Text("%.1f mHz",(double)hertz / (double)megahertz);
     }
     else if(hertz >= kilohertz){
-        ImGui::Text("%.1f kHz",(float)hertz / (float)kilohertz);
+        ImGui::Text("%.1f kHz",(double)hertz / (double)kilohertz);
     }
     else{
-        ImGui::Text("%llu Hz",hertz);
+        ImGui::Text("%zu Hz",hertz);
     }
 }
 

@@ -4,17 +4,21 @@
 
 typedef bool (*gb_serial_callback_t)(void* data,bool bit);
 
-typedef struct _gb_serial_t {
-    gb_t* gb;
-
+typedef struct _gb_serial_state_t {
     uint8_t sb;
     uint8_t bits_received;
 
-    bool transfer_enabled;
-    bool clock_speed;
-    bool internal_clock;
+    bool transfer_enabled : 1;
+    bool clock_speed : 1;
+    bool internal_clock : 1;
 
     int timer;
+} gb_serial_state_t;
+
+typedef struct _gb_serial_t {
+    gb_t* gb;
+
+    gb_serial_state_t state;
     
     gb_memory_descriptor_t register_descriptor;
 
@@ -41,8 +45,8 @@ void gb_serial_map_registers(gb_serial_t* serial);
 
 void gb_serial_reset(gb_serial_t* serial);
 
-void gb_serial_save_state(gb_serial_t* serial,gb_state_t* state);
-void gb_serial_load_state(gb_serial_t* serial,gb_state_t* state);
+void gb_serial_save_state(gb_serial_t* serial,gb_snapshot_t* snapshot);
+void gb_serial_load_state(gb_serial_t* serial,gb_snapshot_t* snapshot);
 
 #ifdef __cplusplus
 }

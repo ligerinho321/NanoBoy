@@ -362,7 +362,7 @@ void gb_printer_clock(gb_printer_t* printer,int cycles){
 bool gb_printer_receive_bit(void* data,bool bit){
     gb_printer_t* printer = (gb_printer_t*)data;
 
-    uint64_t cycle = printer->gb->cycle;
+    uint64_t cycle = printer->gb->state.cycle;
 
     if(cycle - printer->last_bit_received >= gb_printer_timeout){
         printer->bits_received = 0x00;

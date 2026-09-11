@@ -22,9 +22,13 @@ bool gb_mbc1_init(gb_cartridge_t* cartridge,uint8_t flags){
     mbc1->is_mbc1m = cartridge->rom_length > 0x40133 && !memcmp(cartridge->rom + 0x00104,cartridge->rom + 0x40104,0x30);
 
     cartridge->mapper.data = mbc1;
+    cartridge->mapper.data_length = sizeof(gb_mbc1_t);
+
     cartridge->mapper.rom_absolute_address = gb_mbc1_rom_absolute_address;
     cartridge->mapper.ram_absolute_address = gb_mbc1_ram_absolute_address;
+    
     cartridge->mapper.reset = gb_mbc1_reset;
+    
     cartridge->mapper.save_state = gb_mbc1_save_state;
     cartridge->mapper.load_state = gb_mbc1_load_state;
 
@@ -168,22 +172,27 @@ void gb_mbc1_reset(gb_cartridge_t* cartridge){
 }
 
 
-void gb_mbc1_save_state(gb_cartridge_t* cartridge,gb_state_t* state){
+void gb_mbc1_save_state(gb_cartridge_t* cartridge,gb_snapshot_t* snapshot){
     gb_mbc1_t* mbc1 = (gb_mbc1_t*)cartridge->mapper.data;
 
-    gb_state_write(state,mbc1->ram_enabled);
-    gb_state_write(state,mbc1->mode);
-    gb_state_write(state,mbc1->bank_0);
-    gb_state_write(state,mbc1->bank_1);
+    memcpy((uint8_t*)snapshot + sizeof(gb_snapshot_t) + cartridge->ram_length,mbc1,sizeof(gb_mbc1_t));
 }
 
-void gb_mbc1_load_state(gb_cartridge_t* cartridge,gb_state_t* state){
+void gb_mbc1_load_state(gb_cartridge_t* cartridge,gb_snapshot_t* snapshot){
     gb_mbc1_t* mbc1 = (gb_mbc1_t*)cartridge->mapper.data;
 
-    gb_state_read(state,mbc1->ram_enabled);
-    gb_state_read(state,mbc1->mode);
-    gb_state_read(state,mbc1->bank_0);
-    gb_state_read(state,mbc1->bank_1);
+    memcpy(mbc1,(uint8_t*)snapshot + sizeof(gb_snapshot_t) + cartridge->ram_length,sizeof(gb_mbc1_t));
+
+    if(cartridge->ram_length > 0x00){
+        if(mbc1->ram_enabled){
+            cartridge->ram_descriptor.write = gb_cartridge_write_ram;
+            cartridge->ram_descriptor.read = gb_cartridge_read_ram;
+        }
+        else{
+            cartridge->ram_descriptor.write = gb_memory_write_empty;
+            cartridge->ram_descriptor.read = gb_memory_read_empty;
+        }
+    }
 
     gb_mbc1_update_mapping(cartridge);
 }

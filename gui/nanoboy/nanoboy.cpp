@@ -1,6 +1,6 @@
 #include <gui/nanoboy/nanoboy.hpp>
 
-static void joypad_callback(void* data,gb_joypad_state_t* state){
+static void joypad_callback(void* data,gb_joypad_button_state_t* button_state){
 
     nanoboy_t* nanoboy = (nanoboy_t*)data;
 
@@ -8,14 +8,14 @@ static void joypad_callback(void* data,gb_joypad_state_t* state){
 
     input_settings_t* input_settings = nanoboy->input_settings;
 
-    state->down = input_settings->button_pressed(gb_button_down);
-    state->up = input_settings->button_pressed(gb_button_up);
-    state->left = input_settings->button_pressed(gb_button_left);
-    state->right = input_settings->button_pressed(gb_button_right);
-    state->start = input_settings->button_pressed(gb_button_start);
-    state->select = input_settings->button_pressed(gb_button_select);
-    state->a = input_settings->button_pressed(gb_button_a);
-    state->b = input_settings->button_pressed(gb_button_b);
+    button_state->down = input_settings->button_pressed(gb_button_down);
+    button_state->up = input_settings->button_pressed(gb_button_up);
+    button_state->left = input_settings->button_pressed(gb_button_left);
+    button_state->right = input_settings->button_pressed(gb_button_right);
+    button_state->start = input_settings->button_pressed(gb_button_start);
+    button_state->select = input_settings->button_pressed(gb_button_select);
+    button_state->a = input_settings->button_pressed(gb_button_a);
+    button_state->b = input_settings->button_pressed(gb_button_b);
 }
 
 static void audio_callback(void* userdata,uint8_t* data,int len){
@@ -62,6 +62,7 @@ nanoboy_t::nanoboy_t(){
     notification_manager = new notification_manager_t();
 
     boot_settings = new boot_settings_t(gb);
+    rewind_settings = new rewind_settings_t(gb);
     input_settings = new input_settings_t();
 
     file_selector = new file_selector_t();
@@ -112,6 +113,7 @@ nanoboy_t::~nanoboy_t(){
     delete savestate;
     delete file_selector;
     delete input_settings;
+    delete rewind_settings;
     delete boot_settings;
     delete notification_manager;
 
@@ -339,10 +341,19 @@ void nanoboy_t::save_settings(){
     save_recent_roms(settings_object);
 
     file_selector->save(settings_object);
+
     screen->save(settings_object);
+
+    cJSON* is_cgb_bool = cJSON_CreateBool(gb->is_cgb_pending);
+    cJSON_AddItemToObjectCS(settings_object,"Is CGB",is_cgb_bool);
+
     boot_settings->save(settings_object);
+
+    rewind_settings->save(settings_object);
+
     input_settings->save(settings_object);
 
+    
     char* settings_string = cJSON_Print(settings_object);
 
     gb_save_file(get_settings_path().c_str(),settings_string,strlen(settings_string));
@@ -362,6 +373,8 @@ void nanoboy_t::load_settings(){
 
     cJSON* settings_object = cJSON_ParseWithLength(data,len);
 
+    cJSON* is_cgb_bool = nullptr;
+
     if(!settings_object){
         gb_printf_error("cJSON_ParserWidthLength failed");
         goto end;
@@ -372,8 +385,18 @@ void nanoboy_t::load_settings(){
     load_recent_roms(settings_object);
 
     file_selector->load(settings_object);
+
     screen->load(settings_object);
+
+    is_cgb_bool = cJSON_GetObjectItemCaseSensitive(settings_object,"Is CGB");
+    if(is_cgb_bool != nullptr && cJSON_IsBool(is_cgb_bool)){
+        gb->is_cgb_pending = cJSON_IsTrue(is_cgb_bool);
+    }
+
     boot_settings->load(settings_object);
+
+    rewind_settings->load(settings_object);
+
     input_settings->load(settings_object);
 
     end:
@@ -561,9 +584,22 @@ void nanoboy_t::event(){
                         else if(event.key.keysym.scancode == SDL_SCANCODE_MINUS){
                             set_speed(gb->speed - gb_speed_step);
                         }
+                        else if(event.key.keysym.scancode == SDL_SCANCODE_BACKSPACE){
+                            if(gb_rewind_start(gb)){
+                                SDL_LockAudioDevice(audio_device);
+                            }
+                        }
                         else if(event.key.keysym.scancode == SDL_SCANCODE_F12){
                             take_screenshot();
                         }
+                    }
+                }
+                break;
+            }
+            case SDL_KEYUP:{
+                if(event.key.keysym.scancode == SDL_SCANCODE_BACKSPACE){
+                    if(gb_rewind_end(gb)){
+                        SDL_UnlockAudioDevice(audio_device);
                     }
                 }
                 break;
@@ -641,7 +677,7 @@ void nanoboy_t::render_main_menu_bar(){
         if(ImGui::MenuItem("Decrease speed","-",nullptr,gb->cartridge_inserted)){
             set_speed(gb->speed - gb_speed_step);
         }
-        
+
         if(ImGui::MenuItem("Cheats",nullptr,nullptr,gb->cartridge_inserted)){
             cheats->set_open(true);
         }
@@ -675,6 +711,10 @@ void nanoboy_t::render_main_menu_bar(){
 
         if(ImGui::MenuItem("Boot")){
             boot_settings->open();
+        }
+
+        if(ImGui::MenuItem("Rewind")){
+            rewind_settings->open();
         }
 
         if(ImGui::MenuItem("Input")){
@@ -730,6 +770,7 @@ void nanoboy_t::imgui_render(){
     notification_manager->render();
 
     boot_settings->render();
+    rewind_settings->render();
     input_settings->render();
 
     file_selector->render();

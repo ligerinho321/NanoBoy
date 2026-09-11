@@ -16,7 +16,8 @@ typedef enum _gb_joypad_button_t {
 
 extern const char* gb_joypad_button_names[8];
 
-typedef struct gb_joypad_state_t {
+
+typedef struct gb_joypad_button_state_t {
     bool down : 1;
     bool up : 1;
     bool left : 1;
@@ -26,19 +27,24 @@ typedef struct gb_joypad_state_t {
     bool select : 1;
     bool b : 1;
     bool a : 1;
-} gb_joypad_state_t;
+} gb_joypad_button_state_t;
 
-typedef void (*gb_joypad_callback_t)(void* data,gb_joypad_state_t* state);
+typedef void (*gb_joypad_callback_t)(void* data,gb_joypad_button_state_t* button_state);
+
+
+typedef struct _gb_joypad_state_t {
+    bool select_buttons : 1;
+    bool select_directions : 1;
+
+    gb_joypad_button_state_t button_state;
+
+    bool current_edge : 1;
+} gb_joypad_state_t;
 
 typedef struct _gb_joypad_t {
     gb_t* gb;
-    
-    bool select_buttons;
-    bool select_directions;
 
     gb_joypad_state_t state;
-
-    bool current_edge;
 
     gb_joypad_callback_t callback;
     void* callback_data;
@@ -69,8 +75,8 @@ void gb_joypad_map_registers(gb_joypad_t* joypad);
 void gb_joypad_reset(gb_joypad_t* joypad);
 void gb_joypad_skip_boot(gb_joypad_t* joypad);
 
-void gb_joypad_save_state(gb_joypad_t* joypad,gb_state_t* state);
-void gb_joypad_load_state(gb_joypad_t* joypad,gb_state_t* state);
+void gb_joypad_save_state(gb_joypad_t* joypad,gb_snapshot_t* snapshot);
+void gb_joypad_load_state(gb_joypad_t* joypad,gb_snapshot_t* snapshot);
 
 #ifdef __cplusplus
 }

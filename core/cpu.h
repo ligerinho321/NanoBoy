@@ -2,14 +2,14 @@
 
 #include "utils.h"
 
-typedef enum _gb_cpu_state_t {
-    gb_cpu_running_state,
-    gb_cpu_halted_state,
-    gb_cpu_stopped_state,
-    gb_cpu_state_count,
-} gb_cpu_state;
+typedef enum _gb_cpu_mode_t {
+    gb_cpu_running_mode,
+    gb_cpu_halted_mode,
+    gb_cpu_stopped_mode,
+    gb_cpu_mode_count,
+} gb_cpu_mode_t;
 
-extern const char* gb_cpu_state_names[3];
+extern const char* gb_cpu_mode_names[3];
 
 typedef enum _gb_cpu_flag_t {
     gb_cpu_carry_flag = 0x10,       // C
@@ -22,16 +22,12 @@ typedef enum _gb_cpu_flag_t {
     gb_cpu_nhc_flag = gb_cpu_subtraction_flag | gb_cpu_half_carry_flag | gb_cpu_carry_flag
 } gb_cpu_flag_t;
 
-typedef struct _gb_cpu_t {
-    gb_t* gb;
-    
-    uint8_t state;
-
-    uint8_t opcode;
+typedef struct _gb_cpu_state_t {
+    uint8_t mode;
     
     bool halt_bug;
     uint32_t halt_cycles;
-
+    
     bool ime_pending;
     bool ime;
 
@@ -53,9 +49,17 @@ typedef struct _gb_cpu_t {
             uint8_t h;
         };
     };
-
+    
     uint16_t sp;
     uint16_t pc;
+
+} gb_cpu_state_t;
+
+typedef struct _gb_cpu_t {
+    gb_t* gb;
+
+    gb_cpu_state_t state;
+
     uint16_t instruction_pc;
 
     void (*execute)(struct _gb_cpu_t*);
@@ -68,13 +72,13 @@ extern "C" {
 
 void gb_cpu_init(gb_cpu_t* cpu,gb_t* gb);
 
-void gb_cpu_set_state(gb_cpu_t* cpu,uint8_t state);
+void gb_cpu_set_mode(gb_cpu_t* cpu,uint8_t mode);
 
 void gb_cpu_reset(gb_cpu_t* cpu);
 void gb_cpu_skip_boot(gb_cpu_t* cpu);
 
-void gb_cpu_save_state(gb_cpu_t* cpu,gb_state_t* state);
-void gb_cpu_load_state(gb_cpu_t* cpu,gb_state_t* state);
+void gb_cpu_save_state(gb_cpu_t* cpu,gb_snapshot_t* snapshot);
+void gb_cpu_load_state(gb_cpu_t* cpu,gb_snapshot_t* snapshot);
 
 #ifdef __cplusplus
 }

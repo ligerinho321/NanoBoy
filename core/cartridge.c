@@ -136,12 +136,21 @@ void gb_cartridge_remove(gb_cartridge_t* cartridge){
         free(cartridge->mapper.data);
         cartridge->mapper.data = NULL;
     }
+
+    cartridge->mapper.data_length = 0;
+    
     cartridge->mapper.rom_absolute_address = NULL;
     cartridge->mapper.ram_absolute_address = NULL;
+    
     cartridge->mapper.rtc_update_timer = NULL;
+    
     cartridge->mapper.rtc_save = NULL;
     cartridge->mapper.rtc_load = NULL;
+
     cartridge->mapper.reset = NULL;
+
+    cartridge->mapper.save_state = NULL;
+    cartridge->mapper.load_state = NULL;
 }
 
 
@@ -457,20 +466,24 @@ void gb_cartridge_reset(gb_cartridge_t* cartridge){
 }
 
 
-void gb_cartridge_save_state(gb_cartridge_t* cartridge,gb_state_t* state){
+void gb_cartridge_save_state(gb_cartridge_t* cartridge,gb_snapshot_t* snapshot){
+    
     if(cartridge->ram_length > 0){
-        gb_state_write_ex(state,cartridge->ram,cartridge->ram_length);
+        memcpy((uint8_t*)snapshot + sizeof(gb_snapshot_t),cartridge->ram,cartridge->ram_length);
     }
+
     if(cartridge->mapper.save_state != NULL){
-        cartridge->mapper.save_state(cartridge,state);
+        cartridge->mapper.save_state(cartridge,snapshot);
     }
 }
 
-void gb_cartridge_load_state(gb_cartridge_t* cartridge,gb_state_t* state){
+void gb_cartridge_load_state(gb_cartridge_t* cartridge,gb_snapshot_t* snapshot){
+
     if(cartridge->ram_length > 0){
-        gb_state_read_ex(state,cartridge->ram,cartridge->ram_length);
+        memcpy(cartridge->ram,(uint8_t*)snapshot + sizeof(gb_snapshot_t),cartridge->ram_length);
     }
+
     if(cartridge->mapper.load_state != NULL){
-        cartridge->mapper.load_state(cartridge,state);
+        cartridge->mapper.load_state(cartridge,snapshot);
     }
 }

@@ -18,12 +18,16 @@ typedef enum _gb_interrupt_vector_t {
     gb_interrupt_joypad_vector = 0x60
 } gb_interrupt_source_t;
 
+typedef struct _gb_interrupt_state_t {
+    uint8_t enable;
+    uint8_t flag;
+} gb_interrupt_state_t;
+
 typedef struct _gb_interrupt_t {
     gb_t* gb;
 
-    uint8_t enable;
-    uint8_t flag;
-
+    gb_interrupt_state_t state;
+    
     gb_memory_descriptor_t enable_register_descriptor;
     gb_memory_descriptor_t flag_register_descriptor;
 } gb_interrupt_t;
@@ -48,8 +52,8 @@ void gb_interrupt_map_registers(gb_interrupt_t* interrupt);
 void gb_interrupt_reset(gb_interrupt_t* interrupt);
 void gb_interrupt_skip_boot(gb_interrupt_t* interrupt);
 
-void gb_interrupt_save_state(gb_interrupt_t* interrupt,gb_state_t* state);
-void gb_interrupt_load_state(gb_interrupt_t* interrupt,gb_state_t* state);
+void gb_interrupt_save_state(gb_interrupt_t* interrupt,gb_snapshot_t* snapshot);
+void gb_interrupt_load_state(gb_interrupt_t* interrupt,gb_snapshot_t* snapshot);
 
 #ifdef __cplusplus
 }

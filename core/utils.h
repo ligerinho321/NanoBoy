@@ -8,11 +8,10 @@
 #include <errno.h>
 #include <assert.h>
 #include <time.h> // nanosleep(), clock_gettime(), time()
+#include <stdalign.h>
 
 #ifdef _WIN32
 #include <windows.h> // Sleep(), QueryPerformanceFrequency(), QueryPerformanceCounter(), CreateThread(), WaitForSingleObject()
-#else
-#include <pthread.h> // pthread_create(), pthread_join()
 #endif
 
 #ifdef __cplusplus
@@ -169,7 +168,7 @@ enum {
 
 
 typedef struct _gb_t gb_t;
-typedef struct _gb_state_t gb_state_t;
+typedef struct _gb_snapshot_t gb_snapshot_t;
 
 typedef struct gb_rgb_t {
     uint8_t r;
@@ -250,10 +249,13 @@ void gb_frame_timer_start(gb_frame_timer_t* frame_timer);
 
 void gb_frame_timer_stop(gb_frame_timer_t* frame_timer);
 
+
 bool gb_save_file(const char* filename,void* data,size_t len);
 bool gb_load_file(const char* filename,void** data,size_t* len);
 
 uint32_t gb_crc32(const uint8_t* buffer,uint32_t len);
+
+size_t gb_align_up(size_t value,size_t alignment);
 
 #ifdef __cplusplus
 }

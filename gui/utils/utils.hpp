@@ -23,6 +23,7 @@
 #include <regex>
 #include <mutex>
 #include <atomic>
+#include <cinttypes>
 
 enum{
     kilobytes = 1024,
@@ -116,8 +117,8 @@ struct bg_palette_t : public palette_t {
     }
 
     void update_data(gb_palette_t* palette) noexcept override {
-        bgp = palette->bgp;
-        memcpy(colors,palette->bg_cram_converted,sizeof(colors));
+        bgp = palette->state.bgp;
+        memcpy(colors,palette->state.bg_cram_converted,sizeof(colors));
     }
 };
 
@@ -155,9 +156,9 @@ struct obj_palette_t : public palette_t {
     }
 
     void update_data(gb_palette_t* palette) noexcept override {
-        obp[0] = palette->obp[0];
-        obp[1] = palette->obp[1];
-        memcpy(colors,palette->obj_cram_converted,sizeof(colors)); 
+        obp[0] = palette->state.obp[0];
+        obp[1] = palette->state.obp[1];
+        memcpy(colors,palette->state.obj_cram_converted,sizeof(colors)); 
     }
 };
 
@@ -171,8 +172,8 @@ inline bool mouse_in_rect(const ImVec2& m,const ImVec2& p_min,const ImVec2& p_ma
     return (m.x >= p_min.x && m.x < p_max.x) && (m.y >= p_min.y && m.y < p_max.y);
 }
 
-void render_size_text(unsigned long long size);
-void render_hertz_text(unsigned long long hertz);
+void render_size_text(size_t size);
+void render_hertz_text(size_t hertz);
 
 
 time_t get_file_last_write_time(std::filesystem::path file);

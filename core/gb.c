@@ -10,9 +10,7 @@ gb_t* gb_new(){
 
     memset(gb,0x00,sizeof(gb_t));
 
-    gb->is_cgb = true;
-    gb->is_cgb_pending = gb->is_cgb;
-    gb->speed = 1.0f;
+    gb->speed = gb_speed_min;
     
     gb->key0_register_descriptor = (gb_memory_descriptor_t){
         gb_write_key0_register,
@@ -51,6 +49,8 @@ gb_t* gb_new(){
     gb_boot_init(&gb->boot,gb);
     gb_memory_init(&gb->memory,gb);
     gb_cartridge_init(&gb->cartridge,gb);
+
+    gb_rewind_init(&gb->rewind,gb);
     gb_printer_init(&gb->printer,gb);
     gb_frame_timer_init(&gb->frame_timer);
     gb_breakpoint_manager_init(&gb->breakpoint_manager,gb);
@@ -63,7 +63,7 @@ gb_t* gb_new(){
 
 
 uint32_t gb_get_clock_rate(gb_t* gb){
-    return gb_clock_rate << (gb->double_speed ? 0x01 : 0x00); 
+    return gb_clock_rate << (gb->state.double_speed ? 0x01 : 0x00); 
 }
 
 
@@ -72,6 +72,11 @@ bool gb_insert_cartridge(gb_t* gb,const char* path){
     gb_remove_cartridge(gb);
 
     if(!gb_cartridge_load(&gb->cartridge,path)){
+        return false;
+    }
+
+    if(!gb_rewind_load(&gb->rewind)){
+        gb_cartridge_remove(&gb->cartridge);
         return false;
     }
 
@@ -91,6 +96,8 @@ void gb_remove_cartridge(gb_t* gb){
     gb_cartridge_remove(&gb->cartridge);
 
     gb->cartridge_inserted = false;
+
+    gb_rewind_unload(&gb->rewind);
 
     gb_frame_timer_stop(&gb->frame_timer);
 }
@@ -115,7 +122,7 @@ void gb_pause(gb_t* gb,bool paused){
     }
     else{
         if(gb->breakpoint_manager.enabled){
-            gb->breakpoint_manager.last_check_address = gb->cpu.pc;
+            gb->breakpoint_manager.last_check_address = gb->cpu.state.pc;
         }
 
         gb_frame_timer_start(&gb->frame_timer);
@@ -135,15 +142,15 @@ void gb_disconnect_printer(gb_t* gb){
 
 
 void gb_half_machine_cycle(gb_t* gb){
-    gb->cycle += 2;
+    gb->state.cycle += 2;
 
-    int cycles = gb->double_speed ? 1 : 2;
+    int cycles = gb->state.double_speed ? 1 : 2;
 
-    gb->apu.cycle += cycles;
+    gb->apu.state.cycle += cycles;
 
     gb_ppu_clock(&gb->ppu,cycles);
 
-    if(gb->cycle >= gb->timer.next_schedule_event){
+    if(gb->state.cycle >= gb->timer.state.next_schedule_event){
         gb_timer_update(&gb->timer);
         gb_timer_schedule_next_event(&gb->timer);
     }
@@ -152,32 +159,32 @@ void gb_half_machine_cycle(gb_t* gb){
         gb_printer_clock(&gb->printer,cycles);
     }
 
-    if(!(gb->cycle & 0x03)){
+    if(!(gb->state.cycle & 0x03)){
 
-        if(gb->serial.transfer_enabled){
+        if(gb->serial.state.transfer_enabled){
             gb_serial_clock(&gb->serial);
         }
 
-        if(gb->dma.oam_state != gb_oam_dma_state_none && gb->cpu.state != gb_cpu_halted_state){
+        if(gb->dma.state.oam_state != gb_oam_dma_state_none && gb->cpu.state.mode != gb_cpu_halted_mode){
             gb_oam_dma_clock(&gb->dma);
         }
 
-        if(gb->dma.vram_hblank_pending && gb->dma.vram_hblank_running && gb->cpu.state != gb_cpu_halted_state){
+        if(gb->dma.state.vram_hblank_pending && gb->dma.state.vram_hblank_running && gb->cpu.state.mode != gb_cpu_halted_mode){
             gb_vram_hblank_dma(&gb->dma);
         }
     }
 }
 
 void gb_machine_cycle(gb_t* gb){
-    gb->cycle += 4;
+    gb->state.cycle += 4;
 
-    int cycles = gb->double_speed ? 2 : 4;
+    int cycles = gb->state.double_speed ? 2 : 4;
 
-    gb->apu.cycle += cycles;
+    gb->apu.state.cycle += cycles;
 
     gb_ppu_clock(&gb->ppu,cycles);
     
-    if(gb->cycle >= gb->timer.next_schedule_event){
+    if(gb->state.cycle >= gb->timer.state.next_schedule_event){
         gb_timer_update(&gb->timer);
         gb_timer_schedule_next_event(&gb->timer);
     }
@@ -186,41 +193,48 @@ void gb_machine_cycle(gb_t* gb){
         gb_printer_clock(&gb->printer,cycles);
     }
 
-    if(gb->serial.transfer_enabled){
+    if(gb->serial.state.transfer_enabled){
         gb_serial_clock(&gb->serial);
     }
 
-    if(gb->dma.oam_state != gb_oam_dma_state_none && gb->cpu.state != gb_cpu_halted_state){
+    if(gb->dma.state.oam_state != gb_oam_dma_state_none && gb->cpu.state.mode != gb_cpu_halted_mode){
         gb_oam_dma_clock(&gb->dma);
     }
 
-    if(gb->dma.vram_hblank_pending && gb->dma.vram_hblank_running && gb->cpu.state != gb_cpu_halted_state){
+    if(gb->dma.state.vram_hblank_pending && gb->dma.state.vram_hblank_running && gb->cpu.state.mode != gb_cpu_halted_mode){
         gb_vram_hblank_dma(&gb->dma);
     }
 }
 
 
 void gb_execute_frame(gb_t* gb){
-    if(!gb->cartridge_inserted || gb->paused) return;
+    if(!gb->cartridge_inserted) return;
 
-    uint64_t frame = gb->ppu.frame_count;
+    if(gb->rewind.rewinding){
+        gb_rewind_execute(&gb->rewind);
+        return;
+    }
+
+    if(gb->paused) return;
+
+    uint64_t frame = gb->ppu.state.frame_count;
     gb_cpu_t* cpu = &gb->cpu;
     gb_ppu_t* ppu = &gb->ppu;
     gb_breakpoint_manager_t* breakpoint_manager = &gb->breakpoint_manager;
 
     if(!breakpoint_manager->enabled){
-        while(frame == ppu->frame_count){
+        while(frame == ppu->state.frame_count){
             cpu->execute(cpu);
         }
     }
     else{
-        while(frame == ppu->frame_count){
+        while(frame == ppu->state.frame_count){
 
-            if(breakpoint_manager->last_check_address != cpu->pc){
+            if(breakpoint_manager->last_check_address != cpu->state.pc){
 
-                breakpoint_manager->last_check_address = cpu->pc;
+                breakpoint_manager->last_check_address = cpu->state.pc;
 
-                if(breakpoint_manager->breakpoints && gb_breakpoint_manager_check(breakpoint_manager,cpu->pc)){
+                if(breakpoint_manager->breakpoints && gb_breakpoint_manager_check(breakpoint_manager,cpu->state.pc)){
                     return;
                 }
             }
@@ -228,6 +242,8 @@ void gb_execute_frame(gb_t* gb){
             cpu->execute(cpu);
         }
     }
+
+    gb_rewind_push(&gb->rewind);
 }
 
 void gb_execute_step(gb_t* gb){
@@ -248,8 +264,8 @@ void gb_switch_speed(gb_t* gb){
 
     gb_cartridge_update_rtc_timer(&gb->cartridge);
 
-    gb->speed_switch_needed = false;
-    gb->double_speed = !gb->double_speed;
+    gb->state.speed_switch_needed = false;
+    gb->state.double_speed = !gb->state.double_speed;
 
     gb_timer_schedule_next_event(&gb->timer);
 }
@@ -260,7 +276,7 @@ void gb_write_key0_register(void* data,uint8_t value,uint16_t address){
 
     gb_t* gb = (gb_t*)data;
 
-    gb->cgb_mode = !(value & 0x0C);
+    gb->state.cgb_mode = !(value & 0x0C);
 }
 
 
@@ -269,7 +285,7 @@ void gb_write_key1_register(void* data,uint8_t value,uint16_t address){
 
     gb_t* gb = (gb_t*)data;
 
-    gb->speed_switch_needed = value & 0x01;
+    gb->state.speed_switch_needed = value & 0x01;
 }
 
 uint8_t gb_read_key1_register(void* data,uint16_t address){
@@ -277,7 +293,7 @@ uint8_t gb_read_key1_register(void* data,uint16_t address){
 
     gb_t* gb = (gb_t*)data;
 
-    return (gb->double_speed ? 0x80 : 0x00) | 0x7E | gb->speed_switch_needed;
+    return (gb->state.double_speed ? 0x80 : 0x00) | 0x7E | gb->state.speed_switch_needed;
 }
 
 
@@ -286,7 +302,7 @@ void gb_write_opri_register(void* data,uint8_t value,uint16_t address){
 
     gb_t* gb = (gb_t*)data;
 
-    gb->obj_priority_mode = value & 0x01;
+    gb->state.obj_priority_mode = value & 0x01;
 }
 
 uint8_t gb_read_opri_register(void* data,uint16_t address){
@@ -294,7 +310,7 @@ uint8_t gb_read_opri_register(void* data,uint16_t address){
     
     gb_t* gb = (gb_t*)data;
 
-    return 0xFE | gb->obj_priority_mode;
+    return 0xFE | gb->state.obj_priority_mode;
 }
 
 
@@ -303,10 +319,10 @@ void gb_write_undocumented_register(void* data,uint8_t value,uint16_t address){
 
     switch(address){
         case 0xFF72: case 0xFF73: case 0xFF74:
-            gb->undocumented_registers[address - 0xFF72] = value;
+            gb->state.undocumented_registers[address - 0xFF72] = value;
             break;
         case 0xFF75:
-            gb->undocumented_registers[0x03] = value & 0x70;
+            gb->state.undocumented_registers[0x03] = value & 0x70;
             break;
     }
 }
@@ -318,10 +334,10 @@ uint8_t gb_read_undocumented_register(void* data,uint16_t address){
 
     switch(address){
         case 0xFF72: case 0xFF73: case 0xFF74:
-            value = gb->undocumented_registers[address - 0xFF72];
+            value = gb->state.undocumented_registers[address - 0xFF72];
             break;
         case 0xFF75:
-            value = 0x8F | (gb->undocumented_registers[0x03] & 0x70);
+            value = 0x8F | (gb->state.undocumented_registers[0x03] & 0x70);
             break;
     }
 
@@ -357,7 +373,7 @@ void gb_update_mapping(gb_t* gb){
 
     gb_memory_t* memory = &gb->memory;
 
-    if(gb->is_cgb && (gb->cgb_mode || gb->boot.mapped)){
+    if(gb->state.is_cgb && (gb->state.cgb_mode || gb->boot.state.mapped)){
 
         gb_memory_map(memory,&gb->key1_register_descriptor,0xFF4D);
 
@@ -399,18 +415,11 @@ void gb_update_mapping(gb_t* gb){
         gb_memory_unmap(memory,0xFF77);
     }
 
-    if(gb->is_cgb && gb->boot.mapped){
+    if(gb->state.is_cgb && gb->boot.state.mapped){
         gb_memory_map(memory,&gb->key0_register_descriptor,0xFF4C);
     }
     else{
         gb_memory_unmap(memory,0xFF4C);
-    }
-
-    if(gb->boot.mapped){
-        gb_memory_map(memory,&gb->boot.bank_register_descriptor,0xFF50);
-    }
-    else{
-        gb_memory_unmap(memory,0xFF50);
     }
     
     gb_event_manager_update_mapping(&gb->event_manager);
@@ -419,27 +428,27 @@ void gb_update_mapping(gb_t* gb){
 
 void gb_reset(gb_t* gb){
 
-    gb->is_cgb = gb->is_cgb_pending;
+    gb->state.is_cgb = gb->is_cgb_pending;
 
     gb_boot_update_roms(&gb->boot);
 
-    bool skip_boot = gb->boot.skip_enabled || (gb->is_cgb && !gb->boot.cgb_rom_inserted) || (!gb->is_cgb && !gb->boot.dmg_rom_inserted);
+    bool skip_boot = gb->boot.skip_enabled || (gb->state.is_cgb && !gb->boot.cgb_rom_inserted) || (!gb->state.is_cgb && !gb->boot.dmg_rom_inserted);
 
-    if(gb->is_cgb && (!skip_boot || gb_cartridge_cgb_flag(&gb->cartridge))){
-        gb->cgb_mode = true;
-        gb->obj_priority_mode = false;
+    if(gb->state.is_cgb && (!skip_boot || gb_cartridge_cgb_flag(&gb->cartridge))){
+        gb->state.cgb_mode = true;
+        gb->state.obj_priority_mode = false;
     }
     else{
-        gb->cgb_mode = false;
-        gb->obj_priority_mode = true;
+        gb->state.cgb_mode = false;
+        gb->state.obj_priority_mode = true;
     }
 
-    gb->double_speed = false;
-    gb->speed_switch_needed = false;
+    gb->state.double_speed = false;
+    gb->state.speed_switch_needed = false;
 
-    memset(gb->undocumented_registers,0x00,sizeof(gb->undocumented_registers));
+    memset(gb->state.undocumented_registers,0x00,sizeof(gb->state.undocumented_registers));
 
-    gb->cycle = 0;
+    gb->state.cycle = 0;
 
     gb_cpu_reset(&gb->cpu);
     gb_ppu_reset(&gb->ppu);
@@ -453,8 +462,9 @@ void gb_reset(gb_t* gb){
     gb_infrared_reset(&gb->infrared);
     gb_memory_reset(&gb->memory);
     gb_cartridge_reset(&gb->cartridge);
+
+    gb_rewind_reset(&gb->rewind);
     gb_printer_reset(&gb->printer);
-    
     gb_breakpoint_manager_reset(&gb->breakpoint_manager);
     gb_event_manager_reset(&gb->event_manager);
 
@@ -476,6 +486,50 @@ void gb_reset(gb_t* gb){
     }
 
     gb_update_mapping(gb);
+}
+
+
+void gb_save_state(gb_t* gb,gb_snapshot_t* snapshot){
+    snapshot->gb = gb->state;
+}
+
+void gb_load_state(gb_t* gb,gb_snapshot_t* snapshot){
+    gb->state = snapshot->gb;
+}
+
+
+void gb_save_snapshot(gb_t* gb,gb_snapshot_t* snapshot){
+    gb_save_state(gb,snapshot);
+    gb_cpu_save_state(&gb->cpu,snapshot);
+    gb_ppu_save_state(&gb->ppu,snapshot);
+    gb_apu_save_state(&gb->apu,snapshot);
+    gb_joypad_save_state(&gb->joypad,snapshot);
+    gb_interrupt_save_state(&gb->interrupt,snapshot);
+    gb_timer_save_state(&gb->timer,snapshot);
+    gb_dma_save_state(&gb->dma,snapshot);
+    gb_palette_save_state(&gb->palette,snapshot);
+    gb_serial_save_state(&gb->serial,snapshot);
+    gb_infrared_save_state(&gb->infrared,snapshot);
+    gb_boot_save_state(&gb->boot,snapshot);
+    gb_memory_save_state(&gb->memory,snapshot);
+    gb_cartridge_save_state(&gb->cartridge,snapshot);
+}
+
+void gb_load_snapshot(gb_t* gb,gb_snapshot_t* snapshot){
+    gb_load_state(gb,snapshot);
+    gb_cpu_load_state(&gb->cpu,snapshot);
+    gb_ppu_load_state(&gb->ppu,snapshot);
+    gb_apu_load_state(&gb->apu,snapshot);
+    gb_joypad_load_state(&gb->joypad,snapshot);
+    gb_interrupt_load_state(&gb->interrupt,snapshot);
+    gb_timer_load_state(&gb->timer,snapshot);
+    gb_dma_load_state(&gb->dma,snapshot);
+    gb_palette_load_state(&gb->palette,snapshot);
+    gb_serial_load_state(&gb->serial,snapshot);
+    gb_infrared_load_state(&gb->infrared,snapshot);
+    gb_boot_load_state(&gb->boot,snapshot);
+    gb_memory_load_state(&gb->memory,snapshot);
+    gb_cartridge_load_state(&gb->cartridge,snapshot);
 }
 
 

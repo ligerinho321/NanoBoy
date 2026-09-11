@@ -26,6 +26,7 @@ typedef enum _gb_object_attribute_mask_t {
     gb_object_priority_mask = 0x80
 } gb_object_attribute_mask_t;
 
+
 typedef struct _gb_ppu_lcdc_t {
     bool tile_enabled : 1;
     bool object_enabled : 1;
@@ -81,10 +82,7 @@ typedef struct _gb_pixel_fifo_t {
     uint8_t length;
 } gb_pixel_fifo_t;
 
-typedef struct _gb_ppu_t {
-    gb_t* gb;
-    bool interframe_blending;
-
+typedef struct _gb_ppu_state_t {
     gb_ppu_lcdc_t lcdc;
     gb_ppu_status_t status;
     
@@ -128,25 +126,34 @@ typedef struct _gb_ppu_t {
 
     bool screen_index;
     uint8_t screen[2][gb_screen_length];
-    uint8_t* current_screen;
 
     gb_rgb_t event_screen_color;
 
     uint8_t vram[gb_vram_length];
-    uint8_t* vram_bank_ptr;
-    uint8_t vram_bank;
+    bool vram_bank;
     bool vram_write_blocked;
     bool vram_read_blocked;
-    gb_memory_descriptor_t vram_descriptor;
-    gb_memory_descriptor_t vbk_register_descriptor;
 
     uint8_t oam[gb_oam_length];
     uint8_t oam_address;
     bool oam_write_blocked;
     bool oam_read_blocked;
-    gb_memory_descriptor_t oam_descriptor;
+} gb_ppu_state_t;
 
+typedef struct _gb_ppu_t {
+    gb_t* gb;
+
+    gb_ppu_state_t state;
+
+    bool interframe_blending;
+
+    uint8_t* current_screen;
+    uint8_t* vram_bank_ptr;
+
+    gb_memory_descriptor_t vram_descriptor;
     gb_memory_descriptor_t register_descriptor;
+    gb_memory_descriptor_t oam_descriptor;
+    gb_memory_descriptor_t vbk_register_descriptor;
 
     gb_ppu_handler_t* handlers;
 } gb_ppu_t;
@@ -189,8 +196,8 @@ void gb_ppu_init_vram_after_skip_boot_dmg(gb_ppu_t* ppu);
 void gb_ppu_reset(gb_ppu_t* ppu);
 void gb_ppu_skip_boot(gb_ppu_t* ppu);
 
-void gb_ppu_save_state(gb_ppu_t* ppu,gb_state_t* state);
-void gb_ppu_load_state(gb_ppu_t* ppu,gb_state_t* state);
+void gb_ppu_save_state(gb_ppu_t* ppu,gb_snapshot_t* snapshot);
+void gb_ppu_load_state(gb_ppu_t* ppu,gb_snapshot_t* snapshot);
 
 #ifdef __cplusplus
 }

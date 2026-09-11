@@ -245,7 +245,7 @@ void file_base_dialog_t::render_directory(){
                 }
 
                 ImGui::TableNextColumn();
-                ImGui::Text("%lu itens",entry.size);
+                ImGui::Text("%" PRIuMAX " itens",entry.size);
 
                 ImGui::TableNextColumn();
                 ImGui::Text("%s",get_time_formated(entry.last_write_time));
