@@ -52,7 +52,7 @@ void memory_viewer_t::file_save_callback(void* userdata,std::filesystem::path pa
 void memory_viewer_t::update_current_memory_type(){
     memory_length = gb_memory_type_length(gb,current_memory_type);
 
-    address_digit_count = snprintf(nullptr,0,"%lX",memory_length - 1);
+    address_digit_count = snprintf(nullptr,0,"%zu",memory_length - 1);
 
     editing_address = 0;
     

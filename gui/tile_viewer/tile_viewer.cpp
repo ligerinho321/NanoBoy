@@ -456,7 +456,7 @@ void tile_viewer_t::render_tile_tooltip(int row,int column){
                 break;
             }
         }
-        ImGui::Text("$%04lX",address % data_length);
+        ImGui::Text("$%04zX",address % data_length);
 
         ImGui::EndTable();
     }
