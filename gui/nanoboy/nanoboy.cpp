@@ -4,7 +4,7 @@ static void joypad_callback(void* data,gb_joypad_button_state_t* button_state){
 
     nanoboy_t* nanoboy = (nanoboy_t*)data;
 
-    if(ImGui::GetIO().WantCaptureKeyboard && !nanoboy->screen->focused()) return;
+    if(ImGui::GetIO().WantCaptureKeyboard) return;
 
     input_settings_t* input_settings = nanoboy->input_settings;
 
@@ -553,7 +553,9 @@ void nanoboy_t::reset(){
 
 void nanoboy_t::event(){
     SDL_Event event{0};
-    
+
+    ImGuiIO& io = ImGui::GetIO();
+
     while(SDL_PollEvent(&event)){
         
         ImGui_ImplSDL2_ProcessEvent(&event);
@@ -562,11 +564,14 @@ void nanoboy_t::event(){
         savestate->event(event);
         screen->event(event);
 
+        if(event.type == SDL_QUIT){
+            running = false;
+            continue;
+        }
+        
+        if(io.WantCaptureKeyboard) continue;
+
         switch(event.type){
-            case SDL_QUIT:{
-                running = false;
-                break;
-            }
             case SDL_KEYDOWN:{
                 if(gb->cartridge_inserted){
                     if(SDL_GetModState() & KMOD_CTRL){

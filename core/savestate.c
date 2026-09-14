@@ -1,8 +1,6 @@
 #include "savestate.h"
 #include "gb.h"
 
-#include <zstd.h>
-
 #define gb_savestate_zstd_compress_level ZSTD_CLEVEL_DEFAULT
 
 

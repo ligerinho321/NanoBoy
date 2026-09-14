@@ -55,10 +55,6 @@ public:
         clear_texture(texture,gb_screen_height);
     }
 
-    bool focused(){
-        return _floating && _focused;
-    }
-
     bool floating(){
         return _floating;
     }

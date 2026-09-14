@@ -9,6 +9,7 @@
 #include <assert.h>
 #include <time.h> // nanosleep(), clock_gettime(), time()
 #include <stdalign.h>
+#include <zstd.h>
 
 #ifdef _WIN32
 #include <windows.h> // Sleep(), QueryPerformanceFrequency(), QueryPerformanceCounter(), CreateThread(), WaitForSingleObject()

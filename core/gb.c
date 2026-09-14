@@ -463,11 +463,6 @@ void gb_reset(gb_t* gb){
     gb_memory_reset(&gb->memory);
     gb_cartridge_reset(&gb->cartridge);
 
-    gb_rewind_reset(&gb->rewind);
-    gb_printer_reset(&gb->printer);
-    gb_breakpoint_manager_reset(&gb->breakpoint_manager);
-    gb_event_manager_reset(&gb->event_manager);
-
     if(skip_boot){
         gb_boot_unmap(&gb->boot);
 
@@ -484,6 +479,11 @@ void gb_reset(gb_t* gb){
     else{
         gb_boot_map(&gb->boot);
     }
+
+    gb_rewind_reset(&gb->rewind);
+    gb_printer_reset(&gb->printer);
+    gb_breakpoint_manager_reset(&gb->breakpoint_manager);
+    gb_event_manager_reset(&gb->event_manager);
 
     gb_update_mapping(gb);
 }
