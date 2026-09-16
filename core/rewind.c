@@ -4,6 +4,8 @@
 void gb_rewind_init(gb_rewind_t* rewind,gb_t* gb){
     rewind->gb = gb;
 
+    rewind->recording_interval = 1;
+
 #ifdef _WIN32
     if(!QueryPerformanceFrequency(&rewind->freq_time)){
         gb_printf_error("QueryPerformanceFrequency failed");
@@ -173,7 +175,12 @@ static void gb_rewind_push_delta(gb_rewind_t* rewind){
 
 
 void gb_rewind_push(gb_rewind_t* rewind){
+    
     if(!rewind->enabled || !rewind->entries.logical_capacity) return;
+
+    if(++rewind->recording_interval_count < rewind->recording_interval) return;
+
+    rewind->recording_interval_count = 0;
 
     gb_rewind_entries_t* entries = &rewind->entries;
 
@@ -275,6 +282,8 @@ bool gb_rewind_start(gb_t* gb){
     
     rewind->rewinding = true;
 
+    rewind->recording_interval_count = 0;
+
     rewind->remaining_time = 0.0f;
 
 #ifdef _WIN32
@@ -356,6 +365,20 @@ void gb_rewind_set_capacity(gb_t* gb,uint32_t new_logical_capacity){
 
 uint32_t gb_rewind_get_capacity(gb_t* gb){
     return gb->rewind.entries.logical_capacity;
+}
+
+
+void gb_rewind_set_recording_interval(gb_t* gb,uint32_t interval){
+    if(interval){
+        gb->rewind.recording_interval = interval;
+    }
+    else{
+        gb->rewind.recording_interval = 1;
+    }
+}
+
+uint32_t gb_rewind_get_recording_interval(gb_t* gb){
+    return gb->rewind.recording_interval;
 }
 
 

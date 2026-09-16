@@ -57,6 +57,9 @@ typedef struct _gb_rewind_t {
     bool enabled;
     bool rewinding;
 
+    uint32_t recording_interval;
+    uint32_t recording_interval_count;
+
     float frame_time;
     float remaining_time;
     
@@ -86,6 +89,9 @@ bool gb_rewind_get_enabled(gb_t* gb);
 
 void gb_rewind_set_capacity(gb_t* gb,uint32_t new_logical_capacity);
 uint32_t gb_rewind_get_capacity(gb_t* gb);
+
+void gb_rewind_set_recording_interval(gb_t* gb,uint32_t interval);
+uint32_t gb_rewind_get_recording_interval(gb_t* gb);
 
 void gb_rewind_set_frame_time(gb_t* gb,float frame_time);
 float gb_rewind_get_frame_time(gb_t* gb);

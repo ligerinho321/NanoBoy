@@ -1,6 +1,10 @@
 #include <gui/screen/screen.hpp>
+#include <gui/nanoboy/nanoboy.hpp>
 
-screen_t::screen_t(gb_t* gb,SDL_Window* window,SDL_Renderer* renderer):gb(gb),window(window),renderer(renderer){
+void screen_t::init(nanoboy_t* _nanoboy){
+
+    nanoboy = _nanoboy;
+    gb = nanoboy->gb;
 
     create_texture();
 
@@ -13,7 +17,7 @@ screen_t::screen_t(gb_t* gb,SDL_Window* window,SDL_Renderer* renderer):gb(gb),wi
     floating_max_size.y = FLT_MAX;
 }
 
-screen_t::~screen_t(){
+void screen_t::uninit(){
     SDL_DestroyTexture(texture);
 }
 
@@ -25,7 +29,7 @@ void screen_t::create_texture(){
         texture = nullptr;
     }
 
-    texture = SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGB24,SDL_TEXTUREACCESS_STREAMING,gb_screen_width,gb_screen_height);
+    texture = SDL_CreateTexture(nanoboy->renderer,SDL_PIXELFORMAT_RGB24,SDL_TEXTUREACCESS_STREAMING,gb_screen_width,gb_screen_height);
 
     clear();
 }
@@ -45,12 +49,17 @@ void screen_t::save(cJSON* settings_object){
     cJSON* interger_scale_bool = cJSON_CreateBool(interger_scale);
     cJSON_AddItemToObjectCS(screen_object,"Interger scale",interger_scale_bool);
 
-    cJSON* interframe_blending_bool = cJSON_CreateBool(gb->ppu.interframe_blending);
-    cJSON_AddItemToObjectCS(screen_object,"Interframe blending",interframe_blending_bool);
-
     cJSON* bilinear_filtering_bool = cJSON_CreateBool(bilinear_filtering);
     cJSON_AddItemToObjectCS(screen_object,"Bilinear filtering",bilinear_filtering_bool);
 
+    cJSON* interframe_blending_bool = cJSON_CreateBool(gb->ppu.interframe_blending);
+    cJSON_AddItemToObjectCS(screen_object,"Interframe blending",interframe_blending_bool);
+
+    cJSON* disable_background_bool = cJSON_CreateBool(gb->ppu.background_disabled);
+    cJSON_AddItemToObjectCS(screen_object,"Disable Background",disable_background_bool);
+
+    cJSON* disable_objects_bool = cJSON_CreateBool(gb->ppu.objects_disabled);
+    cJSON_AddItemToObjectCS(screen_object,"Disable Objects",disable_objects_bool);
 }
 
 void screen_t::load(cJSON* settings_object){
@@ -76,18 +85,30 @@ void screen_t::load(cJSON* settings_object){
         interger_scale = cJSON_IsTrue(interger_scale_bool);
     }
 
-    cJSON* interframe_blending_bool = cJSON_GetObjectItemCaseSensitive(screen_object,"Interframe blending");
-
-    if(interframe_blending_bool && cJSON_IsBool(interframe_blending_bool)){
-        gb->ppu.interframe_blending = cJSON_IsTrue(interframe_blending_bool);
-    }
-
     cJSON* bilinear_filtering_bool = cJSON_GetObjectItemCaseSensitive(screen_object,"Bilinear filtering");
 
     if(bilinear_filtering_bool && cJSON_IsBool(bilinear_filtering_bool)){
         set_bilinear_filtering(cJSON_IsTrue(bilinear_filtering_bool));
     }
 
+    cJSON* interframe_blending_bool = cJSON_GetObjectItemCaseSensitive(screen_object,"Interframe blending");
+
+    if(interframe_blending_bool && cJSON_IsBool(interframe_blending_bool)){
+        gb->ppu.interframe_blending = cJSON_IsTrue(interframe_blending_bool);
+    }
+
+    cJSON* disable_background_bool = cJSON_GetObjectItemCaseSensitive(screen_object,"Disable Background");
+
+    if(disable_background_bool && cJSON_IsBool(disable_background_bool)){
+        gb->ppu.background_disabled = cJSON_IsTrue(disable_background_bool);
+    }
+
+    cJSON* disable_objects_bool = cJSON_GetObjectItemCaseSensitive(screen_object,"Disable Objects");
+    
+    if(disable_objects_bool && cJSON_IsBool(disable_objects_bool)){
+        gb->ppu.objects_disabled = cJSON_IsTrue(disable_objects_bool);
+    }
+    
     update_embedded_size();
 
     last_evail_size.x = 0.0f;
@@ -97,13 +118,13 @@ void screen_t::load(cJSON* settings_object){
 
 void screen_t::set_embedded_scale(int new_scale){
 
-    uint32_t flags = SDL_GetWindowFlags(window);
+    uint32_t flags = SDL_GetWindowFlags(nanoboy->window);
     
     if(flags & SDL_WINDOW_MAXIMIZED){
-        SDL_RestoreWindow(window);
+        SDL_RestoreWindow(nanoboy->window);
     }
     else if(flags & SDL_WINDOW_FULLSCREEN_DESKTOP){
-        SDL_SetWindowFullscreen(window,0);
+        SDL_SetWindowFullscreen(nanoboy->window,0);
     }
 
     int main_menu_bar_height = ImGui::GetFrameHeight();
@@ -113,14 +134,14 @@ void screen_t::set_embedded_scale(int new_scale){
     embedded_rect.w = gb_screen_width * new_scale;
     embedded_rect.h = gb_screen_height * new_scale;
 
-    SDL_SetWindowSize(window,embedded_rect.w,embedded_rect.h + main_menu_bar_height);
+    SDL_SetWindowSize(nanoboy->window,embedded_rect.w,embedded_rect.h + main_menu_bar_height);
 }
 
 void screen_t::update_embedded_size(){
     int window_width = 0;
     int window_height = 0;
 
-    SDL_GetWindowSize(window,&window_width,&window_height);
+    SDL_GetWindowSize(nanoboy->window,&window_width,&window_height);
 
     int main_menu_bar_height = 0;
 
@@ -198,11 +219,11 @@ void screen_t::event(SDL_Event& event){
             }
             else{
                 if(event.key.keysym.scancode == SDL_SCANCODE_F11){
-                    if(SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN_DESKTOP){
-                        SDL_SetWindowFullscreen(window,0);
+                    if(SDL_GetWindowFlags(nanoboy->window) & SDL_WINDOW_FULLSCREEN_DESKTOP){
+                        SDL_SetWindowFullscreen(nanoboy->window,0);
                     }
                     else{
-                        SDL_SetWindowFullscreen(window,SDL_WINDOW_FULLSCREEN_DESKTOP);
+                        SDL_SetWindowFullscreen(nanoboy->window,SDL_WINDOW_FULLSCREEN_DESKTOP);
                     }
                 }
             }
@@ -235,11 +256,11 @@ void screen_t::render_menu_bar(){
         }
 
         if(ImGui::MenuItem("FullScreen","F11")){
-            if(SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN_DESKTOP){
-                SDL_SetWindowFullscreen(window,0);
+            if(SDL_GetWindowFlags(nanoboy->window) & SDL_WINDOW_FULLSCREEN_DESKTOP){
+                SDL_SetWindowFullscreen(nanoboy->window,0);
             }
             else{
-                SDL_SetWindowFullscreen(window,SDL_WINDOW_FULLSCREEN_DESKTOP);
+                SDL_SetWindowFullscreen(nanoboy->window,SDL_WINDOW_FULLSCREEN_DESKTOP);
             }
         }
 
@@ -274,6 +295,14 @@ void screen_t::render_menu_bar(){
 
     if(ImGui::MenuItem("Bilinear filtering",nullptr,bilinear_filtering)){
         set_bilinear_filtering(!bilinear_filtering);
+    }
+
+    if(ImGui::MenuItem("Disable Background",nullptr,gb->ppu.background_disabled)){
+        gb->ppu.background_disabled = !gb->ppu.background_disabled;
+    }
+
+    if(ImGui::MenuItem("Disable Objects",nullptr,gb->ppu.objects_disabled)){
+        gb->ppu.objects_disabled = !gb->ppu.objects_disabled;
     }
 
     ImGui::EndMenu();
@@ -325,13 +354,11 @@ void screen_t::render_floating(){
         ImGui::Image((ImTextureRef)texture,floating_size);
     }
 
-    _focused = ImGui::IsWindowFocused();
-
     ImGui::End();
 }
 
 void screen_t::render_embedded(){
     if(_floating) return;
 
-    SDL_RenderCopy(renderer,texture,nullptr,&embedded_rect);
+    SDL_RenderCopy(nanoboy->renderer,texture,nullptr,&embedded_rect);
 }

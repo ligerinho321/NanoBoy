@@ -16,9 +16,9 @@ private:
         tooltip_palette_scale = 2
     };
 
-    gb_t* gb;
+    gb_t* gb = nullptr;
 
-    SDL_Texture* tilemap_texture[2] = {nullptr};
+    SDL_Texture* tilemap_texture[2] = {};
 
     uint32_t grid_color = 0;
     uint32_t scroll_overlay_border_color = 0;
@@ -67,10 +67,8 @@ private:
     }
     
 public:
-
-    tilemap_viewer_t(gb_t* gb,SDL_Renderer* renderer);
-
-    ~tilemap_viewer_t();
+    void init(gb_t* _gb,SDL_Renderer* _renderer);
+    void uninit();
 
     void render();
 

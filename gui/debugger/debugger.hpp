@@ -9,7 +9,7 @@ private:
         breakpoint_popup_edit_type
     };
 
-    gb_t* gb;
+    gb_t* gb = nullptr;
 
     bool request_open_breakpoint_popup = false;
     
@@ -44,8 +44,8 @@ private:
     void render_breakpoints();
 
 public:
-    debugger_t(gb_t* gb);
-    ~debugger_t();
+    void init(gb_t* _gb);
+    void uninit();
 
     void render_registers();
 

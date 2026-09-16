@@ -94,7 +94,8 @@ protected:
     }
     
 public:
-    file_base_dialog_t();
+    void init();
+    
     virtual ~file_base_dialog_t() = default;
 
     void save(cJSON* object);

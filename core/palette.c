@@ -1,14 +1,6 @@
 #include "palette.h"
 #include "gb.h"
 
-const gb_rgb_t dmg_colors[gb_dmg_colors] = {
-    {0xE0,0xF8,0xD0},
-    {0x88,0xC0,0x70},
-    {0x34,0x68,0x56},
-    {0x08,0x18,0x20}
-};
-
-
 void gb_palette_init(gb_palette_t* palette,gb_t* gb){
     palette->gb = gb;
 
@@ -353,8 +345,22 @@ void gb_palette_map(gb_palette_t* palette){
 }
 
 
+void gb_palette_update_dmg_colors(gb_t* gb){
+
+    if(!gb->cartridge_inserted || gb->state.is_cgb) return;
+
+    gb_palette_t* palette = &gb->palette;
+
+    memcpy(palette->state.bg_cram_converted,palette->bgp_colors,sizeof(palette->bgp_colors));
+    memcpy(palette->state.obj_cram_converted,palette->obp_colors[0x00],sizeof(palette->obp_colors[0x00]));
+    memcpy(palette->state.obj_cram_converted + gb_palette_colors,palette->obp_colors[0x01],sizeof(palette->obp_colors[0x01]));
+}
+
+
 void gb_palette_reset(gb_palette_t* palette){
     memset(&palette->state,0x00,sizeof(palette->state));
+
+    gb_palette_update_dmg_colors(palette->gb);
 }
 
 void gb_palette_skip_boot(gb_palette_t* palette){

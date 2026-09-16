@@ -200,6 +200,7 @@ static inline void gb_ppu_vblank_scanline(gb_ppu_t* ppu){
                     gb_ppu_swap_frame_buffer(ppu);
                 }
                 else{
+                    //No primeiro frame apos a PPU ser ligada os pixels não são enviados para a tela segundo o teste firstwhite.gb
                     state->first_frame = false;
                 }
 
@@ -279,38 +280,37 @@ static inline void gb_ppu_render_pixel(gb_ppu_t* ppu){
 
     gb_ppu_state_t* state = &ppu->state;
 
-    //No primeiro frame apos a PPU ser ligada os pixels não são enviados para a tela segundo o teste firstwhite.gb
-
     if(state->drawn_pixels >= 0){
 
-        gb_pixel_fifo_entry_t* tile = state->tile_fifo.data + state->tile_fifo.front;
+        gb_pixel_fifo_entry_t* tile = state->tile_fifo.data + state->tile_fifo.front;                
         gb_pixel_fifo_entry_t* object = state->object_fifo.data + state->object_fifo.front;
 
         gb_rgb_t color = {0};
 
         gb_palette_t* palette = &ppu->gb->palette;
 
-        if(state->lcdc.object_enabled && object->color_index && (!tile->color_index || !state->lcdc.tile_enabled || (!tile->priority && !object->priority))){
-            if(ppu->gb->state.is_cgb){
-                if(ppu->gb->state.cgb_mode){
-                    color = gb_palette_get_cgb_obp_color(palette,object->palette_index,object->color_index);
-                }
-                else{
-                    color = gb_palette_get_cgb_dmg_obp_color(palette,object->palette_index,object->color_index);
-                }
+        if(!ppu->objects_disabled && state->lcdc.object_enabled && object->color_index && (!tile->color_index || !state->lcdc.tile_enabled || (!tile->priority && !object->priority))){
+            if(ppu->gb->state.cgb_mode){
+                color = gb_palette_get_cgb_obp_color(palette,object->palette_index,object->color_index);
             }
             else{
                 color = gb_palette_get_dmg_obp_color(palette,object->palette_index,object->color_index);
             }
         }
         else{
-            if(ppu->gb->state.is_cgb){
-                if(ppu->gb->state.cgb_mode){
-                    color = gb_palette_get_cgb_bgp_color(palette,tile->palette_index,tile->color_index);
-                }
-                else{
-                    color = gb_palette_get_cgb_dmg_bgp_color(palette,tile->color_index);
-                }
+            /*
+            LCDC.0
+            Non-CGB Mode (DMG, SGB and CGB in compatibility mode): BG and Window display
+            When Bit 0 is cleared, both background and window become blank (white),
+            and the Window Display Bit is ignored in that case.
+            */
+            if((!ppu->gb->state.cgb_mode && !state->lcdc.tile_enabled) || ppu->background_disabled){
+                tile->palette_index = 0x00;
+                tile->color_index = 0x00;
+            }
+
+            if(ppu->gb->state.cgb_mode){
+                color = gb_palette_get_cgb_bgp_color(palette,tile->palette_index,tile->color_index);
             }
             else{
                 color = gb_palette_get_dmg_bgp_color(palette,tile->color_index);
@@ -469,23 +469,17 @@ static inline void gb_ppu_drawing(gb_ppu_t* ppu){
 
         if(state->tile_fifo.length == 0x00 && tile_fetcher->step > 0x05){
 
-            if(state->lcdc.tile_enabled || ppu->gb->state.cgb_mode){
+            for(uint8_t i = 0x00; i < 0x08; ++i){
 
-                for(uint8_t i = 0x00; i < 0x08; ++i){
+                gb_pixel_fifo_entry_t* entry = state->tile_fifo.data + ((state->tile_fifo.front + state->tile_fifo.length) & 0x07);
 
-                    gb_pixel_fifo_entry_t* entry = state->tile_fifo.data + ((state->tile_fifo.front + state->tile_fifo.length) & 0x07);
+                uint8_t bit = 0x01 << ((tile_fetcher->attribute & gb_tilemap_horizontal_flip_mask) ? i : 0x07 ^ i);
 
-                    uint8_t bit = 0x01 << ((tile_fetcher->attribute & gb_tilemap_horizontal_flip_mask) ? i : 0x07 ^ i);
-
-                    entry->palette_index = tile_fetcher->attribute & gb_tilemap_palette_mask;
-                    entry->color_index = ((tile_fetcher->hi & bit) ? 0x02 : 0x00) | ((tile_fetcher->lo & bit) ? 0x01 : 0x00);
-                    entry->priority = tile_fetcher->attribute & gb_tilemap_priority_mask;
-                    
-                    state->tile_fifo.length++;
-                }
-            }
-            else{
-                state->tile_fifo.length = 0x08;
+                entry->palette_index = tile_fetcher->attribute & gb_tilemap_palette_mask;
+                entry->color_index = ((tile_fetcher->hi & bit) ? 0x02 : 0x00) | ((tile_fetcher->lo & bit) ? 0x01 : 0x00);
+                entry->priority = tile_fetcher->attribute & gb_tilemap_priority_mask;
+                
+                state->tile_fifo.length++;
             }
             
             state->fetch_column++;

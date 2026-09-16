@@ -113,6 +113,8 @@ target_sources(
     gui/cheats/cheats.cpp
     
     gui/debugger/debugger.cpp
+
+    gui/dmg_palette/dmg_palette.cpp
     
     gui/event_viewer/event_viewer.cpp
     

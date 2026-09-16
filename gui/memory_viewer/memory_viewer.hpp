@@ -46,7 +46,7 @@ private:
     void update_rows();
 public:
 
-    memory_viewer_t(gb_t* gb);
+    void init(gb_t* _gb);
 
     void render_control();
 

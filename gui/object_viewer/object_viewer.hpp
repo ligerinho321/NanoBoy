@@ -67,7 +67,7 @@ private:
         }
     };
 
-    gb_t* gb;
+    gb_t* gb = nullptr;
 
     SDL_Texture* bg_texture = nullptr;
 
@@ -130,10 +130,8 @@ private:
     void render_oam_screen();
 
 public:
-
-    object_viewer_t(gb_t* gb,SDL_Renderer *renderer);
-
-    ~object_viewer_t();
+    void init(gb_t* _gb,SDL_Renderer* _renderer);
+    void uninit();
 
     void render();
 

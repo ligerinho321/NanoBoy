@@ -9,7 +9,7 @@ private:
         buffer_length = 256
     };
 
-    gb_t* gb;
+    gb_t* gb = nullptr;
 
     file_selector_t file_selector;
 
@@ -32,9 +32,8 @@ private:
     static void file_selector_cgb_callback(void* userdata,std::filesystem::path path);
 
 public:
-    boot_settings_t(gb_t* gb);
-
-    ~boot_settings_t();
+    void init(gb_t* _gb);
+    void uninit();
 
     void save(cJSON* object);
     void load(cJSON* object);

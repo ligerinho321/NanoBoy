@@ -1,6 +1,6 @@
 #include <gui/file_dialog/file_base_dialog.hpp>
 
-file_base_dialog_t::file_base_dialog_t(){
+void file_base_dialog_t::init(){
     set_current_path(std::filesystem::current_path());
 
     ImGuiStyle style = ImGui::GetStyle();

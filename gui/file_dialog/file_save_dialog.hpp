@@ -23,6 +23,10 @@ private:
     void render_popup_modal() override;
 
 public:
+    void init(){
+        file_base_dialog_t::init();
+    }
+    
     void render(){
         file_base_dialog_t::render("File Save","Save","Cancel");
     }

@@ -146,6 +146,8 @@ typedef struct _gb_ppu_t {
     gb_ppu_state_t state;
 
     bool interframe_blending;
+    bool background_disabled;
+    bool objects_disabled;
 
     uint8_t* current_screen;
     uint8_t* vram_bank_ptr;

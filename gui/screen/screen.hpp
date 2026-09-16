@@ -2,23 +2,21 @@
 
 #include <gui/utils/utils.hpp>
 
+class nanoboy_t;
+
 class screen_t {
 private:
-    gb_t* gb;
-
-    SDL_Window* window = nullptr;
-    SDL_Renderer* renderer = nullptr;
-
-    SDL_Texture* texture = nullptr;
+    nanoboy_t* nanoboy = nullptr;
+    gb_t* gb = nullptr;
     
-    SDL_Rect embedded_rect = {};
+    SDL_Texture* texture = nullptr;
 
     bool _floating = false;
     bool aspect_ratio = false;
     bool interger_scale = false;
     bool bilinear_filtering = false;
 
-    bool _focused = false;
+    SDL_Rect embedded_rect = {};
 
     ImVec2 floating_min_size{};
     ImVec2 floating_max_size{};
@@ -36,9 +34,8 @@ private:
     void set_bilinear_filtering(bool new_bilinear_filtering);
     
 public:
-    screen_t(gb_t* gb,SDL_Window* window,SDL_Renderer* renderer);
-
-    ~screen_t();
+    void init(nanoboy_t* _nanoboy);
+    void uninit();
 
     void save(cJSON* settings_object);
     void load(cJSON* settings_object);
@@ -50,6 +47,7 @@ public:
     void render_menu_bar();
     void render_floating();
     void render_embedded();
+    void render_dmg_palette();
 
     void clear(){
         clear_texture(texture,gb_screen_height);

@@ -2,8 +2,10 @@
 
 static const char* file_extension = "All files\0";
 
-boot_settings_t::boot_settings_t(gb_t* gb):gb(gb){
+void boot_settings_t::init(gb_t* _gb){
+    gb = _gb;
 
+    file_selector.init();
     file_selector.set_extensions(&file_extension,1);
 
     gb_set_dmg_rom_path_reference(gb,dmg_path);
@@ -14,7 +16,7 @@ boot_settings_t::boot_settings_t(gb_t* gb):gb(gb){
     update_window_size_constraints();
 }
 
-boot_settings_t::~boot_settings_t(){
+void boot_settings_t::uninit(){
     gb_remove_dmg_rom_path_reference(gb);
     gb_remove_cgb_rom_path_reference(gb);
 }
@@ -25,9 +27,11 @@ void boot_settings_t::update_window_size_constraints(){
 
     float title_bar_height = ImGui::GetFrameHeight();
 
-    float content_height = ImGui::GetFrameHeightWithSpacing() * 3.0f;
+    float table_height = (ImGui::GetFrameHeight() + style.CellPadding.y * 2.0f) * 2.0f;
 
-    float window_height = title_bar_height +  content_height + style.WindowPadding.y * 2.0f;
+    float button_height = ImGui::GetFrameHeightWithSpacing();
+
+    float window_height = title_bar_height + table_height + button_height + style.WindowPadding.y * 2.0f;
 
     window_min_size.x = style.WindowMinSize.x;
     window_min_size.y = window_height;
@@ -126,42 +130,49 @@ void boot_settings_t::render(){
     if(ImGui::Begin("Boot",&_open)){
 
         ImGuiStyle& style = ImGui::GetStyle();
-        
-        float browser_button_width = ImGui::CalcTextSize("...").x + style.FramePadding.x * 2.0f;
 
-        ImGui::AlignTextToFramePadding();
-        
-        ImGui::TextUnformatted("DMG boot path:");
-        
-        ImGui::SameLine(0.0f,style.ItemInnerSpacing.x);
-        
-        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - browser_button_width - style.ItemInnerSpacing.x);
-        
-        ImGui::InputText("##DMGBootPathTextInput",temp_dmg_path,sizeof(temp_dmg_path));
-        
-        ImGui::SameLine(0.0f,style.ItemInnerSpacing.x);
+        if(ImGui::BeginTable("BootTable",2)){
 
-        if(ImGui::Button("...##DMGBootPathBrowserButton")){
-            file_selector.set_callback(file_selector_dmg_callback,this);
-            file_selector.set_open(true);
-        }
+            ImGui::TableSetupColumn(nullptr,ImGuiTableColumnFlags_WidthFixed);
+            ImGui::TableSetupColumn(nullptr,ImGuiTableColumnFlags_WidthStretch);
+            
+            float browser_button_width = ImGui::CalcTextSize("...").x + style.FramePadding.x * 2.0f;
 
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::AlignTextToFramePadding();
+            ImGui::TextUnformatted("DMG boot path");
+            ImGui::TableNextColumn();
 
-        ImGui::AlignTextToFramePadding();
-        
-        ImGui::TextUnformatted("CGB boot path:");
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - browser_button_width - style.ItemInnerSpacing.x);
+            
+            ImGui::InputText("##DMGBootPathTextInput",temp_dmg_path,sizeof(temp_dmg_path));
+            
+            ImGui::SameLine(0.0f,style.ItemInnerSpacing.x);
 
-        ImGui::SameLine(0.0f,style.ItemInnerSpacing.x);
+            if(ImGui::Button("...##DMGBootPathBrowserButton")){
+                file_selector.set_callback(file_selector_dmg_callback,this);
+                file_selector.set_open(true);
+            }
 
-        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - browser_button_width - style.ItemInnerSpacing.x);
-        
-        ImGui::InputText("##CGBBootPathTextInput",temp_cgb_path,sizeof(temp_cgb_path));
-        
-        ImGui::SameLine(0.0f,style.ItemInnerSpacing.x);
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::AlignTextToFramePadding();
+            ImGui::TextUnformatted("CGB boot path");
+            ImGui::TableNextColumn();
 
-        if(ImGui::Button("...##CGBBootPathBrowserButton")){
-            file_selector.set_callback(file_selector_cgb_callback,this);
-            file_selector.set_open(true);
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - browser_button_width - style.ItemInnerSpacing.x);
+            
+            ImGui::InputText("##CGBBootPathTextInput",temp_cgb_path,sizeof(temp_cgb_path));
+            
+            ImGui::SameLine(0.0f,style.ItemInnerSpacing.x);
+
+            if(ImGui::Button("...##CGBBootPathBrowserButton")){
+                file_selector.set_callback(file_selector_cgb_callback,this);
+                file_selector.set_open(true);
+            }
+
+            ImGui::EndTable();
         }
 
         ImGui::Checkbox("Skip boot",&temp_skip_enabled);

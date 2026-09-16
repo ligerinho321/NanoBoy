@@ -1,7 +1,7 @@
 #include <gui/notification_manager/notification_manager.hpp>
 #include <gui/assets/assets.hpp>
 
-notification_manager_t::notification_manager_t(){
+void notification_manager_t::init(){
     ImGuiIO& io = ImGui::GetIO();
 
     ImFontConfig font_config = {};

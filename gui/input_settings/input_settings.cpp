@@ -1,10 +1,10 @@
 #include <gui/input_settings/input_settings.hpp>
 
-input_settings_t::input_settings_t(){
+void input_settings_t::init(){
     update_window_size_constraints();
 }
 
-input_settings_t::~input_settings_t(){
+void input_settings_t::uninit(){
     for(auto controller : controller_devices){
         SDL_GameControllerClose(controller);
     }

@@ -14,7 +14,7 @@ private:
         buffer_expand_size = gb_printer_image_pitch * texture_expand_height
     };
 
-    gb_t* gb;
+    gb_t* gb = nullptr;
 
     file_save_dialog_t file_save;
 
@@ -38,9 +38,8 @@ private:
     void update();
 
 public:
-    printer_t(gb_t* _gb,SDL_Renderer* _renderer);
-
-    ~printer_t();
+    void init(gb_t* _gb,SDL_Renderer* _renderer);
+    void uninit();
 
     void render();
     

@@ -16,8 +16,19 @@ static const uint8_t refresh_on_scanline_step = 1;
 static const uint16_t refresh_on_cycle_step = 1;
 
 
-tile_viewer_t::tile_viewer_t(gb_t* gb,SDL_Renderer* renderer):gb(gb),bg_palette(renderer),obj_palette(renderer){
-    texture = SDL_CreateTexture(renderer,tile_viewer_t::texture_format,tile_viewer_t::texture_access,tile_viewer_t::texture_max_size,tile_viewer_t::texture_max_size);
+void tile_viewer_t::init(gb_t* _gb,SDL_Renderer* _renderer){
+    gb = _gb;
+
+    bg_palette.init(_renderer);
+    obj_palette.init(_renderer);
+
+    texture = SDL_CreateTexture(
+        _renderer,
+        tile_viewer_t::texture_format,
+        tile_viewer_t::texture_access,
+        tile_viewer_t::texture_max_size,
+        tile_viewer_t::texture_max_size
+    );
 
     input_scalar_width = get_input_scalar_width(8);
 
@@ -31,8 +42,11 @@ tile_viewer_t::tile_viewer_t(gb_t* gb,SDL_Renderer* renderer):gb(gb),bg_palette(
     update_data_length();
 }
 
-tile_viewer_t::~tile_viewer_t(){
-    set_open(false);
+void tile_viewer_t::uninit(){
+    bg_palette.uninit();
+    obj_palette.uninit();
+
+    gb_ppu_remove_handler(gb,&callback_handler);
 
     SDL_DestroyTexture(texture);
 }
@@ -45,10 +59,10 @@ void tile_viewer_t::ppu_callback(void* userdata){
     tile_viewer->cgb_mode = gb->state.cgb_mode;
 
     tile_viewer->bg_palette.update_data(&gb->palette);
-    tile_viewer->bg_palette.update_texture(gb->state.is_cgb,gb->state.cgb_mode);
+    tile_viewer->bg_palette.update_texture(gb->state.cgb_mode);
 
     tile_viewer->obj_palette.update_data(&gb->palette);
-    tile_viewer->obj_palette.update_texture(gb->state.is_cgb,gb->state.cgb_mode);
+    tile_viewer->obj_palette.update_texture(gb->state.cgb_mode);
     
     gb_memory_type_read(
         gb,
@@ -169,16 +183,9 @@ void tile_viewer_t::update_texture() noexcept {
 
     palette_t& palette = obj_palette_selected ? (palette_t&)obj_palette : (palette_t&)bg_palette;
 
-    if(gb->state.is_cgb){
-        if(cgb_mode){
-            for(uint8_t i = 0; i < 4; ++i){
-                colors[i] = palette.get_cgb_color(palette_index,i);
-            }
-        }
-        else{
-            for(uint8_t i = 0; i < 4; ++i){
-                colors[i] = palette.get_cgb_dmg_color(palette_index,i);
-            }
+    if(cgb_mode){
+        for(uint8_t i = 0; i < 4; ++i){
+            colors[i] = palette.get_cgb_color(palette_index,i);
         }
     }
     else{

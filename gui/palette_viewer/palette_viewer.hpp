@@ -14,8 +14,6 @@ private:
     bool cgb_mode = false;
     bg_palette_t bg_palette;
     obj_palette_t obj_palette;
-    uint8_t bg_cram[gb_cgb_cram_length] = {0};
-    uint8_t obj_cram[gb_cgb_cram_length] = {0};
 
     float input_scalar_width = 0.0f;
     int input_scalar_step = 1;
@@ -30,14 +28,13 @@ private:
 
     static void callback(void* data);
 
-    void render_tooltip_color(palette_t& palette,uint8_t* cram,uint8_t col,uint8_t row);
+    void render_tooltip_color(palette_t& palette,uint8_t col,uint8_t row);
 
-    void render_palette(palette_t& palette,uint8_t* cram);
+    void render_palette(palette_t& palette);
 
 public:
-    palette_viewer_t(gb_t* gb,SDL_Renderer* renderer);
-
-    ~palette_viewer_t();
+    void init(gb_t* _gb,SDL_Renderer* _renderer);
+    void uninit();
 
     void render();
 

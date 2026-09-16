@@ -19,7 +19,7 @@ enum{
 
 typedef struct _gb_palette_state_t {
     uint8_t bgp;
-    uint8_t obp[0x02];
+    uint8_t obp[gb_dmg_obj_palettes];
 
     uint8_t bgpi;
     uint8_t obpi;
@@ -36,18 +36,12 @@ typedef struct _gb_palette_t {
 
     gb_palette_state_t state;
 
+    gb_rgb_t bgp_colors[gb_palette_colors];
+    gb_rgb_t obp_colors[gb_dmg_obj_palettes][gb_palette_colors];
+
     gb_memory_descriptor_t dmg_register_descriptor;
     gb_memory_descriptor_t cgb_register_descriptor;
 } gb_palette_t;
-
-extern const gb_rgb_t dmg_colors[gb_dmg_colors];
-
-
-#define gb_palette_get_dmg_bgp_color(palette,palette_index)\
-    dmg_colors[((palette)->state.bgp >> (((palette_index) & 0x03) << 0x01)) & 0x03]
-
-#define gb_palette_get_dmg_obp_color(palette,palette_index,color_index)\
-    dmg_colors[((palette)->state.obp[(palette_index) & 0x01] >> (((color_index) & 0x03) << 0x01)) & 0x03]
 
 
 #define gb_palette_get_cgb_bgp_color(palette,palette_index,color_index)\
@@ -57,10 +51,10 @@ extern const gb_rgb_t dmg_colors[gb_dmg_colors];
     (palette)->state.obj_cram_converted[(((palette_index) & 0x07) << 0x02) | ((color_index) & 0x03)]
 
 
-#define gb_palette_get_cgb_dmg_bgp_color(palette,palette_index)\
+#define gb_palette_get_dmg_bgp_color(palette,palette_index)\
     (palette)->state.bg_cram_converted[((palette)->state.bgp >> (((palette_index) & 0x03) << 0x01)) & 0x03]
 
-#define gb_palette_get_cgb_dmg_obp_color(palette,palette_index,color_index)\
+#define gb_palette_get_dmg_obp_color(palette,palette_index,color_index)\
     (palette)->state.obj_cram_converted[(((palette_index) & 0x01) << 0x02) | (((palette)->state.obp[(palette_index) & 0x01] >> (((color_index) & 0x03) << 0x01)) & 0x03)]
 
     
@@ -81,6 +75,8 @@ void gb_palette_write_cgb_register(void* data,uint8_t value,uint16_t address);
 uint8_t gb_palette_read_cgb_register(void* data,uint16_t address);
 
 void gb_palette_map(gb_palette_t* palette);
+
+void gb_palette_update_dmg_colors(gb_t* gb);
 
 void gb_palette_reset(gb_palette_t* palette);
 void gb_palette_skip_boot(gb_palette_t* palette);

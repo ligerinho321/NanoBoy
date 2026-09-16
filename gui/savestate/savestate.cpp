@@ -6,8 +6,10 @@ static const char* str_load = "Load";
 static const char* str_delete = "Delete";
 
 
-savestate_t::savestate_t(nanoboy_t* nanoboy):nanoboy(nanoboy){
+void savestate_t::init(nanoboy_t* _nanoboy){
 
+    nanoboy = _nanoboy;
+    
     for(int i = 0; i < savestate_t::number_of_slots; ++i){
         slots[i].name = "Slot #" + std::to_string(i + 1);
         slots[i].shortcut_save = "Shift+F" + std::to_string(i + 1);
@@ -59,10 +61,10 @@ void savestate_t::unload(){
 void savestate_t::save_slot(int index){    
     if(gb_savestate_serialize(nanoboy->gb,slots[index].path.u8string().c_str())){
 
-        nanoboy->notification_manager->push_notification("State #%d Saved",index);
+        nanoboy->notification_manager.push_notification("State #%d Saved",index);
     }
     else{
-        nanoboy->notification_manager->push_notification("Failed To Save State #%d",index);
+        nanoboy->notification_manager.push_notification("Failed To Save State #%d",index);
     }
     
     update_slots();
@@ -73,10 +75,10 @@ void savestate_t::load_slot(int index){
 
     if(gb_savestate_deserialize(nanoboy->gb,slots[index].path.u8string().c_str())){
 
-        nanoboy->notification_manager->push_notification("State #%d Loaded",index);
+        nanoboy->notification_manager.push_notification("State #%d Loaded",index);
     }
     else{
-        nanoboy->notification_manager->push_notification("Failed To Load State #%d",index);
+        nanoboy->notification_manager.push_notification("Failed To Load State #%d",index);
     }
 
     SDL_UnlockAudioDevice(nanoboy->audio_device);
@@ -86,13 +88,13 @@ void savestate_t::delete_slot(int index){
     try{
         std::filesystem::remove(slots[index].path);
 
-        nanoboy->notification_manager->push_notification("State #%d Deleted",index);
+        nanoboy->notification_manager.push_notification("State #%d Deleted",index);
 
         update_slots();
     }
     catch(std::exception& exception){
 
-        nanoboy->notification_manager->push_notification("Failed To Delete State #%d",index);
+        nanoboy->notification_manager.push_notification("Failed To Delete State #%d",index);
 
         gb_printf_error(exception.what());
     }

@@ -47,7 +47,7 @@ private:
     bool open = false;
 
 public:
-    savestate_t(nanoboy_t* nanoboy);
+    void init(nanoboy_t* _nanoboy);
 
     void load(std::filesystem::path path,std::string rom_name);
     void unload();

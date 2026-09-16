@@ -10,13 +10,17 @@ const char* image_extensions[] = {
 const int image_extensions_count = sizeof(image_extensions) / sizeof(image_extensions[0]);
 
 
-printer_t::printer_t(gb_t* _gb,SDL_Renderer* _renderer):gb(_gb),renderer(_renderer){
+void printer_t::init(gb_t* _gb,SDL_Renderer* _renderer){
+    gb = _gb;
+    renderer = _renderer;
+
+    file_save.init();
     file_save.set_extensions(image_extensions,image_extensions_count);
     file_save.set_callback(file_save_callback,this);
 }
 
-printer_t::~printer_t(){
-    set_open(false);
+void printer_t::uninit(){
+    gb_disconnect_printer(gb);
 
     if(texture != nullptr){
         SDL_DestroyTexture(texture);

@@ -51,15 +51,15 @@ struct palette_t{
         texture_access = SDL_TEXTUREACCESS_STREAMING
     };
 
-    SDL_Texture* texture;
+    SDL_Texture* texture = nullptr;
     bool is_obj;
 
-    palette_t(SDL_Renderer* renderer,bool _is_obj):
-    texture(SDL_CreateTexture(renderer,texture_format,texture_access,texture_max_width,texture_max_height)),
-    is_obj(_is_obj)
-    {}
+    void init(bool _is_obj,SDL_Renderer* _renderer){
+        is_obj = _is_obj;
+        texture = SDL_CreateTexture(_renderer,texture_format,texture_access,texture_max_width,texture_max_height);
+    }
 
-    virtual ~palette_t(){
+    void uninit(){
         SDL_DestroyTexture(texture);
     }
 
@@ -67,26 +67,28 @@ struct palette_t{
 
     virtual uint8_t get_cgb_address_color(uint8_t palette_index,uint8_t color_index) const noexcept = 0;
 
-    virtual uint8_t get_cgb_dmg_address_color(uint8_t palette_index,uint8_t color_index) const noexcept = 0;
-
 
     virtual gb_rgb_t get_dmg_color(uint8_t palette_index, uint8_t color_index) const noexcept = 0;
 
     virtual gb_rgb_t get_cgb_color(uint8_t palette_index,uint8_t color_index) const noexcept = 0;
-
-    virtual gb_rgb_t get_cgb_dmg_color(uint8_t palette_index,uint8_t color_index) const noexcept = 0;
-
+    
 
     virtual void update_data(gb_palette_t* palette) noexcept = 0;
 
-    void update_texture(bool is_cgb,bool cgb_mode);
+    void update_texture(bool cgb_mode);
 };
 
 struct bg_palette_t : public palette_t {
     uint8_t bgp = 0;
     gb_rgb_t colors[gb_cgb_colors] = {};
 
-    bg_palette_t(SDL_Renderer* renderer):palette_t(renderer,false){}
+    void init(SDL_Renderer* _renderer){
+        palette_t::init(false,_renderer);
+    }
+
+    void uninit(){
+        palette_t::uninit();
+    }
 
     void clear();
 
@@ -99,22 +101,15 @@ struct bg_palette_t : public palette_t {
         return ((palette_index & 0x07) << 0x02) | (color_index & 0x03);
     }
 
-    uint8_t get_cgb_dmg_address_color(uint8_t palette_index,uint8_t color_index) const noexcept override {
-        return get_dmg_address_color(palette_index,color_index);
-    }
-
 
     gb_rgb_t get_dmg_color(uint8_t palette_index, uint8_t color_index) const noexcept override {
-        return dmg_colors[get_dmg_address_color(palette_index,color_index)];
+        return colors[get_dmg_address_color(palette_index,color_index)];
     }
 
     gb_rgb_t get_cgb_color(uint8_t palette_index,uint8_t color_index) const noexcept override {
         return colors[get_cgb_address_color(palette_index,color_index)];
     }
 
-    gb_rgb_t get_cgb_dmg_color(uint8_t palette_index,uint8_t color_index) const noexcept override {
-        return colors[get_dmg_address_color(palette_index,color_index)];
-    }
 
     void update_data(gb_palette_t* palette) noexcept override {
         bgp = palette->state.bgp;
@@ -126,33 +121,31 @@ struct obj_palette_t : public palette_t {
     uint8_t obp[2] = {};
     gb_rgb_t colors[gb_cgb_colors] = {};
 
-    obj_palette_t(SDL_Renderer* renderer):palette_t(renderer,true){}
+    void init(SDL_Renderer* _renderer){
+        palette_t::init(true,_renderer);
+    }
+
+    void uninit(){
+        palette_t::uninit();
+    }
 
     void clear();
 
     uint8_t get_dmg_address_color(uint8_t palette_index,uint8_t color_index) const noexcept override {
-        return (obp[palette_index & 0x01] >> ((color_index & 0x03) << 0x01)) & 0x03;
+        return ((palette_index & 0x01) << 0x02) | ((obp[palette_index & 0x01] >> ((color_index & 0x03) << 0x01)) & 0x03);
     }
 
     uint8_t get_cgb_address_color(uint8_t palette_index,uint8_t color_index) const noexcept override {
         return ((palette_index & 0x07) << 0x02) | (color_index & 0x03);
     }
 
-    uint8_t get_cgb_dmg_address_color(uint8_t palette_index,uint8_t color_index) const noexcept override {
-        return ((palette_index & 0x01) << 0x02) | ((obp[palette_index & 0x01] >> ((color_index & 0x03) << 0x01)) & 0x03);
-    }
-
 
     gb_rgb_t get_dmg_color(uint8_t palette_index,uint8_t color_index) const noexcept override {
-        return dmg_colors[get_dmg_address_color(palette_index,color_index)];
+        return colors[get_dmg_address_color(palette_index,color_index)];
     }
 
     gb_rgb_t get_cgb_color(uint8_t palette_index,uint8_t color_index) const noexcept override {
         return colors[get_cgb_address_color(palette_index,color_index)];
-    }
-
-    gb_rgb_t get_cgb_dmg_color(uint8_t palette_index,uint8_t color_index) const noexcept override {
-        return colors[get_cgb_dmg_address_color(palette_index,color_index)];
     }
 
     void update_data(gb_palette_t* palette) noexcept override {
@@ -172,9 +165,10 @@ inline bool mouse_in_rect(const ImVec2& m,const ImVec2& p_min,const ImVec2& p_ma
     return (m.x >= p_min.x && m.x < p_max.x) && (m.y >= p_min.y && m.y < p_max.y);
 }
 
-void render_size_text(size_t size);
-void render_hertz_text(size_t hertz);
 
+void render_size_text(size_t size);
+
+void render_hertz_text(size_t hertz);
 
 time_t get_file_last_write_time(std::filesystem::path file);
 

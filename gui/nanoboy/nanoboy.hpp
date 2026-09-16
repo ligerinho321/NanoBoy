@@ -12,6 +12,7 @@
 #include <gui/savestate/savestate.hpp>
 #include <gui/screen/screen.hpp>
 
+#include <gui/dmg_palette/dmg_palette.hpp>
 #include <gui/boot_settings/boot_settings.hpp>
 #include <gui/rewind_settings/rewind_settings.hpp>
 #include <gui/input_settings/input_settings.hpp>
@@ -98,28 +99,30 @@ public:
     SDL_Renderer* renderer = nullptr;
     SDL_AudioDeviceID audio_device = 0;
 
-    notification_manager_t* notification_manager = nullptr;
+    notification_manager_t notification_manager;
     
-    boot_settings_t* boot_settings = nullptr;
-    rewind_settings_t* rewind_settings = nullptr;
-    input_settings_t* input_settings = nullptr;
+    dmg_palette_t dmg_palette;
+    boot_settings_t boot_settings;
+    rewind_settings_t rewind_settings;
+    input_settings_t input_settings;
     
-    file_selector_t* file_selector = nullptr;
-    savestate_t* savestate = nullptr;
+    file_selector_t file_selector;
 
-    screen_t* screen = nullptr;
-    
-    cheats_t* cheats = nullptr;
-    printer_t* printer = nullptr;
+    savestate_t savestate;
 
-    debugger_t* debugger = nullptr;
-    event_viewer_t* event_viewer = nullptr;
-    memory_viewer_t* memory_viewer = nullptr;
-    tilemap_viewer_t* tilemap_viewer = nullptr;
-    tile_viewer_t* tile_viewer = nullptr;
-    object_viewer_t* object_viewer = nullptr;
-    palette_viewer_t* palette_viewer = nullptr;
-    wave_form_t* wave_form = nullptr;
+    screen_t screen;
+    
+    cheats_t cheats;
+    printer_t printer;
+
+    debugger_t debugger;
+    event_viewer_t event_viewer;
+    memory_viewer_t memory_viewer;
+    tilemap_viewer_t tilemap_viewer;
+    tile_viewer_t tile_viewer;
+    object_viewer_t object_viewer;
+    palette_viewer_t palette_viewer;
+    wave_form_t wave_form;
 
     bool running = false;
 

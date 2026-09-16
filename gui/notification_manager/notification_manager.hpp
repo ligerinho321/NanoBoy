@@ -21,7 +21,7 @@ private:
     char buffer[256] = {};
 
 public:
-    notification_manager_t();
+    void init();
 
     void push_notification(const char* fmt,...);
 

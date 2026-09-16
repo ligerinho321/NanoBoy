@@ -2,12 +2,15 @@
 
 static const char* file_extension = "All files\0";
 
+void memory_viewer_t::init(gb_t* _gb){
 
-memory_viewer_t::memory_viewer_t(gb_t* gb):gb(gb){
-
+    gb = _gb;
+    
+    file_selector.init();
     file_selector.set_extensions(&file_extension,1);
     file_selector.set_callback(file_selector_callback,this);
 
+    file_save.init();
     file_save.set_extensions(&file_extension,1);
     file_save.set_callback(file_save_callback,this);
 

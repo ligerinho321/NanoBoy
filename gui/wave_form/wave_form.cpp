@@ -3,14 +3,16 @@
 const char* file_extension = "WAV\0.wav";
 
 
-wave_form_t::wave_form_t(gb_t* _gb):gb(_gb){
+void wave_form_t::init(gb_t* _gb){
+    gb = _gb;
+    file_save.init();
     file_save.set_callback(file_save_callback,this);
     file_save.set_extensions(&file_extension,1);
 }
 
-
-wave_form_t::~wave_form_t(){
-    set_open(false,true);
+void wave_form_t::uninit(){
+    gb_apu_remove_handler(gb,&channel_handler);
+    gb_apu_remove_handler(gb,&recording_handler);
 }
 
 

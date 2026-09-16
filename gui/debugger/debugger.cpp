@@ -5,11 +5,14 @@ static const char* breakpoint_popup_names[] = {
     "Edit Breakpoint"
 };
 
-debugger_t::debugger_t(gb_t* gb):gb(gb){
+
+void debugger_t::init(gb_t* _gb){
+    gb = _gb;
     update_breakpoint_popup_size_constraints();
 }
 
-debugger_t::~debugger_t(){
+void debugger_t::uninit(){
+    
     gb_breakpoint_manager_clear(gb);
 
     for(auto breakpoint : breakpoints){

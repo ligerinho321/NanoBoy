@@ -1,8 +1,12 @@
 #include <gui/object_viewer/object_viewer.hpp>
 
-object_viewer_t::object_viewer_t(gb_t* gb,SDL_Renderer *renderer):gb(gb),obj_palette(renderer){
+void object_viewer_t::init(gb_t* _gb,SDL_Renderer* _renderer){
     
-    bg_texture = SDL_CreateTexture(renderer,bg_texture_format,texture_access,bg_texture_width,bg_texture_height);
+    gb = _gb;
+
+    obj_palette.init(_renderer);
+
+    bg_texture = SDL_CreateTexture(_renderer,bg_texture_format,texture_access,bg_texture_width,bg_texture_height);
 
     load_bg_texture();
 
@@ -24,14 +28,15 @@ object_viewer_t::object_viewer_t(gb_t* gb,SDL_Renderer *renderer):gb(gb),obj_pal
     update_bg_metrics();
 
     for(int i = 0; i < gb_oam_objects; ++i){
-        objects[i].init(i,renderer);
+        objects[i].init(i,_renderer);
         objects_sorted[i] = &objects[i];
     }
 }
 
-object_viewer_t::~object_viewer_t(){
+void object_viewer_t::uninit(){
+    obj_palette.uninit();
     
-    set_open(false);
+    gb_ppu_remove_handler(gb,&callback_handler);
 
     SDL_DestroyTexture(bg_texture);
 }
@@ -48,7 +53,7 @@ void object_viewer_t::callback(void* data){
     object_viewer->object_texture_uv1.y = object_viewer->object_size ? 1.0f : 0.5f;
 
     object_viewer->obj_palette.update_data(&gb->palette);
-    object_viewer->obj_palette.update_texture(gb->state.is_cgb,gb->state.cgb_mode);
+    object_viewer->obj_palette.update_texture(gb->state.cgb_mode);
 
     object_viewer->update_objects();
 }
@@ -150,13 +155,8 @@ void object_viewer_t::update_object_texture(object_t& object){
 
             uint8_t color_index = ((hi & bit) ? 0x02 : 0x00) | ((lo & bit) ? 0x01 : 0x00);
 
-            if(gb->state.is_cgb){
-                if(cgb_mode){
-                    color = obj_palette.get_cgb_color(object.palette_index,color_index);
-                }
-                else{
-                    color = obj_palette.get_cgb_dmg_color(object.palette_index,color_index);
-                }
+            if(cgb_mode){
+                color = obj_palette.get_cgb_color(object.palette_index,color_index);
             }
             else{
                 color = obj_palette.get_dmg_color(object.palette_index,color_index);

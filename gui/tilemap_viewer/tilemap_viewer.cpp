@@ -1,9 +1,13 @@
 #include <gui/tilemap_viewer/tilemap_viewer.hpp>
 
-tilemap_viewer_t::tilemap_viewer_t(gb_t* gb,SDL_Renderer* renderer):gb(gb),bg_palette(renderer){
+void tilemap_viewer_t::init(gb_t* _gb,SDL_Renderer* _renderer){
     
-    tilemap_texture[0] = SDL_CreateTexture(renderer,texture_format,texture_access,tilemap_texture_width,tilemap_texture_height);
-    tilemap_texture[1] = SDL_CreateTexture(renderer,texture_format,texture_access,tilemap_texture_width,tilemap_texture_height);
+    gb = _gb;
+
+    bg_palette.init(_renderer);
+
+    tilemap_texture[0] = SDL_CreateTexture(_renderer,texture_format,texture_access,tilemap_texture_width,tilemap_texture_height);
+    tilemap_texture[1] = SDL_CreateTexture(_renderer,texture_format,texture_access,tilemap_texture_width,tilemap_texture_height);
 
     ImGuiStyle& style = ImGui::GetStyle();
 
@@ -18,8 +22,11 @@ tilemap_viewer_t::tilemap_viewer_t(gb_t* gb,SDL_Renderer* renderer):gb(gb),bg_pa
     update_tilemap_size();
 }
 
-tilemap_viewer_t::~tilemap_viewer_t(){
-    set_open(false);
+void tilemap_viewer_t::uninit(){
+
+    bg_palette.uninit();
+
+    gb_ppu_remove_handler(gb,&callback_handler);
 
     SDL_DestroyTexture(tilemap_texture[0]);
     SDL_DestroyTexture(tilemap_texture[1]);
@@ -38,7 +45,7 @@ void tilemap_viewer_t::callback(void* data){
     tilemap_viewer->scy = gb->ppu.state.scy;
 
     tilemap_viewer->bg_palette.update_data(&gb->palette);
-    tilemap_viewer->bg_palette.update_texture(gb->state.is_cgb,gb->state.cgb_mode);
+    tilemap_viewer->bg_palette.update_texture(gb->state.cgb_mode);
 
     memcpy(tilemap_viewer->vram,gb->ppu.state.vram,sizeof(tilemap_viewer->vram));
 
@@ -85,13 +92,8 @@ void tilemap_viewer_t::update_tilemap_texture(uint8_t map_index){
 
                     uint8_t color_index = ((hi & bit) ? 0x02 : 0x00) | ((lo & bit) ? 0x01 : 0x00);
 
-                    if(gb->state.is_cgb){
-                        if(cgb_mode){
-                            color = bg_palette.get_cgb_color(attribute & gb_tilemap_palette_mask,color_index);
-                        }
-                        else{
-                            color = bg_palette.get_cgb_dmg_color(0,color_index);
-                        }
+                    if(cgb_mode){
+                        color = bg_palette.get_cgb_color(attribute & gb_tilemap_palette_mask,color_index);
                     }
                     else{
                         color = bg_palette.get_dmg_color(0,color_index);

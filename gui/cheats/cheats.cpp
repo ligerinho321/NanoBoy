@@ -10,15 +10,18 @@ const char* format_type_names[2] = {
     "Game Shark"
 };
 
-cheats_t::cheats_t(gb_t* gb):
-    gb(gb),
+cheats_t::cheats_t():
     game_genie_pattern_text("^(?: *[0-9a-fA-F]{3}-[0-9a-fA-F]{3}-[0-9a-fA-F]{3} *(?:\r?\n|$))+$"),
     game_genie_pattern_code("[0-9a-fA-F]{3}-[0-9a-fA-F]{3}-[0-9a-fA-F]{3}"),
     game_shark_pattern_text("^(?: *[0-9a-fA-F]{8} *(?:\r?\n|$))+$"),
     game_shark_pattern_code("[0-9a-fA-F]{8}")
 {}
 
-cheats_t::~cheats_t(){
+void cheats_t::init(gb_t* _gb){
+    gb = _gb;
+}
+
+void cheats_t::uninit(){
     clear();
 }
 

@@ -65,12 +65,11 @@ private:
 
     void load_keyboard_bindings(cJSON* input_settings_object);
     void load_controller_bindings(cJSON* input_settings_object);
+
 public:
-
-    input_settings_t();
-
-    ~input_settings_t();
-
+    void init();
+    void uninit();
+    
     void save(cJSON* object);
     void load(cJSON* object);
 

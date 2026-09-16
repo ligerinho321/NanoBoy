@@ -6,9 +6,11 @@ static const uint32_t pc_marker_border_color = IM_COL32(86,0,115,255);
 static const uint32_t mouse_crosshair_color = IM_COL32(255,255,255,255);
 
 
-event_viewer_t::event_viewer_t(gb_t* gb,SDL_Renderer* renderer):gb(gb){
+void event_viewer_t::init(gb_t* _gb,SDL_Renderer* _renderer){
+    gb = _gb;
+    
     texture = SDL_CreateTexture(
-        renderer,
+        _renderer,
         event_viewer_t::texture_format,
         event_viewer_t::texture_access,
         event_viewer_t::texture_width,
@@ -24,7 +26,7 @@ event_viewer_t::event_viewer_t(gb_t* gb,SDL_Renderer* renderer):gb(gb){
     init_event_infos();
 }
 
-event_viewer_t::~event_viewer_t(){
+void event_viewer_t::uninit(){
     SDL_DestroyTexture(texture);
 }
 
@@ -1027,7 +1029,6 @@ void event_viewer_t::render(){
 
             if(ImGui::BeginChild("ControlChild",event_control_child_size,ImGuiChildFlags_Borders)){
                 
-
                 if(ImGui::CollapsingHeader("Screen Palette")){
                     
                     if(ImGui::BeginTable("ScreenPaletteTable",2)){

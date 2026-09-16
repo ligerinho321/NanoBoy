@@ -33,7 +33,7 @@ private:
         cheat_t* next;
     };
 
-    gb_t* gb;
+    gb_t* gb = nullptr;
 
     bool request_open_popup_modal = false;
     bool popup_modal_open = false;
@@ -77,9 +77,10 @@ private:
     void render_popup_modal();
 
 public:
-    cheats_t(gb_t* gb);
+    cheats_t();
 
-    ~cheats_t();
+    void init(gb_t* _gb);
+    void uninit();
 
     void load(const char* path);
     void save(const char* path);

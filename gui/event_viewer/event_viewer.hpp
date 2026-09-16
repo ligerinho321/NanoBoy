@@ -18,7 +18,7 @@ private:
         int flags;
     };
 
-    gb_t* gb;
+    gb_t* gb = nullptr;
 
     SDL_Texture* texture = nullptr;
 
@@ -124,10 +124,8 @@ private:
     }
 
 public:
-
-    event_viewer_t(gb_t* gb,SDL_Renderer* renderer);
-
-    ~event_viewer_t();
+    void init(gb_t* _gb,SDL_Renderer* _renderer);
+    void uninit();
 
     void render();
 

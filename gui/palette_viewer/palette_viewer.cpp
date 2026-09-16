@@ -1,6 +1,11 @@
 #include <gui/palette_viewer/palette_viewer.hpp>
 
-palette_viewer_t::palette_viewer_t(gb_t* gb,SDL_Renderer* renderer):gb(gb),bg_palette(renderer),obj_palette(renderer){
+void palette_viewer_t::init(gb_t* _gb,SDL_Renderer* _renderer){
+    gb = _gb;
+
+    bg_palette.init(_renderer);
+    obj_palette.init(_renderer);
+    
     input_scalar_width = get_input_scalar_width(8);
 
     ImGuiStyle& style = ImGui::GetStyle();
@@ -9,8 +14,11 @@ palette_viewer_t::palette_viewer_t(gb_t* gb,SDL_Renderer* renderer):gb(gb),bg_pa
     border_hovered_color = ImGui::ColorConvertFloat4ToU32(style.Colors[ImGuiCol_NavCursor]);
 }
 
-palette_viewer_t::~palette_viewer_t(){
-    set_open(false);
+void palette_viewer_t::uninit(){
+    bg_palette.uninit();
+    obj_palette.uninit();
+
+    gb_ppu_remove_handler(gb,&callback_handler);
 }
 
 
@@ -21,17 +29,14 @@ void palette_viewer_t::callback(void* data){
     palette_viewer->cgb_mode = gb->state.cgb_mode;
 
     palette_viewer->bg_palette.update_data(&gb->palette);
-    palette_viewer->bg_palette.update_texture(gb->state.is_cgb,gb->state.cgb_mode);
+    palette_viewer->bg_palette.update_texture(gb->state.cgb_mode);
 
     palette_viewer->obj_palette.update_data(&gb->palette);
-    palette_viewer->obj_palette.update_texture(gb->state.is_cgb,gb->state.cgb_mode);
-
-    memcpy(palette_viewer->bg_cram,gb->palette.state.bg_cram,sizeof(palette_viewer->bg_cram));
-    memcpy(palette_viewer->obj_cram,gb->palette.state.obj_cram,sizeof(palette_viewer->obj_cram));
+    palette_viewer->obj_palette.update_texture(gb->state.cgb_mode);
 }
 
 
-void palette_viewer_t::render_tooltip_color(palette_t& palette,uint8_t* cram,uint8_t col,uint8_t row){
+void palette_viewer_t::render_tooltip_color(palette_t& palette,uint8_t col,uint8_t row){
 
     if(!ImGui::BeginTooltip()) return;
 
@@ -78,47 +83,11 @@ void palette_viewer_t::render_tooltip_color(palette_t& palette,uint8_t* cram,uin
 
         gb_rgb_t color{};
 
-        if(gb->state.is_cgb){
-
-            uint16_t address = 0x00;
-
-            if(cgb_mode){
-                color = palette.get_cgb_color(row,col);
-                address = palette.get_cgb_address_color(row,col) * gb_cgb_bytes_per_color;
-            }
-            else{
-                color = palette.get_cgb_dmg_color(row,col);
-                address = palette.get_cgb_dmg_address_color(row,col) * gb_cgb_bytes_per_color;
-            }
-
-            uint16_t value = (cram[address + 0x01] << 0x08) | (cram[address + 0x00] << 0x00);
-            uint8_t r = (value >> 0x00) & 0x1F;
-            uint8_t g = (value >> 0x05) & 0x1F;
-            uint8_t b = (value >> 0x0A) & 0x1F;
-
-            //Value
-            ImGui::TableNextRow();
-            ImGui::TableNextColumn();
-            ImGui::TextUnformatted("Value");
-            ImGui::TableNextColumn();
-            ImGui::Text("$%04X",value);
-
-            //RGB555
-            ImGui::TableNextRow();
-            ImGui::TableNextColumn();
-            ImGui::TextUnformatted("RGB555");
-            ImGui::TableNextColumn();
-            ImGui::Text("%d, %d, %d",r,g,b);
+        if(gb->state.cgb_mode){
+            color = palette.get_cgb_color(row,col);
         }
         else{
             color = palette.get_dmg_color(row,col);
-
-            //Value
-            ImGui::TableNextRow();
-            ImGui::TableNextColumn();
-            ImGui::TextUnformatted("Value");
-            ImGui::TableNextColumn();
-            ImGui::Text("$%02X\n",palette.get_dmg_address_color(row,col));
         }
 
         //RGB888
@@ -134,7 +103,7 @@ void palette_viewer_t::render_tooltip_color(palette_t& palette,uint8_t* cram,uin
     ImGui::EndTooltip();
 }
 
-void palette_viewer_t::render_palette(palette_t& palette,uint8_t* cram){
+void palette_viewer_t::render_palette(palette_t& palette){
 
     ImVec2 texture_size(
         (float)palette_t::texture_max_width,
@@ -177,7 +146,7 @@ void palette_viewer_t::render_palette(palette_t& palette,uint8_t* cram){
 
         ImGui::GetWindowDrawList()->AddRect(p0,p1,border_hovered_color,0.0f,0,2.0f);
 
-        render_tooltip_color(palette,cram,col,row);
+        render_tooltip_color(palette,col,row);
     }
 }
 
@@ -201,11 +170,11 @@ void palette_viewer_t::render(){
 
             ImGui::TableNextColumn();
             ImGui::TextUnformatted("Background");
-            render_palette(bg_palette,bg_cram);
+            render_palette(bg_palette);
 
             ImGui::TableNextColumn();
             ImGui::TextUnformatted("Object");
-            render_palette(obj_palette,obj_cram);
+            render_palette(obj_palette);
 
             ImGui::EndTable();
         }
@@ -232,12 +201,8 @@ void palette_viewer_t::render(){
 
 void palette_viewer_t::clear(){
     cgb_mode = false;
-    
     bg_palette.clear();
     obj_palette.clear();
-
-    memset(bg_cram,0,sizeof(bg_cram));
-    memset(obj_cram,0,sizeof(obj_cram));
 }
 
 

@@ -10,7 +10,7 @@ private:
         int count;
     };
 
-    gb_t *gb;
+    gb_t *gb = nullptr;
 
     file_save_dialog_t file_save;
 
@@ -48,10 +48,8 @@ private:
 
     void render_popup_modal();
 public:
-
-    wave_form_t(gb_t* _gb);
-
-    ~wave_form_t();
+    void init(gb_t* _gb);
+    void uninit();
 
     void render();
 

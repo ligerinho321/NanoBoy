@@ -24,11 +24,11 @@
 #include "debugger/registers_label.h"
 
 typedef struct _gb_state_t {
-    bool is_cgb;
-    bool cgb_mode;
-    bool obj_priority_mode;
-    bool double_speed;
-    bool speed_switch_needed;
+    bool is_cgb : 1;
+    bool cgb_mode : 1;
+    bool obj_priority_mode : 1;
+    bool double_speed : 1;
+    bool speed_switch_needed : 1;
     uint8_t undocumented_registers[0x04];
     uint64_t cycle;
 } gb_state_t;

@@ -1,21 +1,27 @@
 #include <gui/rewind_settings/rewind_settings.hpp>
 
-rewind_settings_t::rewind_settings_t(gb_t* gb):gb(gb){
+void rewind_settings_t::init(gb_t* _gb){
+    gb = _gb;
+    
     gb_rewind_set_enabled(gb,true);
     gb_rewind_set_capacity(gb,1800);
+    gb_rewind_set_recording_interval(gb,1);
     gb_rewind_set_frame_time(gb,1.0f / 60.0f);
 
     update_window_size_constraints();
 }
+
 
 void rewind_settings_t::update_window_size_constraints(){
     ImGuiStyle& style = ImGui::GetStyle();
 
     float title_bar_height = ImGui::GetFrameHeight();
 
-    float content_height = ImGui::GetFrameHeightWithSpacing() * 3.0f;
+    float table_height = (ImGui::GetFrameHeight() + style.CellPadding.y * 2.0f) * 3.0f;
 
-    float window_height = title_bar_height + content_height + style.WindowPadding.y * 2.0f;
+    float button_height = ImGui::GetFrameHeightWithSpacing();
+
+    float window_height = title_bar_height + table_height + button_height + style.WindowPadding.y * 2.0f;
 
     window_min_size.x = style.WindowMinSize.x;
     window_min_size.y = window_height;
@@ -34,6 +40,9 @@ void rewind_settings_t::save(cJSON* object){
 
     cJSON* capacity_number = cJSON_CreateNumber(gb_rewind_get_capacity(gb));
     cJSON_AddItemToObjectCS(rewind_settings_object,"Capacity",capacity_number);
+
+    cJSON* recording_interval_number = cJSON_CreateNumber(gb_rewind_get_recording_interval(gb));
+    cJSON_AddItemToObjectCS(rewind_settings_object,"Recording Interval",recording_interval_number);
 
     cJSON* frame_time_number = cJSON_CreateNumber(gb_rewind_get_frame_time(gb));
     cJSON_AddItemToObjectCS(rewind_settings_object,"Frame time",frame_time_number);
@@ -56,6 +65,12 @@ void rewind_settings_t::load(cJSON* object){
         gb_rewind_set_capacity(gb,cJSON_GetNumberValue(capacity_number));
     }
 
+    cJSON* recording_interval_number = cJSON_GetObjectItemCaseSensitive(rewind_settings_object,"Recording Interval");
+
+    if(recording_interval_number && cJSON_IsNumber(recording_interval_number)){
+        gb_rewind_set_recording_interval(gb,cJSON_GetNumberValue(recording_interval_number));
+    }
+
     cJSON* frame_time_number = cJSON_GetObjectItemCaseSensitive(rewind_settings_object,"Frame time");
 
     if(frame_time_number && cJSON_IsNumber(frame_time_number)){
@@ -73,20 +88,47 @@ void rewind_settings_t::render(){
 
         ImGuiStyle& style = ImGui::GetStyle();
 
-        uint32_t step = 1;
+        if(ImGui::BeginTable("RewindTable",2)){
+            
+            ImGui::TableSetupColumn(nullptr,ImGuiTableColumnFlags_WidthFixed);
+            ImGui::TableSetupColumn(nullptr,ImGuiTableColumnFlags_WidthStretch);
+
+            uint32_t step = 1;
+            
+            ImGui::TableNextRow();
+
+            ImGui::TableNextColumn();
+            ImGui::AlignTextToFramePadding();
+            ImGui::TextUnformatted("Buffer Frames");
+
+            ImGui::TableNextColumn();
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+            ImGui::InputScalar("##BufferFramesInputScalar",ImGuiDataType_U32,&temp_buffer_frames,&step,nullptr,"%" PRIu32);
+
+            ImGui::TableNextRow();
+
+            ImGui::TableNextColumn();
+            ImGui::AlignTextToFramePadding();
+            ImGui::TextUnformatted("Recording Interval");
+
+            ImGui::TableNextColumn();
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+            ImGui::InputScalar("RecordingIntervalInputScalar",ImGuiDataType_U32,&temp_recording_interval,&step,nullptr,"%" PRIu32);
+
+            ImGui::TableNextRow();
+
+            ImGui::TableNextColumn();
+            ImGui::AlignTextToFramePadding();
+            ImGui::TextUnformatted("Speed");
+
+            ImGui::TableNextColumn();
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+            ImGui::InputScalar("##SpeedInputScalar",ImGuiDataType_U32,&temp_speed,&step,nullptr,"%" PRIu32);
+            
+            ImGui::EndTable();
+        }
+        
     
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextUnformatted("Buffer Frames:");
-        ImGui::SameLine(0.0f,style.ItemInnerSpacing.x);
-        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-        ImGui::InputScalar("##BufferFramesInputScalar",ImGuiDataType_U32,&temp_capacity,&step,nullptr,"%" PRIu32);
-
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextUnformatted("Speed (FPS):");
-        ImGui::SameLine(0.0f,style.ItemInnerSpacing.x);
-        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-        ImGui::InputScalar("##SpeedInputScalar",ImGuiDataType_U32,&temp_speed,&step,nullptr,"%" PRIu32);
-
         ImGui::Checkbox("Enabled",&temp_enabled);
 
         ImGui::SameLine();
@@ -117,7 +159,8 @@ void rewind_settings_t::open() noexcept {
     _open = true;
 
     temp_enabled = gb_rewind_get_enabled(gb);
-    temp_capacity = gb_rewind_get_capacity(gb);
+    temp_buffer_frames = gb_rewind_get_capacity(gb);
+    temp_recording_interval = gb_rewind_get_recording_interval(gb);
     temp_speed = ceilf(1.0f / gb_rewind_get_frame_time(gb));
 }
 
@@ -128,7 +171,8 @@ void rewind_settings_t::close(bool discard_changes) noexcept {
 
     if(!discard_changes){
         gb_rewind_set_enabled(gb,temp_enabled);
-        gb_rewind_set_capacity(gb,temp_capacity);
+        gb_rewind_set_capacity(gb,temp_buffer_frames);
+        gb_rewind_set_recording_interval(gb,temp_recording_interval);
         gb_rewind_set_frame_time(gb,1.0f / temp_speed);
     }
 }

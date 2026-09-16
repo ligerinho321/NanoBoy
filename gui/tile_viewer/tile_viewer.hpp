@@ -87,10 +87,8 @@ private:
     void render_tile_tooltip(int row,int column);
     
 public:
-    tile_viewer_t(gb_t* gb,SDL_Renderer* renderer);
-
-    ~tile_viewer_t();
-
+    void init(gb_t* _gb,SDL_Renderer* _renderer);
+    void uninit();
 
     void render();
 
