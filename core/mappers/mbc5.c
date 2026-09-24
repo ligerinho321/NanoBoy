@@ -93,7 +93,7 @@ size_t gb_mbc5_rom_absolute_address(gb_cartridge_t* cartridge,uint16_t relative_
     }
     //$4000-$7FFF
     else{
-        return ((mbc5->rom_bank & cartridge->rom_bank_mask) << 0x0E) | (relative_address & 0x3FFF);
+        return ((mbc5->rom_bank % cartridge->rom_banks) << 0x0E) | (relative_address & 0x3FFF);
     }
 }
 

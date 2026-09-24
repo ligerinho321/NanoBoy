@@ -317,8 +317,11 @@ void gb_apu_update(gb_apu_t* apu){
     apu->state.last_clock_cycle = apu->state.cycle;
 
     gb_square_state_t* square1_state = &apu->square1.state;
+
     gb_square_state_t* square2_state = &apu->square2.state;
+
     gb_wave_state_t* wave_state = &apu->wave.state;
+    
     gb_noise_state_t* noise_state = &apu->noise.state;
 
     while(cycles_to_run > 0){
@@ -330,15 +333,19 @@ void gb_apu_update(gb_apu_t* apu){
         if(frame_cycles_remaining < cycles){
             cycles = frame_cycles_remaining;
         }
+        
         if(square1_state->enabled && square1_state->timer < cycles){
             cycles = square1_state->timer;
         }
+
         if(square2_state->enabled && square2_state->timer < cycles){
             cycles = square2_state->timer;
         }
+        
         if(wave_state->enabled && wave_state->timer < cycles){
             cycles = wave_state->timer;
         }
+
         if(noise_state->enabled && noise_state->timer < cycles){
             cycles = noise_state->timer;
         }
@@ -348,12 +355,15 @@ void gb_apu_update(gb_apu_t* apu){
         if(square1_state->enabled){
             gb_square_clock(square1_state,cycles);
         }
+
         if(square2_state->enabled){
             gb_square_clock(square2_state,cycles);
         }
+        
         if(wave_state->enabled){
             gb_wave_clock(wave_state,cycles);
         }
+        
         if(noise_state->enabled){
             gb_noise_clock(noise_state,cycles);
         }
@@ -397,13 +407,15 @@ void gb_apu_frame_sequencer_clock(gb_apu_t* apu){
                 );
             }
 
-            if(state->frame_sequencer == 0x07){
-                gb_envelope_clock(&apu->square1.state.envelope);
-                
-                gb_envelope_clock(&apu->square2.state.envelope);
+            gb_envelope_clock(&apu->square1.state.envelope,state->frame_sequencer);
+            gb_square_update_output(&apu->square1.state);
+            
+            gb_envelope_clock(&apu->square2.state.envelope,state->frame_sequencer);
+            gb_square_update_output(&apu->square2.state);
 
-                gb_envelope_clock(&apu->noise.state.envelope);
-            }
+            gb_envelope_clock(&apu->noise.state.envelope,state->frame_sequencer);
+            gb_noise_update_output(&apu->noise.state);
+
 
             if((state->frame_sequencer & 0x03) == 0x02){
                 gb_sweep_clock(&apu->square1);
@@ -467,6 +479,9 @@ void gb_apu_write_register(void* data,uint8_t value,uint16_t address){
                 //de timer DIV está ativo faz com que o primeiro clock do senquenciador de quadros seja ignorado
                 
                 state->skip_first_frame_sequence_event = timer->state.div & (apu->gb->state.double_speed ? 0x2000 : 0x1000);
+
+                state->cycle = 0;
+                state->last_clock_cycle = 0;
             }
             else if(state->enabled && !new_enabled){
                 gb_apu_reset(apu,false);
@@ -526,7 +541,7 @@ uint8_t gb_apu_read_register(void* data,uint16_t address){
 }
 
 
-static inline uint16_t gb_sweep_get_new_frequency(gb_sweep_t* sweep){
+uint16_t gb_sweep_get_new_frequency(gb_sweep_t* sweep){
     uint16_t delta = sweep->shadow_frequency >> sweep->shift;
     return sweep->negate ? sweep->shadow_frequency - delta : sweep->shadow_frequency + delta;
 }
@@ -567,35 +582,102 @@ void gb_sweep_clock(gb_square_t* square){
 }
 
 
-void gb_envelope_clock(gb_envelope_t* envelope){
-    if(--envelope->timer > 0x00) return;
+void gb_envelope_clock(gb_envelope_t* envelope,uint8_t frame_sequencer){
 
-    if(envelope->period){
-        envelope->timer = envelope->period;
-    }
-    else{
-        envelope->timer = 0x08;
-        return;
-    }
+    if(!envelope->period) return;
+    
+    if(frame_sequencer != 0x07 && !(envelope->extra_tick_glitch && (frame_sequencer & 0x01))) return;
 
-    if(!envelope->automatic_change) return;
+    envelope->extra_tick_glitch = false;
 
-    if(envelope->add_mode){
-        if(envelope->current_volume < 0x0F){
-            ++envelope->current_volume;
+    if(envelope->timer && --envelope->timer > 0x00) return;
+
+    envelope->timer = envelope->period;
+
+    if(envelope->automatic_change){
+        if(envelope->add_mode){
+            if(envelope->current_volume < 0x0F){
+                ++envelope->current_volume;
+            }
+            else{
+                envelope->automatic_change = false;
+            }
         }
         else{
-            envelope->automatic_change = false;
+            if(envelope->current_volume > 0x00){
+                --envelope->current_volume;
+            }
+            else{
+                envelope->automatic_change = false;
+            }
         }
     }
-    else{
-        if(envelope->current_volume > 0x00){
-            --envelope->current_volume;
+}
+
+void gb_envelope_trigger(gb_envelope_t* envelope){
+    envelope->timer = envelope->period;
+    envelope->current_volume = envelope->initial_volume;
+    envelope->automatic_change = true;
+    envelope->extra_tick_glitch = false;
+}
+
+void gb_envelope_write_register(gb_envelope_t* envelope,uint8_t value,bool* channel_enabled){
+
+    uint8_t new_initial_volume = value >> 0x04;
+    bool new_add_mode = value & 0x08;
+    uint8_t new_period = value & 0x07;
+
+    if(*channel_enabled){
+        if(!new_initial_volume && !new_add_mode){
+            *channel_enabled = false;
         }
         else{
-            envelope->automatic_change = false;
+            //Zombie glitch
+            //O algoritimo desse glitch é baseado no mesmo do SameBoy
+
+            bool prevent_increment = false;
+
+            if(envelope->add_mode != new_add_mode){
+                if(new_add_mode){
+                    if(!envelope->period && envelope->automatic_change){
+                        envelope->current_volume ^= 0x0F;
+                    }
+                    else{
+                        envelope->current_volume = 0x0E - envelope->current_volume;
+                        envelope->current_volume &= 0x0F;
+                    }
+                    prevent_increment = true;
+                }
+                else{
+                    envelope->current_volume = 0x10 - envelope->current_volume;
+                    envelope->current_volume &= 0x0F;
+                }
+            }
+
+            if(!prevent_increment && envelope->automatic_change){
+
+                if((!envelope->period && new_period) || (!envelope->period && envelope->add_mode && !new_period && new_add_mode)){
+                    if(new_add_mode){
+                        ++envelope->current_volume;
+                    }
+                    else{
+                        --envelope->current_volume;
+                    }
+                    envelope->current_volume &= 0x0F;
+                }
+            }
         }
+
+        //Ativar o envelope ativa um glitch na APU que faz com que o proximo ciclo impar
+        //do frame sequencer emita um clock do envelope mesmo que não seja o ciclo que o
+        //envelope emita um clock
+        //Isso é necessario para passar nos testes channel_2_nrx2_glitch.asm e channel_2_nrx2_speed_change.gb
+        envelope->extra_tick_glitch = !envelope->period && new_period;
     }
+
+    envelope->initial_volume = new_initial_volume;
+    envelope->add_mode = new_add_mode;
+    envelope->period = new_period;
 }
 
 
@@ -626,16 +708,21 @@ void gb_length_counter_clock(gb_length_counter_t* length_counter,bool* channel_e
 }
 
 
+void gb_square_clock(gb_square_state_t* state,int timer){
 
-void gb_square_clock(gb_square_state_t* square_state,int timer){
+    state->timer -= timer;
 
-    square_state->timer -= timer;
+    if(state->timer > 0x00) return;
 
-    if(square_state->timer > 0x00) return;
+    state->timer = (0x800 - state->frequency) << 0x02;
 
-    square_state->timer = (0x800 - square_state->frequency) << 0x02;
+    state->duty_pos = (state->duty_pos + 0x01) & 0x07;
 
-    square_state->duty_pos = (square_state->duty_pos + 0x01) & 0x07;
+    state->first_clock = false;
+
+    state->duty = state->new_duty;
+
+    gb_square_update_output(state);
 }
 
 
@@ -646,6 +733,7 @@ void gb_square_write_register(void* data,uint8_t value,uint16_t address){
     gb_apu_update(square->apu);
 
     switch(address){
+        //NR10
         case 0xFF10:{
             if(!square->apu->state.enabled) break;
 
@@ -661,39 +749,59 @@ void gb_square_write_register(void* data,uint8_t value,uint16_t address){
             state->sweep.negate = new_negate;
             break;
         }
+        //NR11,NR21
         case 0xFF11: case 0xFF16:{
             if(square->apu->state.enabled){
-                state->duty = value >> 0x06;
+                //A alteracao do duty so entra em vigor apos a amostra atual ser concluida
+                //Isso é necessario para passar no teste channel_2_duty_delay.gb
+                state->new_duty = value >> 0x06;
             }
             if(square->apu->state.enabled || !square->apu->gb->state.is_cgb){
                 state->length_counter.counter = 0x40 - (value & 0x3F);
             }
             break;
         }
+        //NR12,NR22
         case 0xFF12: case 0xFF17:{
-            if(!square->apu->state.enabled) break;
+            if(!square->apu->state.enabled) return;
 
-            state->envelope.initial_volume = value >> 0x04;
-            state->envelope.add_mode = value & 0x08;
-            state->envelope.period = value & 0x07;
+            gb_envelope_write_register(&state->envelope,value,&state->enabled);
 
-            if(state->enabled && !(value & 0xF8)){
-                state->enabled = false;
+            gb_square_update_output(state);
+            gb_apu_update_output(square->apu);
+            break;
+        }
+        //NR13,NR23
+        case 0xFF13: case 0xFF18:{
+            if(square->apu->state.enabled){
+                state->frequency = (state->frequency & 0x700) | value;
             }
             break;
         }
-        case 0xFF13: case 0xFF18:{
-            if(!square->apu->state.enabled) break;
-
-            state->frequency = (state->frequency & 0x700) | value;
-            break;
-        }
+        //NR14,NR24
         case 0xFF14: case 0xFF19:{
             if(!square->apu->state.enabled) break;
 
             state->frequency = ((value & 0x07) << 0x08) | (state->frequency & 0xFF);
 
             if(value & 0x80){
+                
+                state->timer = (0x800 - state->frequency) << 0x02;
+
+                //Ajuste no alinhamento ja que o clock so ocorre em T-Cycles multiplos de 4
+                state->timer += square->apu->state.cycle & 0x02;
+
+                if(state->enabled){
+                    //Adiciona-se um delay de 4 t-cycles para a primeira amostra se canal estiver sendo reiniciado
+                    //Isso é necessario para passar no teste channel_2_restart.gb
+                    state->timer += 0x04;
+                }
+                else{
+                    //Adiciona-se um delay de 8 t-cycles para a primeira amostra se o canal estiver sendo iniciado
+                    //Isso é necessario para passar no teste channel_2_delay.gb
+                    state->timer += 0x08;
+                }
+
                 state->enabled = state->envelope.initial_volume || state->envelope.add_mode;
 
                 if(state->length_counter.counter == 0x00){
@@ -701,33 +809,36 @@ void gb_square_write_register(void* data,uint8_t value,uint16_t address){
                     state->length_counter.enabled = false;
                 }
 
-                state->timer = (0x800 - state->frequency) << 0x02;
+                state->duty = state->new_duty;
 
-                state->envelope.timer = state->envelope.period ? state->envelope.period : 0x08;
-                state->envelope.current_volume = state->envelope.initial_volume;
-                state->envelope.automatic_change = true;
+                gb_envelope_trigger(&state->envelope);
 
                 if(square->has_sweep){
+                    
                     state->sweep.shadow_frequency = state->frequency;
                     state->sweep.timer = state->sweep.period ? state->sweep.period : 0x08;
-                    state->sweep.enabled = (state->sweep.period != 0x00) | (state->sweep.shift != 0x00);
+                    state->sweep.enabled = state->sweep.period || state->sweep.shift;
                     state->sweep.calc_negate = false;
 
-                    if(state->sweep.shift != 0x00){
-                        if(gb_sweep_get_new_frequency(&state->sweep) > 0x7FF){
+                    if(state->sweep.shift){
+                        uint16_t new_frequency = gb_sweep_get_new_frequency(&state->sweep);
+
+                        state->sweep.calc_negate = state->sweep.negate;
+                        
+                        if(new_frequency > 0x7FF){
                             state->enabled = false;
                         }
-                        state->sweep.calc_negate = state->sweep.negate;
                     }
                 }
             }
 
             gb_length_counter_extra_clock(square->apu,&state->length_counter,value,0x3F,&state->enabled);
+            
+            gb_square_update_output(state);
+            gb_apu_update_output(square->apu);
             break;
         }
     }
-
-    gb_apu_update_output(square->apu);
 }
 
 uint8_t gb_square_read_register(void* data,uint16_t address){
@@ -766,23 +877,28 @@ uint8_t gb_square_read_register(void* data,uint16_t address){
 }
 
 
-uint8_t gb_square_raw_output(gb_square_state_t* square_state){
-    if(square_state->enabled){
-        return square_state->envelope.current_volume * square_duty_table[square_state->duty][square_state->duty_pos];
+uint8_t gb_square_raw_output(gb_square_state_t* state){
+    if(state->enabled && !state->first_clock){
+        return state->envelope.current_volume * square_duty_table[state->duty][state->duty_pos];
     }
     return 0x00;
 }
 
-int gb_square_output(gb_square_t* square){
-    
-    if(square->external_enabled && square->state.enabled){
-
-        uint8_t output = square->state.envelope.current_volume * square_duty_table[square->state.duty][square->state.duty_pos];
+void gb_square_update_output(gb_square_state_t* state){
+    if(state->enabled){
         
-        return (7 - output) << gb_audio_channel_volume_shift;
-    }
+        uint8_t output = 0x00;
 
-    return 0;
+        if(!state->first_clock){
+            output = state->envelope.current_volume * square_duty_table[state->duty][state->duty_pos];
+        }
+        
+        state->output = (7 - output) << gb_audio_channel_volume_shift;
+    }
+}
+
+int gb_square_output(gb_square_t* square){
+    return square->external_enabled ? square->state.output : 0;
 }
 
 
@@ -790,6 +906,8 @@ void gb_square_reset(gb_square_t* square,bool hardware){
     gb_square_state_t* state = &square->state;
 
     state->enabled = false;
+
+    state->first_clock = true;
 
     if(square->has_sweep){
         memset(&state->sweep,0x00,sizeof(state->sweep));
@@ -802,31 +920,40 @@ void gb_square_reset(gb_square_t* square,bool hardware){
         state->length_counter.counter = 0x00;
     }
 
+    state->new_duty = 0x00;
     state->duty = 0x00;
     state->duty_pos = 0x00;
 
     state->frequency = 0x00;
     state->timer = (0x800 - state->frequency) << 0x02;
+    
+    state->output = 0;
 }
 
 
 
-void gb_wave_clock(gb_wave_state_t* wave_state,int timer){
+void gb_wave_clock(gb_wave_state_t* state,int timer){
 
-    wave_state->timer -= timer;
+    state->allow_ram_access = false;
 
-    if(wave_state->timer > 0x00) return;
-        
-    wave_state->timer = (0x800 - wave_state->frequency) << 0x01;
+    state->timer -= timer;
 
-    wave_state->ram_pos = (wave_state->ram_pos + 0x01) & 0x1F;
+    if(state->timer > 0x00) return;
 
-    if(wave_state->ram_pos & 0x01){
-        wave_state->sample_buffer = wave_state->ram[wave_state->ram_pos >> 0x01] & 0x0F;
+    state->timer = (0x800 - state->frequency) << 0x01;
+
+    state->ram_pos = (state->ram_pos + 0x01) & 0x1F;
+
+    if(state->ram_pos & 0x01){
+        state->sample_buffer = state->ram[state->ram_pos >> 0x01] & 0x0F;
     }
     else{
-        wave_state->sample_buffer = wave_state->ram[wave_state->ram_pos >> 0x01] >> 0x04;
+        state->sample_buffer = state->ram[state->ram_pos >> 0x01] >> 0x04;
     }
+
+    state->allow_ram_access = true;
+
+    gb_wave_update_output(state);
 }
 
 
@@ -837,6 +964,7 @@ void gb_wave_write_register(void* data,uint8_t value,uint16_t address){
     gb_apu_update(wave->apu);
 
     switch(address){
+        //NR30
         case 0xFF1A:{
             if(!wave->apu->state.enabled) break;
 
@@ -847,30 +975,51 @@ void gb_wave_write_register(void* data,uint8_t value,uint16_t address){
             }
             break;
         }
+        //NR31
         case 0xFF1B:{
             if(!wave->apu->state.enabled && wave->apu->gb->state.is_cgb) break;
 
             state->length_counter.counter = 0x100 - value;
             break;
         }
+        //NR32
         case 0xFF1C:{
             if(!wave->apu->state.enabled) break;
 
             state->volume_code = (value & 0x60) >> 0x05;
+
+            gb_wave_update_output(state);
+            gb_apu_update_output(wave->apu);
             break;
         }
+        //NR33
         case 0xFF1D:{
             if(!wave->apu->state.enabled) break;
 
             state->frequency = (state->frequency & 0x700) | value;
             break;
         }
+        //NR34
         case 0xFF1E:{
             if(!wave->apu->state.enabled) break;
 
             state->frequency = ((value & 0x07) << 0x08) | (state->frequency & 0xFF);
 
             if(value & 0x80){
+
+                //Wave RAM corruption
+                if(!wave->apu->gb->state.is_cgb && state->enabled && state->timer <= 0x02){
+                    
+                    uint8_t index = ((state->ram_pos + 0x01) & 0x1F) >> 0x01;
+
+                    if(index < 0x04){
+                        state->ram[0x00] = state->ram[index];
+                    }
+                    else{
+                        memcpy(state->ram,state->ram + (index & 0x0C),0x04);
+                    }
+                }
+
                 state->enabled = state->dac_enabled;
 
                 if(state->length_counter.counter == 0x00){
@@ -880,15 +1029,20 @@ void gb_wave_write_register(void* data,uint8_t value,uint16_t address){
 
                 state->timer = (0x800 - state->frequency) << 0x01;
 
+                //Adiciona-se um delay de 6 T-Cycles para a primeira amostra
+                //Isso é necessario para passar no teste channel_3_delay.gb
+                state->timer += 0x06;
+
                 state->ram_pos = 0x00;
             }
 
             gb_length_counter_extra_clock(wave->apu,&state->length_counter,value,0xFF,&state->enabled);
+
+            gb_wave_update_output(state);
+            gb_apu_update_output(wave->apu);
             break;
         }
     }
-
-    gb_apu_update_output(wave->apu);
 }
 
 uint8_t gb_wave_read_register(void* data,uint16_t address){
@@ -900,8 +1054,11 @@ uint8_t gb_wave_read_register(void* data,uint16_t address){
     uint8_t value = 0xFF;
 
     switch(address){
+        //NR30
         case 0xFF1A: value = (state->dac_enabled ? 0x80 : 0x00) | 0x7F; break;
+        //NR32
         case 0xFF1C: value = 0x9F | ((state->volume_code & 0x03) << 0x05); break;
+        //NR34
         case 0xFF1E: value = 0xBF | (state->length_counter.enabled ? 0x40 : 0x00); break;
     }
 
@@ -917,6 +1074,9 @@ void gb_wave_write_ram(void* data,uint8_t value,uint16_t address){
     if(!wave->state.enabled){
         wave->state.ram[address & 0x0F] = value;
     }
+    else if(wave->state.allow_ram_access || wave->apu->gb->state.is_cgb){
+        wave->state.ram[wave->state.ram_pos >> 0x01] = value;
+    }
 }
 
 uint8_t gb_wave_read_ram(void* data,uint16_t address){
@@ -927,7 +1087,7 @@ uint8_t gb_wave_read_ram(void* data,uint16_t address){
     if(!wave->state.enabled){
         return wave->state.ram[address & 0x0F];
     }
-    else if(wave->apu->gb->state.is_cgb){
+    else if(wave->state.allow_ram_access || wave->apu->gb->state.is_cgb){
         return wave->state.ram[wave->state.ram_pos >> 0x01];
     }
 
@@ -935,23 +1095,22 @@ uint8_t gb_wave_read_ram(void* data,uint16_t address){
 }
 
 
-uint8_t gb_wave_raw_output(gb_wave_state_t* wave_state){
-    if(wave_state->enabled){
-        return wave_state->sample_buffer >> wave_volume_shift[wave_state->volume_code];
+uint8_t gb_wave_raw_output(gb_wave_state_t* state){
+    if(state->enabled){
+        return state->sample_buffer >> wave_volume_shift[state->volume_code];
     }
     return 0x00;
 }
 
-int gb_wave_output(gb_wave_t* wave){
-    
-    if(wave->external_enabled && wave->state.enabled){
-
-        uint8_t output = wave->state.sample_buffer >> wave_volume_shift[wave->state.volume_code];
-
-        return (7 - output) << gb_audio_channel_volume_shift;
+void gb_wave_update_output(gb_wave_state_t* state){
+    if(state->enabled){
+        uint8_t output = state->sample_buffer >> wave_volume_shift[state->volume_code];
+        state->output = (7 - output) << gb_audio_channel_volume_shift;
     }
-    
-    return 0;
+}
+
+int gb_wave_output(gb_wave_t* wave){
+    return wave->external_enabled ? wave->state.output : 0;
 }
 
 
@@ -973,6 +1132,9 @@ void gb_wave_reset(gb_wave_t* wave,bool hardware){
     
     state->sample_buffer = 0x00;
     state->ram_pos = 0x00;
+    state->allow_ram_access = false;
+
+    state->output = 0;
 
     if(hardware){
         if(wave->apu->gb->state.is_cgb){
@@ -992,28 +1154,30 @@ void gb_wave_reset(gb_wave_t* wave,bool hardware){
 
 
 
-void gb_noise_clock(gb_noise_state_t* noise_state,int timer){
+void gb_noise_clock(gb_noise_state_t* state,int timer){
 
-    noise_state->timer -= timer;
+    state->timer -= timer;
 
-    if(noise_state->timer > 0x00) return;
+    if(state->timer > 0x00) return;
 
-    noise_state->timer = noise_divisor[noise_state->divisor_code] << noise_state->clock_shift;
+    state->timer = noise_divisor[state->divisor_code] << state->clock_shift;
 
     //Using a noise channel clock shift of 14 or 15 results in the LFSR receiving no clocks.
-    if(noise_state->clock_shift > 0x0D) return;
+    if(state->clock_shift > 0x0D) return;
 
-    bool bit = ((noise_state->lfsr & 0x02) ? 0x01 : 0x00) ^ ((noise_state->lfsr & 0x01) ? 0x01 : 0x00);
+    bool bit = ((state->lfsr & 0x02) ? 0x01 : 0x00) ^ ((state->lfsr & 0x01) ? 0x01 : 0x00);
 
-    noise_state->lfsr &= ~0x8000;
-    noise_state->lfsr |= bit ? 0x8000 : 0x0000;
+    state->lfsr &= ~0x8000;
+    state->lfsr |= bit ? 0x8000 : 0x0000;
 
-    if(noise_state->width_mode){
-        noise_state->lfsr &= ~0x0080;
-        noise_state->lfsr |= bit ? 0x0080 : 0x0000;
+    if(state->width_mode){
+        state->lfsr &= ~0x0080;
+        state->lfsr |= bit ? 0x0080 : 0x0000;
     }
 
-    noise_state->lfsr >>= 0x01;
+    state->lfsr >>= 0x01;
+
+    gb_noise_update_output(state);
 }
 
 
@@ -1032,14 +1196,11 @@ void gb_noise_write_register(void* data,uint8_t value,uint16_t address){
         }
         case 0xFF21:{
             if(!noise->apu->state.enabled) break;
-            
-            state->envelope.initial_volume = value >> 0x04;
-            state->envelope.add_mode = value & 0x08;
-            state->envelope.period = value & 0x07;
 
-            if(state->enabled && !(value & 0xF8)){
-                state->enabled = false;
-            }
+            gb_envelope_write_register(&state->envelope,value,&state->enabled);
+
+            gb_noise_update_output(state);
+            gb_apu_update_output(noise->apu);
             break;
         }
         case 0xFF22:{
@@ -1054,6 +1215,33 @@ void gb_noise_write_register(void* data,uint8_t value,uint16_t address){
             if(!noise->apu->state.enabled) break;
 
             if(value & 0x80){
+
+                state->timer = noise_divisor[state->divisor_code] << state->clock_shift;
+
+                //Adicionamos um delay de 2 T-Cycles para ajustar o alinhamento
+                //Parece que o LFSR so emiti clocks em T-Cycles multiplos 4
+                state->timer += noise->apu->state.cycle & 0x02;
+
+                //Essa formula faz duas coisas, ajusta o alinhamento e adiciona
+                //um delay para o primeiro clock do canal
+                //Quando o divisor e diferente de 0 os clocks do LFSR so podem
+                //so podem ocorrer em multiplos de 8
+                state->timer = (state->timer >> 0x01) + 0x08;
+
+                if(state->divisor_code && !(noise->apu->state.cycle & 0x04)){
+                    if(state->divisor_code == 0x01){
+                        state->timer += 0x04;
+                    }
+                    else{
+                        state->timer -= 0x04;
+                    }
+                }
+
+                //Esse delay e necessario para passar nos testes restart LFSR do SameSuite
+                if(state->enabled){
+                    state->timer += 0x04;
+                }
+
                 state->enabled = state->envelope.initial_volume || state->envelope.add_mode;
 
                 if(state->length_counter.counter == 0x00){
@@ -1061,21 +1249,18 @@ void gb_noise_write_register(void* data,uint8_t value,uint16_t address){
                     state->length_counter.enabled = false;
                 }
 
-                state->timer = noise_divisor[state->divisor_code] << state->clock_shift;
-
-                state->envelope.timer = state->envelope.period ? state->envelope.period : 0x08;
-                state->envelope.current_volume = state->envelope.initial_volume;
-                state->envelope.automatic_change = true;
+                gb_envelope_trigger(&state->envelope);
 
                 state->lfsr = 0x7FFF;
             }
 
             gb_length_counter_extra_clock(noise->apu,&state->length_counter,value,0x3F,&state->enabled);
+
+            gb_noise_update_output(state);
+            gb_apu_update_output(noise->apu);
             break;
         }
     }
-
-    gb_apu_update_output(noise->apu);
 }
 
 uint8_t gb_noise_read_register(void* data,uint16_t address){
@@ -1110,23 +1295,22 @@ uint8_t gb_noise_read_register(void* data,uint16_t address){
 }
 
 
-uint8_t gb_noise_raw_output(gb_noise_state_t* noise_state){
-    if(noise_state->enabled){
-        return noise_state->envelope.current_volume * !(noise_state->lfsr & 0x01);
+uint8_t gb_noise_raw_output(gb_noise_state_t* state){
+    if(state->enabled){
+        return state->envelope.current_volume * !(state->lfsr & 0x01);
     }
     return 0x00;
 }
 
-int gb_noise_output(gb_noise_t* noise){
-
-    if(noise->external_enabled && noise->state.enabled){
-
-        uint8_t output = noise->state.envelope.current_volume * !(noise->state.lfsr & 0x01);
-
-        return (7 - output) << gb_audio_channel_volume_shift; 
+void gb_noise_update_output(gb_noise_state_t* state){
+    if(state->enabled){
+        uint8_t output = state->envelope.current_volume * !(state->lfsr & 0x01);
+        state->output = ((7 - output) << gb_audio_channel_volume_shift); 
     }
-    
-    return 0;
+}
+
+int gb_noise_output(gb_noise_t* noise){
+    return noise->external_enabled ? noise->state.output : 0;
 }
 
 
@@ -1149,6 +1333,8 @@ void gb_noise_reset(gb_noise_t* noise,bool hardware){
     state->lfsr = 0x00;
 
     state->timer = noise_divisor[state->divisor_code] << state->clock_shift;
+
+    state->output = 0;
 }
 
 
@@ -1203,7 +1389,6 @@ void gb_apu_reset(gb_apu_t* apu,bool hardware){
         gb_mixer_frame_reset(&apu->mixer_frame);
 
         gb_ring_buffer_clear(&apu->ring_buffer);
-
 
         state->skip_first_frame_sequence_event = false;
         

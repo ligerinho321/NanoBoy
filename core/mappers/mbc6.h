@@ -63,7 +63,7 @@ typedef struct _gb_mbc6_t {
     uint8_t* ram_0_ptr;
     uint8_t* ram_1_ptr;
     
-    uint16_t rom_bank_mask;
+    size_t rom_banks;
     uint8_t ram_bank_mask;
     uint16_t ram_address_mask;
 

@@ -75,8 +75,8 @@ static void gb_mmm01_update_mapping(gb_cartridge_t* cartridge){
         mmm01->rom_bank_1 = (mmm01->rom_bank_high << 0x07) | rom_bank_mid_1 | rom_bank_low_1;
     }
     else{
-        mmm01->rom_bank_0 = cartridge->rom_bank_mask - 0x01;
-        mmm01->rom_bank_1 = cartridge->rom_bank_mask - 0x00;
+        mmm01->rom_bank_0 = cartridge->rom_banks - 0x02;
+        mmm01->rom_bank_1 = cartridge->rom_banks - 0x01;
     }
 
     gb_cartridge_set_rom0_bank(cartridge,mmm01->rom_bank_0);
@@ -187,11 +187,11 @@ size_t gb_mmm01_rom_absolute_address(gb_cartridge_t* cartridge,uint16_t relative
 
     //$0000-$3FFF
     if((relative_address & 0x7FFF) < 0x4000){
-        return ((mmm01->rom_bank_0 & cartridge->rom_bank_mask) << 0x0E) | (relative_address & 0x3FFF);
+        return ((mmm01->rom_bank_0 % cartridge->rom_banks) << 0x0E) | (relative_address & 0x3FFF);
     }
     //$4000-$7FFF
     else{
-        return ((mmm01->rom_bank_1 & cartridge->rom_bank_mask) << 0x0E) | (relative_address & 0x3FFF);
+        return ((mmm01->rom_bank_1 % cartridge->rom_banks) << 0x0E) | (relative_address & 0x3FFF);
     }
 }
 

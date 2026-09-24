@@ -131,11 +131,11 @@ size_t gb_mbc1_rom_absolute_address(gb_cartridge_t* cartridge,uint16_t relative_
 
     //$0000-$3FFF
     if((relative_address & 0x7FFF) < 0x4000){
-        return ((mbc1->rom_bank_0 & cartridge->rom_bank_mask) << 0x0E) | (relative_address & 0x3FFF);
+        return ((mbc1->rom_bank_0 % cartridge->rom_banks) << 0x0E) | (relative_address & 0x3FFF);
     }
     //$4000-$7FFF
     else{
-        return ((mbc1->rom_bank_1 & cartridge->rom_bank_mask) << 0x0E) | (relative_address & 0x3FFF);
+        return ((mbc1->rom_bank_1 % cartridge->rom_banks) << 0x0E) | (relative_address & 0x3FFF);
     }
 }
 

@@ -254,7 +254,7 @@ void gb_frame_timer_stop(gb_frame_timer_t* frame_timer);
 bool gb_save_file(const char* filename,void* data,size_t len);
 bool gb_load_file(const char* filename,void** data,size_t* len);
 
-uint32_t gb_crc32(const uint8_t* buffer,uint32_t len);
+uint32_t gb_crc32(const uint8_t* buffer,size_t len);
 
 size_t gb_align_up(size_t value,size_t alignment);
 

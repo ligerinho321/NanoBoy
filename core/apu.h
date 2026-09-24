@@ -53,6 +53,7 @@ typedef struct _gb_envelope_t {
     uint8_t period;
     uint8_t timer;
     bool automatic_change;
+    bool extra_tick_glitch;
 } gb_envelope_t;
 
 typedef struct _gb_length_counter_t {
@@ -63,13 +64,16 @@ typedef struct _gb_length_counter_t {
 
 typedef struct _gb_square_state_t {
     bool enabled;
+    bool first_clock;
     gb_sweep_t sweep;
     gb_envelope_t envelope;
     gb_length_counter_t length_counter;
+    uint8_t new_duty;
     uint8_t duty;
     uint8_t duty_pos;
     uint16_t frequency;
     uint32_t timer;
+    int output;
 } gb_square_state_t;
 
 typedef struct _gb_square_t {
@@ -90,6 +94,8 @@ typedef struct _gb_wave_state_t {
     uint8_t sample_buffer;
     uint8_t ram_pos;
     uint8_t ram[0x10];
+    bool allow_ram_access;
+    int output;
 } gb_wave_state_t;
 
 typedef struct _gb_wave_t {
@@ -108,6 +114,7 @@ typedef struct _gb_noise_state_t {
     uint8_t divisor_code;
     uint16_t lfsr;
     uint32_t timer;
+    int output;
 } gb_noise_state_t;
 
 typedef struct _gb_noise_t {
@@ -194,20 +201,26 @@ void gb_apu_frame_sequencer_clock(gb_apu_t* apu);
 void gb_apu_write_register(void* data,uint8_t value,uint16_t address);
 uint8_t gb_apu_read_register(void* data,uint16_t address);
 
+
 void gb_sweep_clock(gb_square_t* square);
 
-void gb_envelope_clock(gb_envelope_t* envelope);
+
+void gb_envelope_clock(gb_envelope_t* envelope,uint8_t frame_sequencer);
+void gb_envelope_trigger(gb_envelope_t* envelope);
+void gb_envelope_write_register(gb_envelope_t* envelope,uint8_t value,bool* channel_enabled);
+
 
 void gb_length_counter_extra_clock(gb_apu_t* apu,gb_length_counter_t* length_counter,uint8_t value,uint16_t length,bool* channel_enabled);
 void gb_length_counter_clock(gb_length_counter_t* length_counter,bool* channel_enabled);
 
 
-void gb_square_clock(gb_square_state_t* square_state,int timer);
+void gb_square_clock(gb_square_state_t* state,int timer);
 
 void gb_square_write_register(void* data,uint8_t value,uint16_t address);
 uint8_t gb_square_read_register(void* data,uint16_t address);
 
-uint8_t gb_square_raw_output(gb_square_state_t* square_state);
+uint8_t gb_square_raw_output(gb_square_state_t* state);
+void gb_square_update_output(gb_square_state_t* state);
 int gb_square_output(gb_square_t* square);
 
 void gb_square_reset(gb_square_t* square,bool hardware);
@@ -221,18 +234,20 @@ uint8_t gb_wave_read_register(void* data,uint16_t address);
 void gb_wave_write_ram(void* data,uint8_t value,uint16_t address);
 uint8_t gb_wave_read_ram(void* data,uint16_t address);
 
-uint8_t gb_wave_raw_output(gb_wave_state_t* wave_state);
+uint8_t gb_wave_raw_output(gb_wave_state_t* state);
+void gb_wave_update_output(gb_wave_state_t* state);
 int gb_wave_output(gb_wave_t* wave);
 
 void gb_wave_reset(gb_wave_t* wave,bool hardware);
 
 
-void gb_noise_clock(gb_noise_state_t* noise_state,int timer);
+void gb_noise_clock(gb_noise_state_t* state,int timer);
 
 void gb_noise_write_register(void* data,uint8_t value,uint16_t address);
 uint8_t gb_noise_read_register(void* data,uint16_t address);
 
-uint8_t gb_noise_raw_output(gb_noise_state_t* noise_state);
+uint8_t gb_noise_raw_output(gb_noise_state_t* state);
+void gb_noise_update_output(gb_noise_state_t* state);
 int gb_noise_output(gb_noise_t* noise);
 
 void gb_noise_reset(gb_noise_t* noise,bool hardware);

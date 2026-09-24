@@ -49,34 +49,29 @@ bool gb_cartridge_load(gb_cartridge_t* cartridge,const char* path){
 
     fread(cartridge->rom,1,size,file);
 
-    uint8_t* singlecard_header = cartridge->rom + 0x100;
-    size_t singlecard_rom_length = gb_cartridge_get_rom_length(singlecard_header);
+    uint8_t* multicard_header = cartridge->rom + (size - 0x8000) + 0x100;
 
-    if(gb_cartridge_verify_nintendo_logo(singlecard_header) && gb_cartridge_verify_header_checksum(singlecard_header) && (singlecard_rom_length == size)){
-        
-        cartridge->header = singlecard_header;
+    uint8_t mapper = multicard_header[0x47];
 
-        cartridge->rom_length = singlecard_rom_length;
+    if(mapper >= 0x0B && mapper <= 0x0D && gb_cartridge_verify_nintendo_logo(multicard_header) && gb_cartridge_verify_header_checksum(multicard_header)){
         
-        cartridge->rom_bank_mask = (singlecard_rom_length >> 0x0E) - 0x01;
+        cartridge->header = multicard_header;
     }
     else{
-        uint8_t* multicard_header = cartridge->rom + (size - 0x8000) + 0x100;
-        size_t multicard_rom_length = gb_cartridge_get_rom_length(multicard_header);
+        uint8_t* singlecard_header = cartridge->rom + 0x100;
 
-        if(gb_cartridge_verify_nintendo_logo(multicard_header) && gb_cartridge_verify_header_checksum(multicard_header) && (multicard_rom_length == size)){
+        if(gb_cartridge_verify_nintendo_logo(singlecard_header) && gb_cartridge_verify_header_checksum(singlecard_header)){
             
-            cartridge->header = multicard_header;
-            
-            cartridge->rom_length = multicard_rom_length;
-            
-            cartridge->rom_bank_mask = (multicard_rom_length >> 0x0E) - 0x01;
+            cartridge->header = singlecard_header;
         }
         else{
             gb_printf_error("invalid rom");
             goto fail;
         }
     }
+
+    cartridge->rom_length = size;        
+    cartridge->rom_banks = size / 0x4000;
 
     if(!gb_cartridge_init_mapper(cartridge)){
         gb_printf_error("invalid rom mapper");
@@ -116,7 +111,7 @@ void gb_cartridge_remove(gb_cartridge_t* cartridge){
     cartridge->rom0_ptr = NULL;
     cartridge->rom1_ptr = NULL;
     
-    cartridge->rom_bank_mask = 0x00;
+    cartridge->rom_banks = 0x00;
 
     if(cartridge->ram != NULL){
         free(cartridge->ram);

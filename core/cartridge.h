@@ -38,7 +38,7 @@ typedef struct _gb_cartridge_t {
     gb_memory_descriptor_t rom1_descriptor;
     uint8_t* rom0_ptr;
     uint8_t* rom1_ptr;
-    uint16_t rom_bank_mask;
+    size_t rom_banks;
 
     uint8_t* ram;
     size_t ram_length;
@@ -85,10 +85,10 @@ typedef struct _gb_cartridge_t {
 
 
 #define gb_cartridge_set_rom0_bank(cartridge,bank)\
-    (cartridge)->rom0_ptr = (cartridge)->rom + (((bank) & (cartridge)->rom_bank_mask) << 0x0E)
+    (cartridge)->rom0_ptr = (cartridge)->rom + (((bank) % (cartridge)->rom_banks) << 0x0E)
 
 #define gb_cartridge_set_rom1_bank(cartridge,bank)\
-    (cartridge)->rom1_ptr = (cartridge)->rom + (((bank) & (cartridge)->rom_bank_mask) << 0x0E)
+    (cartridge)->rom1_ptr = (cartridge)->rom + (((bank) % (cartridge)->rom_banks) << 0x0E)
 
 #define gb_cartridge_set_ram_bank(cartridge,bank)\
     (cartridge)->ram_ptr = (cartridge)->ram + (((bank) & (cartridge)->ram_bank_mask) << 0x0D)

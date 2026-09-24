@@ -14,8 +14,7 @@ bool gb_mbc6_init(gb_cartridge_t* cartridge,uint8_t flags){
     
     memset(mbc6,0x00,sizeof(gb_mbc6_t));
 
-    mbc6->rom_bank_mask = (cartridge->rom_length / 0x2000) - 0x01;
-    mbc6->ram_bank_mask = 0x00;
+    mbc6->rom_banks = cartridge->rom_length / 0x2000;
 
     cartridge->mapper.data = mbc6;
     cartridge->mapper.data_length = sizeof(gb_mbc6_t);
@@ -68,14 +67,14 @@ static void gb_mbc6_update_mapping(gb_cartridge_t* cartridge){
         mbc6->rom_or_flash_0_ptr = state->flash_data + ((state->rom_or_flash_bank_0 & gb_mbc6_flash_bank_mask) << 0x0D);
     }
     else{
-        mbc6->rom_or_flash_0_ptr = cartridge->rom + ((state->rom_or_flash_bank_0 & mbc6->rom_bank_mask) << 0x0D);
+        mbc6->rom_or_flash_0_ptr = cartridge->rom + ((state->rom_or_flash_bank_0 % mbc6->rom_banks) << 0x0D);
     }
 
     if(state->flash_bank_1_enabled){
         mbc6->rom_or_flash_1_ptr = state->flash_data + ((state->rom_or_flash_bank_1 & gb_mbc6_flash_bank_mask) << 0x0D);
     }
     else{
-        mbc6->rom_or_flash_1_ptr = cartridge->rom + ((state->rom_or_flash_bank_1 & mbc6->rom_bank_mask) << 0x0D);
+        mbc6->rom_or_flash_1_ptr = cartridge->rom + ((state->rom_or_flash_bank_1 % mbc6->rom_banks) << 0x0D);
     }
 }
 
@@ -465,7 +464,7 @@ size_t gb_mbc6_rom_absolute_address(gb_cartridge_t* cartridge,uint16_t relative_
         //$4000-$5FFF
         if((relative_address & 0x3FFF) < 0x2000){
             if(!mbc6->state.flash_bank_0_enabled){
-                return ((mbc6->state.rom_or_flash_bank_0 & mbc6->rom_bank_mask) << 0x0D) | (relative_address & 0x1FFF);
+                return ((mbc6->state.rom_or_flash_bank_0 % mbc6->rom_banks) << 0x0D) | (relative_address & 0x1FFF);
             }
             else{
                 return (size_t)-1;
@@ -474,7 +473,7 @@ size_t gb_mbc6_rom_absolute_address(gb_cartridge_t* cartridge,uint16_t relative_
         //$6000-$7FFF
         else{
             if(!mbc6->state.flash_bank_1_enabled){
-                return ((mbc6->state.rom_or_flash_bank_1 & mbc6->rom_bank_mask) << 0x0D) | (relative_address & 0x1FFF);
+                return ((mbc6->state.rom_or_flash_bank_1 % mbc6->rom_banks) << 0x0D) | (relative_address & 0x1FFF);
             }
             else{
                 return (size_t)-1;
