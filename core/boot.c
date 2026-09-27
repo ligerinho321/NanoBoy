@@ -124,12 +124,18 @@ void gb_boot_write_bank_register(void* data,uint8_t value,uint16_t address){
     }
 }
 
+static inline uint8_t gb_boot_read_bank_register_internal(gb_boot_t* boot){
+    return 0xFE | !boot->state.mapped;
+}
+
+uint8_t gb_boot_peek_bank_register(gb_t* gb){
+    return gb_boot_read_bank_register_internal(&gb->boot);
+}
+
 uint8_t gb_boot_read_bank_register(void* data,uint16_t address){
     gb_unused(address);
-
     gb_boot_t* boot = (gb_boot_t*)data;
-
-    return 0xFE | !boot->state.mapped;
+    return gb_boot_read_bank_register_internal(boot);
 }
 
 

@@ -13,7 +13,7 @@ typedef enum gb_memory_type_t {
     gb_memory_type_count,
 } gb_memory_type_t;
 
-extern const char* gb_memory_type_names[7];
+extern const char* gb_memory_type_names[gb_memory_type_count];
 
 #ifdef __cplusplus
 extern "C" {

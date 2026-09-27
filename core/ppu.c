@@ -1,6 +1,12 @@
 #include "ppu.h"
 #include "gb.h"
 
+const char* gb_ppu_mode_names[gb_ppu_mode_count] = {
+    "Hblank",
+    "Vblank",
+    "OAM Scan",
+    "Drawing"
+};
 
 void gb_ppu_init(gb_ppu_t* ppu,gb_t* gb){
     ppu->gb = gb;
@@ -704,8 +710,8 @@ void gb_ppu_write_register(void* data,uint8_t value,uint16_t address){
     }
 }
 
-uint8_t gb_ppu_read_register(void* data,uint16_t address){
-    gb_ppu_t* ppu = (gb_ppu_t*)data;
+
+static uint8_t gb_ppu_read_register_internal(gb_ppu_t* ppu,uint16_t address){
     gb_ppu_state_t *state = &ppu->state;
 
     uint8_t value = 0xFF;
@@ -773,6 +779,15 @@ uint8_t gb_ppu_read_register(void* data,uint16_t address){
     return value;
 }
 
+uint8_t gb_ppu_peek_register(gb_t* gb,uint16_t address){
+    return gb_ppu_read_register_internal(&gb->ppu,address);
+}
+
+uint8_t gb_ppu_read_register(void* data,uint16_t address){
+    gb_ppu_t* ppu = (gb_ppu_t*)data;
+    return gb_ppu_read_register_internal(ppu,address);
+}
+
 
 void gb_ppu_write_vbk_register(void* data,uint8_t value,uint16_t address){
     gb_unused(address);
@@ -783,19 +798,26 @@ void gb_ppu_write_vbk_register(void* data,uint8_t value,uint16_t address){
     ppu->vram_bank_ptr = ppu->state.vram + (ppu->state.vram_bank ? 0x2000 : 0x0000);
 }
 
+
+static uint8_t gb_ppu_read_vbk_register_internal(gb_ppu_t* ppu){
+    return 0xFE | ppu->state.vram_bank;
+}
+
+uint8_t gb_ppu_peek_vbk_register(gb_t* gb){
+    return gb_ppu_read_vbk_register_internal(&gb->ppu);
+}
+
 uint8_t gb_ppu_read_vbk_register(void* data,uint16_t address){
     gb_unused(address);
-
     gb_ppu_t* ppu = (gb_ppu_t*)data;
-    
-    return 0xFE | ppu->state.vram_bank;
+    return gb_ppu_read_vbk_register_internal(ppu);
 }
 
 
 void gb_ppu_write_oam(void* data,uint8_t value,uint16_t address){
     gb_ppu_t* ppu = (gb_ppu_t*)data;
     
-    if(ppu->gb->dma.state.oam_state != gb_oam_dma_state_transfer && !ppu->state.oam_write_blocked){
+    if(!ppu->gb->dma.state.oam_running && !ppu->state.oam_write_blocked){
         ppu->state.oam[address & 0xFF] = value;
     }
 }
@@ -805,7 +827,7 @@ uint8_t gb_ppu_read_oam(void* data,uint16_t address){
 
     uint8_t value = 0xFF;
 
-    if(ppu->gb->dma.state.oam_state != gb_oam_dma_state_transfer && !ppu->state.oam_read_blocked){
+    if(!ppu->gb->dma.state.oam_running && !ppu->state.oam_read_blocked){
         value = ppu->state.oam[address & 0xFF];
     }
 

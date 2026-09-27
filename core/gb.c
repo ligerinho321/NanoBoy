@@ -118,6 +118,11 @@ void gb_pause(gb_t* gb,bool paused){
     gb->paused = paused;
 
     if(gb->paused){
+        gb_apu_update(&gb->apu);
+
+        gb_timer_update(&gb->timer);
+        gb_timer_schedule_next_event(&gb->timer);
+        
         gb_frame_timer_stop(&gb->frame_timer);
     }
     else{
@@ -276,7 +281,12 @@ void gb_write_key0_register(void* data,uint8_t value,uint16_t address){
 
     gb_t* gb = (gb_t*)data;
 
-    gb->state.cgb_mode = !(value & 0x0C);
+    gb->state.cgb_mode = !(value & 0x04);
+}
+
+
+uint8_t gb_peek_key0_register(gb_t* gb){
+    return 0xFB | (gb->state.cgb_mode ? 0x00 : 0x04);
 }
 
 
@@ -288,12 +298,19 @@ void gb_write_key1_register(void* data,uint8_t value,uint16_t address){
     gb->state.speed_switch_needed = value & 0x01;
 }
 
+
+static uint8_t gb_read_key1_register_internal(gb_t* gb){
+    return (gb->state.double_speed ? 0x80 : 0x00) | 0x7E | gb->state.speed_switch_needed;
+}
+
+uint8_t gb_peek_key1_register(gb_t* gb){
+    return gb_read_key1_register_internal(gb);
+}
+
 uint8_t gb_read_key1_register(void* data,uint16_t address){
     gb_unused(address);
-
     gb_t* gb = (gb_t*)data;
-
-    return (gb->state.double_speed ? 0x80 : 0x00) | 0x7E | gb->state.speed_switch_needed;
+    return gb_read_key1_register_internal(gb);
 }
 
 
@@ -305,12 +322,19 @@ void gb_write_opri_register(void* data,uint8_t value,uint16_t address){
     gb->state.obj_priority_mode = value & 0x01;
 }
 
+
+static uint8_t gb_read_opri_register_internal(gb_t* gb){
+    return 0xFE | gb->state.obj_priority_mode;
+}
+
+uint8_t gb_peek_opri_register(gb_t* gb){
+    return gb_read_opri_register_internal(gb);
+}
+
 uint8_t gb_read_opri_register(void* data,uint16_t address){
     gb_unused(address);
-    
     gb_t* gb = (gb_t*)data;
-
-    return 0xFE | gb->state.obj_priority_mode;
+    return gb_read_opri_register_internal(gb);
 }
 
 
@@ -327,9 +351,8 @@ void gb_write_undocumented_register(void* data,uint8_t value,uint16_t address){
     }
 }
 
-uint8_t gb_read_undocumented_register(void* data,uint16_t address){
-    gb_t* gb = (gb_t*)data;
 
+static uint8_t gb_read_undocumented_register_internal(gb_t* gb,uint16_t address){
     uint8_t value = 0xFF;
 
     switch(address){
@@ -342,6 +365,15 @@ uint8_t gb_read_undocumented_register(void* data,uint16_t address){
     }
 
     return value;
+}
+
+uint8_t gb_peek_undocumented_register(gb_t* gb,uint16_t address){
+    return gb_read_undocumented_register_internal(gb,address);
+}
+
+uint8_t gb_read_undocumented_register(void* data,uint16_t address){
+    gb_t* gb = (gb_t*)data;
+    return gb_read_undocumented_register_internal(gb,address);
 }
 
 

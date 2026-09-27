@@ -69,9 +69,13 @@ void gb_palette_cgb_dmg_colorization(gb_palette_t* palette);
 gb_rgb_t gb_palette_rgb555_to_rgb888(uint16_t color);
 
 void gb_palette_write_dmg_register(void* data,uint8_t value,uint16_t address);
+
+uint8_t gb_palette_peek_dmg_register(gb_t* gb,uint16_t address);
 uint8_t gb_palette_read_dmg_register(void* data,uint16_t address);
 
 void gb_palette_write_cgb_register(void* data,uint8_t value,uint16_t address);
+
+uint8_t gb_palette_peek_cgb_register(gb_t* gb,uint16_t address);
 uint8_t gb_palette_read_cgb_register(void* data,uint16_t address);
 
 void gb_palette_map(gb_palette_t* palette);

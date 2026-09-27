@@ -61,6 +61,8 @@ void gb_boot_map(gb_boot_t* boot);
 void gb_boot_unmap(gb_boot_t* boot);
 
 void gb_boot_write_bank_register(void* data,uint8_t value,uint16_t address);
+
+uint8_t gb_boot_peek_bank_register(gb_t* gb);
 uint8_t gb_boot_read_bank_register(void* data,uint16_t address);
 
 uint8_t gb_boot_dmg_read_rom(void* data,uint16_t address);

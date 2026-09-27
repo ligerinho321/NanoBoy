@@ -7,7 +7,11 @@ typedef enum _gb_ppu_mode_t {
     gb_ppu_vblank_mode = 0x01,
     gb_ppu_oam_mode = 0x02,
     gb_ppu_drawing_mode = 0x03,
+    gb_ppu_mode_count
 } gb_ppu_mode_t;
+
+extern const char* gb_ppu_mode_names[gb_ppu_mode_count];
+
 
 typedef enum _gb_tilemap_attribute_mask_t {
     gb_tilemap_palette_mask = 0x07,
@@ -182,9 +186,13 @@ uint8_t gb_ppu_read_vram(void* data,uint16_t address);
 size_t gb_ppu_vram_absolute_address(gb_ppu_t* ppu,uint16_t relative_address);
 
 void gb_ppu_write_register(void* data,uint8_t value,uint16_t address);
+
+uint8_t gb_ppu_peek_register(gb_t* gb,uint16_t address);
 uint8_t gb_ppu_read_register(void* data,uint16_t address);
 
 void gb_ppu_write_vbk_register(void* data,uint8_t value,uint16_t address);
+
+uint8_t gb_ppu_peek_vbk_register(gb_t* gb);
 uint8_t gb_ppu_read_vbk_register(void* data,uint16_t address);
 
 void gb_ppu_write_oam(void* data,uint8_t value,uint16_t address);

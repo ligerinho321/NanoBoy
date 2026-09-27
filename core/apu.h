@@ -5,7 +5,6 @@
 
 typedef struct _gb_apu_t gb_apu_t;
 
-
 typedef struct _gb_channel_frame_t {
     blip_t* blip;
     int last_output;
@@ -199,6 +198,8 @@ void gb_apu_update(gb_apu_t* apu);
 void gb_apu_frame_sequencer_clock(gb_apu_t* apu);
 
 void gb_apu_write_register(void* data,uint8_t value,uint16_t address);
+
+uint8_t gb_apu_peek_register(gb_t* gb,uint16_t address);
 uint8_t gb_apu_read_register(void* data,uint16_t address);
 
 
@@ -217,6 +218,9 @@ void gb_length_counter_clock(gb_length_counter_t* length_counter,bool* channel_e
 void gb_square_clock(gb_square_state_t* state,int timer);
 
 void gb_square_write_register(void* data,uint8_t value,uint16_t address);
+
+uint8_t gb_square1_peek_register(gb_t* gb,uint16_t address);
+uint8_t gb_square2_peek_register(gb_t* gb,uint16_t address);
 uint8_t gb_square_read_register(void* data,uint16_t address);
 
 uint8_t gb_square_raw_output(gb_square_state_t* state);
@@ -229,9 +233,13 @@ void gb_square_reset(gb_square_t* square,bool hardware);
 void gb_wave_clock(gb_wave_state_t* wave_state,int timer);
 
 void gb_wave_write_register(void* data,uint8_t value,uint16_t address);
+
+uint8_t gb_wave_peek_register(gb_t* gb,uint16_t address);
 uint8_t gb_wave_read_register(void* data,uint16_t address);
 
 void gb_wave_write_ram(void* data,uint8_t value,uint16_t address);
+
+uint8_t gb_wave_peek_ram(gb_t* gb,uint16_t address);
 uint8_t gb_wave_read_ram(void* data,uint16_t address);
 
 uint8_t gb_wave_raw_output(gb_wave_state_t* state);
@@ -244,6 +252,8 @@ void gb_wave_reset(gb_wave_t* wave,bool hardware);
 void gb_noise_clock(gb_noise_state_t* state,int timer);
 
 void gb_noise_write_register(void* data,uint8_t value,uint16_t address);
+
+uint8_t gb_noise_peek_register(gb_t* gb,uint16_t address);
 uint8_t gb_noise_read_register(void* data,uint16_t address);
 
 uint8_t gb_noise_raw_output(gb_noise_state_t* state);
@@ -252,9 +262,11 @@ int gb_noise_output(gb_noise_t* noise);
 
 void gb_noise_reset(gb_noise_t* noise,bool hardware);
 
+uint8_t gb_pcm12_peek_register(gb_t* gb);
+uint8_t gb_pcm12_read_register(void* data,uint16_t address);
 
-uint8_t gb_apu_read_pcm12_register(void* data,uint16_t address);
-uint8_t gb_apu_read_pcm34_register(void* data,uint16_t address);
+uint8_t gb_pcm34_peek_register(gb_t* gb);
+uint8_t gb_pcm34_read_register(void* data,uint16_t address);
 
 void gb_apu_map_registers(gb_apu_t* apu);
 

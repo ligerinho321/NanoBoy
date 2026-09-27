@@ -18,6 +18,7 @@
 #include <gui/input_settings/input_settings.hpp>
 
 #include <gui/debugger/debugger.hpp>
+#include <gui/register_viewer/register_viewer.hpp>
 #include <gui/event_viewer/event_viewer.hpp>
 #include <gui/memory_viewer/memory_viewer.hpp>
 #include <gui/tilemap_viewer/tilemap_viewer.hpp>
@@ -116,6 +117,7 @@ public:
     printer_t printer;
 
     debugger_t debugger;
+    register_viewer_t register_viewer;
     event_viewer_t event_viewer;
     memory_viewer_t memory_viewer;
     tilemap_viewer_t tilemap_viewer;

@@ -80,6 +80,7 @@ nanoboy_t::nanoboy_t(){
     printer.init(gb,renderer);
 
     debugger.init(gb);
+    register_viewer.init(gb);
     event_viewer.init(gb,renderer);
     memory_viewer.init(gb);
     tilemap_viewer.init(gb,renderer);
@@ -736,6 +737,9 @@ void nanoboy_t::render_main_menu_bar(){
         if(ImGui::MenuItem("Debugger",nullptr,nullptr,gb->cartridge_inserted)){
             debugger.set_open(true);
         }
+        if(ImGui::MenuItem("Register Viewer",nullptr,nullptr,gb->cartridge_inserted)){
+            register_viewer.set_open(true);
+        }
         if(ImGui::MenuItem("Event Viewer",nullptr,nullptr,gb->cartridge_inserted)){
             event_viewer.set_open(true);
         }
@@ -792,6 +796,7 @@ void nanoboy_t::imgui_render(){
     printer.render();
     
     debugger.render();
+    register_viewer.render();
     event_viewer.render();
     memory_viewer.render();
     tilemap_viewer.render();

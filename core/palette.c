@@ -251,8 +251,8 @@ void gb_palette_write_dmg_register(void* data,uint8_t value,uint16_t address){
     }
 }
 
-uint8_t gb_palette_read_dmg_register(void* data,uint16_t address){
-    gb_palette_t* palette = (gb_palette_t*)data;
+
+static uint8_t gb_palette_read_dmg_register_internal(gb_palette_t* palette,uint16_t address){
     gb_palette_state_t* state = &palette->state;
 
     uint8_t value = 0xFF;
@@ -267,6 +267,15 @@ uint8_t gb_palette_read_dmg_register(void* data,uint16_t address){
     }
 
     return value;
+}
+
+uint8_t gb_palette_peek_dmg_register(gb_t* gb,uint16_t address){
+    return gb_palette_read_dmg_register_internal(&gb->palette,address);
+}
+
+uint8_t gb_palette_read_dmg_register(void* data,uint16_t address){
+    gb_palette_t* palette = (gb_palette_t*)data;
+    return gb_palette_read_dmg_register_internal(palette,address);
 }
 
 
@@ -318,8 +327,8 @@ void gb_palette_write_cgb_register(void* data,uint8_t value,uint16_t address){
     }
 }
 
-uint8_t gb_palette_read_cgb_register(void* data,uint16_t address){
-    gb_palette_t* palette = (gb_palette_t*)data;
+
+static uint8_t gb_palette_read_cgb_register_internal(gb_palette_t* palette,uint16_t address){
     gb_palette_state_t* state = &palette->state;
 
     uint8_t value = 0xFF;
@@ -336,6 +345,15 @@ uint8_t gb_palette_read_cgb_register(void* data,uint16_t address){
     }
 
     return value;
+}
+
+uint8_t gb_palette_peek_cgb_register(gb_t* gb,uint16_t address){
+    return gb_palette_read_cgb_register_internal(&gb->palette,address);
+}
+
+uint8_t gb_palette_read_cgb_register(void* data,uint16_t address){
+    gb_palette_t* palette = (gb_palette_t*)data;
+    return gb_palette_read_cgb_register_internal(palette,address);
 }
 
 

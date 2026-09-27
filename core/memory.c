@@ -75,7 +75,7 @@ void gb_memory_remove_cheat_code(gb_t* gb,gb_cheat_code_t* code){
 void gb_memory_cpu_write(gb_memory_t* memory,uint8_t value,uint16_t address){
     gb_memory_descriptor_t* descriptor = memory->bus[address];
 
-    if(memory->gb->dma.state.oam_state != gb_oam_dma_state_transfer || !gb_oam_dma_bus_conflict(&memory->gb->dma,address)){
+    if(!memory->gb->dma.state.oam_running || !gb_oam_dma_bus_conflict(&memory->gb->dma,address)){
         
         descriptor->write(descriptor->data,value,address);
 
@@ -90,7 +90,7 @@ uint8_t gb_memory_cpu_read(gb_memory_t* memory,uint16_t address){
     
     uint8_t value = 0xFF;
 
-    if(memory->gb->dma.state.oam_state != gb_oam_dma_state_transfer || !gb_oam_dma_bus_conflict(&memory->gb->dma,address)){
+    if(!memory->gb->dma.state.oam_running || !gb_oam_dma_bus_conflict(&memory->gb->dma,address)){
         
         value = descriptor->read(descriptor->data,address);
 
@@ -225,12 +225,19 @@ void gb_memory_write_wbk_register(void* data,uint8_t value,uint16_t address){
     gb_memory_update_wram_bank_ptr(memory);
 }
 
+
+static uint8_t gb_memory_read_wbk_register_internal(gb_memory_t* memory){
+    return 0xF8 | (memory->state.wram_bank & 0x07);
+}
+
+uint8_t gb_memory_peek_wbk_register(gb_t* gb){
+    return gb_memory_read_wbk_register_internal(&gb->memory);
+}
+
 uint8_t gb_memory_read_wbk_register(void* data,uint16_t address){
     gb_unused(address);
-    
     gb_memory_t* memory = (gb_memory_t*)data;
-
-    return 0xF8 | (memory->state.wram_bank & 0x07);
+    return gb_memory_read_wbk_register_internal(memory);
 }
 
 

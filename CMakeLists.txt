@@ -136,6 +136,8 @@ target_sources(
     
     gui/printer/printer.cpp
     
+    gui/register_viewer/register_viewer.cpp
+    
     gui/rewind_settings/rewind_settings.cpp
     
     gui/savestate/savestate.cpp

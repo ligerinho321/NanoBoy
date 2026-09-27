@@ -118,13 +118,20 @@ void gb_switch_speed(gb_t* gb);
 
 void gb_write_key0_register(void* data,uint8_t value,uint16_t address);
 
+uint8_t gb_peek_key0_register(gb_t* gb);
+
 void gb_write_key1_register(void* data,uint8_t value,uint16_t address);
+
+uint8_t gb_peek_key1_register(gb_t* gb);
 uint8_t gb_read_key1_register(void* data,uint16_t address);
 
 void gb_write_opri_register(void* data,uint8_t value,uint16_t address);
+
+uint8_t gb_peek_opri_register(gb_t* gb);
 uint8_t gb_read_opri_register(void* data,uint16_t address);
 
 void gb_write_undocumented_register(void* data,uint8_t value,uint16_t address);
+uint8_t gb_peek_undocumented_register(gb_t* gb,uint16_t address);
 uint8_t gb_read_undocumented_register(void* data,uint16_t address);
 
 void gb_map(gb_t* gb);

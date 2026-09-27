@@ -4,51 +4,54 @@
 void gb_interrupt_init(gb_interrupt_t* interrupt,gb_t* gb){
     interrupt->gb = gb;
 
-    interrupt->flag_register_descriptor = (gb_memory_descriptor_t){
-        gb_interrupt_write_flag_register,
-        gb_interrupt_read_flag_register,
-        interrupt
-    };
-
-    interrupt->enable_register_descriptor = (gb_memory_descriptor_t){
-        gb_interrupt_write_enable_register,
-        gb_interrupt_read_enable_register,
+    interrupt->register_descriptor = (gb_memory_descriptor_t){
+        gb_interrupt_write_register,
+        gb_interrupt_read_register,
         interrupt
     };
 }
 
 
-void gb_interrupt_write_flag_register(void* data,uint8_t value,uint16_t address){
-    gb_unused(address);
-
+void gb_interrupt_write_register(void* data,uint8_t value,uint16_t address){
     gb_interrupt_t* interrupt = (gb_interrupt_t*)data;
-    
-    interrupt->state.flag = value & 0x1F;
+
+    switch(address){
+        case 0xFF0F:{
+            interrupt->state.flag = value & 0x1F;
+            break;
+        }
+        case 0xFFFF:{
+            interrupt->state.enable = value;
+            break;
+        }
+    }
 }
 
-uint8_t gb_interrupt_read_flag_register(void* data,uint16_t address){
-    gb_unused(address);
 
-    gb_interrupt_t* interrupt = (gb_interrupt_t*)data;
-    
-    return 0xE0 | (interrupt->state.flag & 0x1F);
+static uint8_t gb_interrupt_read_register_internal(gb_interrupt_t* interrupt,uint16_t address){
+    uint8_t value = 0xFF;
+
+    switch(address){
+        case 0xFF0F:{
+            value = 0xE0 | (interrupt->state.flag & 0x1F);
+            break;
+        }
+        case 0xFFFF:{
+            value = interrupt->state.enable;
+            break;
+        }
+    }
+
+    return value;
 }
 
-
-void gb_interrupt_write_enable_register(void* data,uint8_t value,uint16_t address){
-    gb_unused(address);
-
-    gb_interrupt_t* interrupt = (gb_interrupt_t*)data;
-    
-    interrupt->state.enable = value;
+uint8_t gb_interrupt_peek_register(gb_t* gb,uint16_t address){
+    return gb_interrupt_read_register_internal(&gb->interrupt,address);
 }
 
-uint8_t gb_interrupt_read_enable_register(void* data,uint16_t address){
-    gb_unused(address);
-    
+uint8_t gb_interrupt_read_register(void* data,uint16_t address){
     gb_interrupt_t* interrupt = (gb_interrupt_t*)data;
-
-    return interrupt->state.enable;
+    return gb_interrupt_read_register_internal(interrupt,address);
 }
 
 
@@ -81,8 +84,8 @@ uint8_t gb_interrupt_get_vector(gb_interrupt_t* interrupt){
 
 void gb_interrupt_map_registers(gb_interrupt_t* interrupt){
     gb_memory_t* memory = &interrupt->gb->memory;
-    gb_memory_map(memory,&interrupt->flag_register_descriptor,0xFF0F);
-    gb_memory_map(memory,&interrupt->enable_register_descriptor,0xFFFF);
+    gb_memory_map(memory,&interrupt->register_descriptor,0xFF0F);
+    gb_memory_map(memory,&interrupt->register_descriptor,0xFFFF);
 }
 
 

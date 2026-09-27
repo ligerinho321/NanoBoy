@@ -28,7 +28,19 @@ void gb_oam_dma_clock(gb_dma_t* dma){
             break;
         }
         case gb_oam_dma_state_setup:{
+
+            dma->state.oam_hi_addr = dma->state.oam_src << 0x08;
+
+            if(dma->state.oam_hi_addr > 0xFD00){
+                dma->state.oam_hi_addr &= ~0x2000;
+            }
+
+            dma->state.oam_counter = 0x00;
+
             state->oam_byte = gb_memory_oam_dma_read(&dma->gb->memory,state->oam_hi_addr | state->oam_counter);
+            
+            state->oam_running = true;
+
             state->oam_state = gb_oam_dma_state_transfer;
             break;
         }
@@ -41,10 +53,16 @@ void gb_oam_dma_clock(gb_dma_t* dma){
             }
             
             if(++state->oam_counter >= 0xA0){
+                state->oam_running = false;
                 state->oam_state = gb_oam_dma_state_none;
             }
             else{
                 state->oam_byte = gb_memory_oam_dma_read(&dma->gb->memory,state->oam_hi_addr | state->oam_counter);
+            }
+
+            if(dma->state.oam_restart){
+                dma->state.oam_state = gb_oam_dma_state_setup;
+                dma->state.oam_restart = false;
             }
             break;
         }
@@ -83,13 +101,17 @@ void gb_oam_dma_write_register(void* data,uint8_t value,uint16_t address){
 
     dma->state.oam_src = value;
 
-    dma->state.oam_state = gb_oam_dma_state_delay;
-
-    dma->state.oam_hi_addr = value << 0x08;
-    if(dma->state.oam_hi_addr > 0xFD00){
-        dma->state.oam_hi_addr &= ~0x2000;
+    if(dma->state.oam_state == gb_oam_dma_state_transfer){
+        dma->state.oam_restart = true;
     }
-    dma->state.oam_counter = 0x00;
+    else{
+        dma->state.oam_state = gb_oam_dma_state_delay;
+    }
+}
+
+
+uint8_t gb_oam_dma_peek_register(gb_t* gb){
+    return gb->dma.state.oam_src;
 }
 
 uint8_t gb_oam_dma_read_register(void* data,uint16_t address){
@@ -217,17 +239,24 @@ void gb_vram_dma_write_register(void* data,uint8_t value,uint16_t address){
     }
 }
 
-uint8_t gb_vram_dma_read_register(void* data,uint16_t address){
-    gb_dma_t* dma = (gb_dma_t*)data;
+
+static uint8_t gb_vram_dma_read_register_internal(gb_dma_t* dma,uint16_t address){
     gb_dma_state_t* state = &dma->state;
 
-    uint8_t value = 0xFF;
-
     if(address == 0xFF55){
-        value = (state->vram_hblank_running ? 0x00 : 0x80) | (state->vram_length & 0x7F);
+        return (state->vram_hblank_running ? 0x00 : 0x80) | (state->vram_length & 0x7F);
     }
+    
+    return 0xFF;
+}
 
-    return value;
+uint8_t gb_vram_dma_peek_register(gb_t* gb,uint16_t address){
+    return gb_vram_dma_read_register_internal(&gb->dma,address);
+}
+
+uint8_t gb_vram_dma_read_register(void* data,uint16_t address){
+    gb_dma_t* dma = (gb_dma_t*)data;
+    return gb_vram_dma_read_register_internal(dma,address);
 }
 
 
@@ -252,6 +281,8 @@ void gb_dma_reset(gb_dma_t* dma){
     state->oam_hi_addr = 0x00;
     state->oam_counter = 0x00;
     state->oam_byte = 0x00;
+    state->oam_running = false;
+    state->oam_restart = false;
 
     state->vram_src = 0x00;
     state->vram_dst = 0x00;

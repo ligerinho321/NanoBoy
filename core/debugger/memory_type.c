@@ -1,7 +1,7 @@
 #include "memory_type.h"
 #include "../gb.h"
 
-const char* gb_memory_type_names[7] = {
+const char* gb_memory_type_names[gb_memory_type_count] = {
     "CPU Memory",
     "Cartridge ROM",
     "Video RAM",

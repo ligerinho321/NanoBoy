@@ -1,7 +1,7 @@
 #include "joypad.h"
 #include "gb.h"
 
-const char* gb_joypad_button_names[8] = {
+const char* gb_joypad_button_names[gb_button_count] = {
     "Down",
     "Up",
     "Left",
@@ -70,10 +70,8 @@ void gb_joypad_write_register(void* data,uint8_t value,uint16_t address){
     joypad->state.select_directions = !(value & 0x10);
 }
 
-uint8_t gb_joypad_read_register(void* data,uint16_t address){
-    gb_unused(address);
-    
-    gb_joypad_t* joypad = (gb_joypad_t*)data;
+
+static uint8_t gb_joypad_read_register_internal(gb_joypad_t* joypad){
     gb_joypad_button_state_t* button_state = &joypad->state.button_state;
 
     uint8_t value = 0xFF;
@@ -99,6 +97,16 @@ uint8_t gb_joypad_read_register(void* data,uint16_t address){
     }
 
     return value;
+}
+
+uint8_t gb_joypad_peek_register(gb_t* gb){
+    return gb_joypad_read_register_internal(&gb->joypad);
+}
+
+uint8_t gb_joypad_read_register(void* data,uint16_t address){
+    gb_unused(address);
+    gb_joypad_t* joypad = (gb_joypad_t*)data;
+    return gb_joypad_read_register_internal(joypad);
 }
 
 

@@ -21,11 +21,8 @@ void gb_infrared_write_register(void* data,uint8_t value,uint16_t address){
     infrared->state.led_on = value & 0x01;
 }
 
-uint8_t gb_infrared_read_register(void* data,uint16_t address){
-    gb_unused(address);
-    
-    gb_infrared_t* infrared = (gb_infrared_t*)data;
-    
+
+static uint8_t gb_infrared_read_register_internal(gb_infrared_t* infrared){
     uint8_t value = ((infrared->state.read_enabled & 0x03) << 0x06) | 0x3C | (infrared->state.led_on ? 0x01 : 0x00);
     
     if(infrared->state.read_enabled == 0x03){
@@ -36,6 +33,16 @@ uint8_t gb_infrared_read_register(void* data,uint16_t address){
     }
 
     return value;
+}
+
+uint8_t gb_infrared_peek_register(gb_t* gb){
+    return gb_infrared_read_register_internal(&gb->infrared);
+}
+
+uint8_t gb_infrared_read_register(void* data,uint16_t address){
+    gb_unused(address);
+    gb_infrared_t* infrared = (gb_infrared_t*)data;
+    return gb_infrared_read_register_internal(infrared);
 }
 
 

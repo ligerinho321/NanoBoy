@@ -162,8 +162,8 @@ void gb_timer_write_register(void* data,uint8_t value,uint16_t address){
     gb_timer_schedule_next_event(timer);
 }
 
-uint8_t gb_timer_read_register(void* data,uint16_t address){
-    gb_timer_t* timer = (gb_timer_t*)data;
+
+static uint8_t gb_timer_read_register_internal(gb_timer_t* timer,uint16_t address){
     gb_timer_state_t* state = &timer->state;
 
     gb_timer_update(timer);
@@ -184,6 +184,15 @@ uint8_t gb_timer_read_register(void* data,uint16_t address){
     gb_timer_schedule_next_event(timer);
 
     return value;
+}
+
+uint8_t gb_timer_peek_register(gb_t* gb,uint16_t address){
+    return gb_timer_read_register_internal(&gb->timer,address);
+}
+
+uint8_t gb_timer_read_register(void* data,uint16_t address){
+    gb_timer_t* timer = (gb_timer_t*)data;
+    return gb_timer_read_register_internal(timer,address);
 }
 
 

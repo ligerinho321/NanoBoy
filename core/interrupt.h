@@ -28,8 +28,7 @@ typedef struct _gb_interrupt_t {
 
     gb_interrupt_state_t state;
     
-    gb_memory_descriptor_t enable_register_descriptor;
-    gb_memory_descriptor_t flag_register_descriptor;
+    gb_memory_descriptor_t register_descriptor;
 } gb_interrupt_t;
 
 
@@ -39,11 +38,10 @@ extern "C" {
 
 void gb_interrupt_init(gb_interrupt_t* interrupt,gb_t* gb);
 
-void gb_interrupt_write_flag_register(void* data,uint8_t value,uint16_t address);
-uint8_t gb_interrupt_read_flag_register(void* data,uint16_t address);
+void gb_interrupt_write_register(void* data,uint8_t value,uint16_t address);
 
-void gb_interrupt_write_enable_register(void* data,uint8_t value,uint16_t address);
-uint8_t gb_interrupt_read_enable_register(void* data,uint16_t address);
+uint8_t gb_interrupt_peek_register(gb_t* gb,uint16_t address);
+uint8_t gb_interrupt_read_register(void* data,uint16_t address);
 
 uint8_t gb_interrupt_get_vector(gb_interrupt_t* interrupt);
 

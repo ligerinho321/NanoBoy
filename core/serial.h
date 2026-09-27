@@ -39,6 +39,8 @@ void gb_serial_remove_callback(gb_serial_t* serial);
 void gb_serial_clock(gb_serial_t* serial);
 
 void gb_serial_write_register(void* data,uint8_t value,uint16_t address);
+
+uint8_t gb_serial_peek_register(gb_t* gb,uint16_t address);
 uint8_t gb_serial_read_register(void* data,uint16_t address);
 
 void gb_serial_map_registers(gb_serial_t* serial);

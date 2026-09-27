@@ -78,6 +78,8 @@ void gb_memory_map_hram(gb_memory_t* memory);
 size_t gb_memory_hram_absolute_address(gb_memory_t* memory,uint16_t relative_address);
 
 void gb_memory_write_wbk_register(void* data,uint8_t value,uint16_t address);
+
+uint8_t gb_memory_peek_wbk_register(gb_t* gb);
 uint8_t gb_memory_read_wbk_register(void* data,uint16_t address);
 
 void gb_memory_reset(gb_memory_t* memory);

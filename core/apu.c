@@ -164,13 +164,13 @@ void gb_apu_init(gb_apu_t* apu,gb_t* gb){
     
     apu->pcm12_register_descriptor = (gb_memory_descriptor_t){
         gb_memory_write_empty,
-        gb_apu_read_pcm12_register,
+        gb_pcm12_read_register,
         apu
     };
 
     apu->pcm34_register_descriptor = (gb_memory_descriptor_t){
         gb_memory_write_empty,
-        gb_apu_read_pcm34_register,
+        gb_pcm34_read_register,
         apu
     };
 }
@@ -359,7 +359,7 @@ void gb_apu_update(gb_apu_t* apu){
         if(square2_state->enabled){
             gb_square_clock(square2_state,cycles);
         }
-        
+
         if(wave_state->enabled){
             gb_wave_clock(wave_state,cycles);
         }
@@ -408,19 +408,16 @@ void gb_apu_frame_sequencer_clock(gb_apu_t* apu){
             }
 
             gb_envelope_clock(&apu->square1.state.envelope,state->frame_sequencer);
-            gb_square_update_output(&apu->square1.state);
-            
             gb_envelope_clock(&apu->square2.state.envelope,state->frame_sequencer);
-            gb_square_update_output(&apu->square2.state);
-
             gb_envelope_clock(&apu->noise.state.envelope,state->frame_sequencer);
-            gb_noise_update_output(&apu->noise.state);
-
-
+            
             if((state->frame_sequencer & 0x03) == 0x02){
                 gb_sweep_clock(&apu->square1);
             }
 
+            gb_square_update_output(&apu->square1.state);
+            gb_square_update_output(&apu->square2.state);
+            gb_noise_update_output(&apu->noise.state);
             gb_apu_update_output(apu);
 
             state->frame_sequencer = (state->frame_sequencer + 0x01) & 0x07;
@@ -439,6 +436,7 @@ void gb_apu_write_register(void* data,uint8_t value,uint16_t address){
     gb_apu_update(apu);
 
     switch(address){
+        //NR50
         case 0xFF24:{
             if(!state->enabled) break;
 
@@ -448,6 +446,7 @@ void gb_apu_write_register(void* data,uint8_t value,uint16_t address){
             state->volume.right = value & 0x07;
             break;
         }
+        //NR51
         case 0xFF25:{
             if(!state->enabled) break;
 
@@ -464,6 +463,7 @@ void gb_apu_write_register(void* data,uint8_t value,uint16_t address){
             state->noise_panning.right = value & 0x08;
             break;
         }
+        //NR52
         case 0xFF26:{
             bool new_enabled = value & 0x80;
             
@@ -477,7 +477,6 @@ void gb_apu_write_register(void* data,uint8_t value,uint16_t address){
                 
                 //Segundo o teste div_write_trigger_10 habilitar o canal quando o 4bit (ou 5bit em double speed) 
                 //de timer DIV está ativo faz com que o primeiro clock do senquenciador de quadros seja ignorado
-                
                 state->skip_first_frame_sequence_event = timer->state.div & (apu->gb->state.double_speed ? 0x2000 : 0x1000);
 
                 state->cycle = 0;
@@ -493,8 +492,8 @@ void gb_apu_write_register(void* data,uint8_t value,uint16_t address){
     gb_apu_update_output(apu);
 }
 
-uint8_t gb_apu_read_register(void* data,uint16_t address){
-    gb_apu_t* apu = (gb_apu_t*)data;
+
+static uint8_t gb_apu_read_register_internal(gb_apu_t* apu,uint16_t address){
     gb_apu_state_t* state = &apu->state;
 
     gb_apu_update(apu);
@@ -502,6 +501,7 @@ uint8_t gb_apu_read_register(void* data,uint16_t address){
     uint8_t value = 0xFF;
 
     switch(address){
+        //NR50
         case 0xFF24:{
             value = (
                 (state->volume.right & 0x07) |
@@ -511,6 +511,7 @@ uint8_t gb_apu_read_register(void* data,uint16_t address){
             );
             break;
         }
+        //NR51
         case 0xFF25:{
             value = (
                 (state->square1_panning.right ? 0x01 : 0x00) |
@@ -524,6 +525,7 @@ uint8_t gb_apu_read_register(void* data,uint16_t address){
             );
             break;
         }
+        //NR52
         case 0xFF26:{
             value = (
                 (apu->square1.state.enabled ? 0x01 : 0x00) |
@@ -538,6 +540,15 @@ uint8_t gb_apu_read_register(void* data,uint16_t address){
     }
     
     return value;
+}
+
+uint8_t gb_apu_peek_register(gb_t* gb,uint16_t address){
+    return gb_apu_read_register_internal(&gb->apu,address);
+}
+
+uint8_t gb_apu_read_register(void* data,uint16_t address){
+    gb_apu_t* apu = (gb_apu_t*)data;
+    return gb_apu_read_register_internal(apu,address);
 }
 
 
@@ -841,8 +852,8 @@ void gb_square_write_register(void* data,uint8_t value,uint16_t address){
     }
 }
 
-uint8_t gb_square_read_register(void* data,uint16_t address){
-    gb_square_t* square = (gb_square_t*)data;
+
+static uint8_t gb_square_read_register_internal(gb_square_t* square,uint16_t address){
     gb_square_state_t* state = &square->state;
 
     gb_apu_update(square->apu);
@@ -850,6 +861,7 @@ uint8_t gb_square_read_register(void* data,uint16_t address){
     uint8_t value = 0xFF;
 
     switch(address){
+        //NR10
         case 0xFF10:
             value = (
                 0x80 | 
@@ -858,9 +870,11 @@ uint8_t gb_square_read_register(void* data,uint16_t address){
                 (state->sweep.shift & 0x07)
             );
             break;
+        //NR11,NR21
         case 0xFF11: case 0xFF16:
-            value = ((state->duty & 0x03) << 0x06) | 0x3F;
+            value = ((state->new_duty & 0x03) << 0x06) | 0x3F;
             break;
+        //NR12,NR22
         case 0xFF12: case 0xFF17:
             value = (
                 ((state->envelope.initial_volume & 0x0F) << 0x04) | 
@@ -868,12 +882,26 @@ uint8_t gb_square_read_register(void* data,uint16_t address){
                 (state->envelope.period & 0x07)
             );
             break;
+        //NR14,NR24
         case 0xFF14: case 0xFF19:
             value = 0xBF | (state->length_counter.enabled ? 0x40 : 0x00);
             break;
     }
 
     return value;
+}
+
+uint8_t gb_square1_peek_register(gb_t* gb,uint16_t address){
+    return gb_square_read_register_internal(&gb->apu.square1,address);
+}
+
+uint8_t gb_square2_peek_register(gb_t* gb,uint16_t address){
+    return gb_square_read_register_internal(&gb->apu.square2,address);
+}
+
+uint8_t gb_square_read_register(void* data,uint16_t address){
+    gb_square_t* square = (gb_square_t*)data;
+    return gb_square_read_register_internal(square,address);
 }
 
 
@@ -1045,8 +1073,8 @@ void gb_wave_write_register(void* data,uint8_t value,uint16_t address){
     }
 }
 
-uint8_t gb_wave_read_register(void* data,uint16_t address){
-    gb_wave_t* wave = (gb_wave_t*)data;
+
+static uint8_t gb_wave_read_register_internal(gb_wave_t* wave,uint16_t address){
     gb_wave_state_t* state = &wave->state;
 
     gb_apu_update(wave->apu);
@@ -1065,6 +1093,15 @@ uint8_t gb_wave_read_register(void* data,uint16_t address){
     return value;
 }
 
+uint8_t gb_wave_peek_register(gb_t* gb,uint16_t address){
+    return gb_wave_read_register_internal(&gb->apu.wave,address);
+}
+
+uint8_t gb_wave_read_register(void* data,uint16_t address){
+    gb_wave_t* wave = (gb_wave_t*)data;
+    return gb_wave_read_register_internal(wave,address);
+}
+
 
 void gb_wave_write_ram(void* data,uint8_t value,uint16_t address){
     gb_wave_t* wave = (gb_wave_t*)data;
@@ -1077,6 +1114,11 @@ void gb_wave_write_ram(void* data,uint8_t value,uint16_t address){
     else if(wave->state.allow_ram_access || wave->apu->gb->state.is_cgb){
         wave->state.ram[wave->state.ram_pos >> 0x01] = value;
     }
+}
+
+
+uint8_t gb_wave_peek_ram(gb_t* gb,uint16_t address){
+    return gb->apu.wave.state.ram[address & 0x0F];
 }
 
 uint8_t gb_wave_read_ram(void* data,uint16_t address){
@@ -1188,12 +1230,14 @@ void gb_noise_write_register(void* data,uint8_t value,uint16_t address){
     gb_apu_update(noise->apu);
 
     switch(address){
+        //NR41
         case 0xFF20:{
             if(!noise->apu->state.enabled && noise->apu->gb->state.is_cgb) break;
 
             state->length_counter.counter = 0x40 - (value & 0x3F);
             break;
         }
+        //NR42
         case 0xFF21:{
             if(!noise->apu->state.enabled) break;
 
@@ -1203,6 +1247,7 @@ void gb_noise_write_register(void* data,uint8_t value,uint16_t address){
             gb_apu_update_output(noise->apu);
             break;
         }
+        //NR43
         case 0xFF22:{
             if(!noise->apu->state.enabled) break;
 
@@ -1211,6 +1256,7 @@ void gb_noise_write_register(void* data,uint8_t value,uint16_t address){
             state->divisor_code = value & 0x07;
             break;
         }
+        //NR44
         case 0xFF23:{
             if(!noise->apu->state.enabled) break;
 
@@ -1263,8 +1309,8 @@ void gb_noise_write_register(void* data,uint8_t value,uint16_t address){
     }
 }
 
-uint8_t gb_noise_read_register(void* data,uint16_t address){
-    gb_noise_t* noise = (gb_noise_t*)data;
+
+static uint8_t gb_noise_read_register_internal(gb_noise_t* noise,uint16_t address){
     gb_noise_state_t* state = &noise->state;
 
     gb_apu_update(noise->apu);
@@ -1272,13 +1318,15 @@ uint8_t gb_noise_read_register(void* data,uint16_t address){
     uint8_t value = 0xFF;
 
     switch(address){
+        //NR42
         case 0xFF21:
             value = (
                 ((state->envelope.initial_volume & 0x0F) << 0x04) | 
                 (state->envelope.add_mode ? 0x08 : 0x00) | 
                 (state->envelope.period & 0x07)
             );
-            break; 
+            break;
+        //NR43
         case 0xFF22:
             value = (
                 ((state->clock_shift & 0x0F) << 0x04) |
@@ -1286,12 +1334,22 @@ uint8_t gb_noise_read_register(void* data,uint16_t address){
                 (state->divisor_code & 0x07)
             );
             break;
+        //NR44
         case 0xFF23:
             value = 0xBF | (state->length_counter.enabled ? 0x40 : 0x00);
             break;
     }
 
     return value;
+}
+
+uint8_t gb_noise_peek_register(gb_t* gb,uint16_t address){
+    return gb_noise_read_register_internal(&gb->apu.noise,address);
+}
+
+uint8_t gb_noise_read_register(void* data,uint16_t address){
+    gb_noise_t* noise = (gb_noise_t*)data;
+    return gb_noise_read_register_internal(noise,address);
 }
 
 
@@ -1338,25 +1396,35 @@ void gb_noise_reset(gb_noise_t* noise,bool hardware){
 }
 
 
-
-uint8_t gb_apu_read_pcm12_register(void* data,uint16_t address){
-    gb_unused(address);
-    
-    gb_apu_t* apu = (gb_apu_t*)data;
-
+static uint8_t gb_pcm12_read_register_internal(gb_apu_t* apu){
     gb_apu_update(apu);
-
     return (gb_square_raw_output(&apu->square2.state) << 0x04) | gb_square_raw_output(&apu->square1.state);
 }
 
-uint8_t gb_apu_read_pcm34_register(void* data,uint16_t address){
+uint8_t gb_pcm12_peek_register(gb_t* gb){
+    return gb_pcm12_read_register_internal(&gb->apu);
+}
+
+uint8_t gb_pcm12_read_register(void* data,uint16_t address){
     gb_unused(address);
-
     gb_apu_t* apu = (gb_apu_t*)data;
+    return gb_pcm12_read_register_internal(apu);
+}
 
+
+static uint8_t gb_pcm34_read_register_internal(gb_apu_t* apu){
     gb_apu_update(apu);
-
     return (gb_noise_raw_output(&apu->noise.state) << 0x04) | gb_wave_raw_output(&apu->wave.state);
+}
+
+uint8_t gb_pcm34_peek_register(gb_t* gb){
+    return gb_pcm34_read_register_internal(&gb->apu);
+}
+
+uint8_t gb_pcm34_read_register(void* data,uint16_t address){
+    gb_unused(address);
+    gb_apu_t* apu = (gb_apu_t*)data;
+    return gb_pcm34_read_register_internal(apu);
 }
 
 

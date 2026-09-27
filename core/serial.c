@@ -90,8 +90,8 @@ void gb_serial_write_register(void* data,uint8_t value,uint16_t address){
     }
 }
 
-uint8_t gb_serial_read_register(void* data,uint16_t address){
-    gb_serial_t* serial = (gb_serial_t*)data;
+
+static uint8_t gb_serial_read_register_internal(gb_serial_t* serial,uint16_t address){
     gb_serial_state_t* state = &serial->state;
 
     uint8_t value = 0xFF;
@@ -121,6 +121,15 @@ uint8_t gb_serial_read_register(void* data,uint16_t address){
     }
 
     return value;
+}
+
+uint8_t gb_serial_peek_register(gb_t* gb,uint16_t address){
+    return gb_serial_read_register_internal(&gb->serial,address);
+}
+
+uint8_t gb_serial_read_register(void* data,uint16_t address){
+    gb_serial_t* serial = (gb_serial_t*)data;
+    return gb_serial_read_register_internal(serial,address);
 }
 
 

@@ -14,7 +14,7 @@ typedef enum _gb_joypad_button_t {
     gb_button_count
 } gb_joypad_button_t;
 
-extern const char* gb_joypad_button_names[8];
+extern const char* gb_joypad_button_names[gb_button_count];
 
 
 typedef struct gb_joypad_button_state_t {
@@ -66,6 +66,7 @@ void gb_joypad_update(gb_joypad_t* joypad);
 
 void gb_joypad_write_register(void* data,uint8_t value,uint16_t address);
 
+uint8_t gb_joypad_peek_register(gb_t* gb);
 uint8_t gb_joypad_read_register(void* data,uint16_t address);
 
 bool gb_joypad_is_any_button_pressed(gb_joypad_t* joypad);

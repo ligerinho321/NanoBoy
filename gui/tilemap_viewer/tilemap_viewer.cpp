@@ -489,12 +489,12 @@ void tilemap_viewer_t::render(){
 
             if(ImGui::BeginTabBar("AddressPointer")){
                 
-                if(ImGui::BeginTabItem("9800")){
+                if(ImGui::BeginTabItem("$9800")){
                     render_tilemap("Tilemap0",0);
                     ImGui::EndTabItem();
                 }
                 
-                if(ImGui::BeginTabItem("9C00")){
+                if(ImGui::BeginTabItem("$9C00")){
                     render_tilemap("Tilemap1",1);
                     ImGui::EndTabItem();
                 }

@@ -15,6 +15,8 @@ typedef struct _gb_dma_state_t {
     uint16_t oam_hi_addr;
     uint8_t oam_counter;
     uint8_t oam_byte;
+    bool oam_running;
+    bool oam_restart;
 
     uint16_t vram_src;
     uint16_t vram_dst;
@@ -43,12 +45,16 @@ void gb_oam_dma_clock(gb_dma_t* dma);
 bool gb_oam_dma_bus_conflict(gb_dma_t* dma,uint16_t address);
 
 void gb_oam_dma_write_register(void* data,uint8_t value,uint16_t address);
+
+uint8_t gb_oam_dma_peek_register(gb_t* gb);
 uint8_t gb_oam_dma_read_register(void* data,uint16_t address);
 
 void gb_vram_hblank_dma(gb_dma_t* dma);
 void gb_vram_general_dma(gb_dma_t* dma);
 
 void gb_vram_dma_write_register(void* data,uint8_t value,uint16_t address);
+
+uint8_t gb_vram_dma_peek_register(gb_t* gb,uint16_t address);
 uint8_t gb_vram_dma_read_register(void* data,uint16_t address);
 
 void gb_dma_map(gb_dma_t* dma);
