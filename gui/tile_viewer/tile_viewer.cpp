@@ -428,7 +428,7 @@ void tile_viewer_t::render_tile_tooltip(int row,int column){
 
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
-        ImGui::TextUnformatted("Tile address");
+        ImGui::TextUnformatted("Tile Address");
         ImGui::TableNextColumn();
 
         size_t address = 0;
@@ -587,20 +587,20 @@ void tile_viewer_t::render(){
             }
 
             ImGui::SetNextItemWidth(input_scalar_width);
-            if(ImGui::InputScalar("Refresh on scanline",ImGuiDataType_U8,&callback_handler.scanline,&refresh_on_scanline_step)){
+            if(ImGui::InputScalar("Refresh On Scanline",ImGuiDataType_U8,&callback_handler.scanline,&refresh_on_scanline_step)){
                 if(callback_handler.scanline >= gb_scanlines){
                     callback_handler.scanline = gb_scanlines - 1;
                 }
             }
 
             ImGui::SetNextItemWidth(input_scalar_width);
-            if(ImGui::InputScalar("Refresh on cycle",ImGuiDataType_U16,&callback_handler.cycle,&refresh_on_cycle_step)){
+            if(ImGui::InputScalar("Refresh On Cycle",ImGuiDataType_U16,&callback_handler.cycle,&refresh_on_cycle_step)){
                 if(callback_handler.cycle >= gb_scanline_cycles){
                     callback_handler.cycle = gb_scanline_cycles - 1;
                 }
             }
 
-            ImGui::Checkbox("Show tile grid",&show_tile_grid);
+            ImGui::Checkbox("Show Tile Grid",&show_tile_grid);
 
             render_palette();
 

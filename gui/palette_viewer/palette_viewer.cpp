@@ -70,14 +70,14 @@ void palette_viewer_t::render_tooltip_color(palette_t& palette,uint8_t col,uint8
         //Palette index
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
-        ImGui::TextUnformatted("Palette index");
+        ImGui::TextUnformatted("Palette Index");
         ImGui::TableNextColumn();
         ImGui::Text("$%02X",row);
 
         //Color index
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
-        ImGui::TextUnformatted("Color index");
+        ImGui::TextUnformatted("Color Index");
         ImGui::TableNextColumn();
         ImGui::Text("$%02X",col);
 
@@ -180,14 +180,14 @@ void palette_viewer_t::render(){
         }
 
         ImGui::SetNextItemWidth(input_scalar_width);
-        if(ImGui::InputScalar("Refresh on scanline",ImGuiDataType_U8,&callback_handler.scanline,&input_scalar_step,&input_scalar_step_fast)){
+        if(ImGui::InputScalar("Refresh On Scanline",ImGuiDataType_U8,&callback_handler.scanline,&input_scalar_step,&input_scalar_step_fast)){
             if(callback_handler.scanline >= gb_scanlines){
                 callback_handler.scanline = gb_scanlines - 1;
             }
         }
 
         ImGui::SetNextItemWidth(input_scalar_width);
-        if(ImGui::InputScalar("Refresh on cycle",ImGuiDataType_U16,&callback_handler.cycle,&input_scalar_step,&input_scalar_step_fast)){
+        if(ImGui::InputScalar("Refresh On Cycle",ImGuiDataType_U16,&callback_handler.cycle,&input_scalar_step,&input_scalar_step_fast)){
             if(callback_handler.cycle >= gb_scanline_cycles){
                 callback_handler.cycle = gb_scanline_cycles - 1;
             }

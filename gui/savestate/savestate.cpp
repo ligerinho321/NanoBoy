@@ -12,8 +12,6 @@ void savestate_t::init(nanoboy_t* _nanoboy){
     
     for(int i = 0; i < savestate_t::number_of_slots; ++i){
         slots[i].name = "Slot #" + std::to_string(i + 1);
-        slots[i].shortcut_save = "Shift+F" + std::to_string(i + 1);
-        slots[i].shortcut_load = "F" + std::to_string(i + 1);
         slots[i].screenshot = SDL_CreateTexture(nanoboy->renderer,SDL_PIXELFORMAT_RGB24,SDL_TEXTUREACCESS_STREAMING,gb_screen_width,gb_screen_height);
     }
 
@@ -147,7 +145,7 @@ void savestate_t::update_slots(){
 }
 
 
-void savestate_t::event(SDL_Event& event){
+void savestate_t::shortcut_event(){
 
     if(!nanoboy->gb->cartridge_inserted) return;
 
@@ -157,21 +155,15 @@ void savestate_t::event(SDL_Event& event){
         update_slots();
     }
 
-    if(event.type == SDL_KEYDOWN){
-        //SaveState
-        if(SDL_GetModState() & KMOD_SHIFT){
-            for(int i = 0; i < number_of_slots; ++i){
-                if(event.key.keysym.scancode == SDL_SCANCODE_F1 + i){
-                    save_slot(i);
-                }
-            }
+    shortcut_settings_t& shortcut = nanoboy->shortcut_settings;
+
+    for(int i = 0; i < savestate_t::number_of_slots; ++i){
+        if(shortcut.down(shortcut_settings_t::savestate_slot1 + i)){
+            save_slot(i);
         }
-        //LoadState
-        else{
-            for(int i = 0; i < number_of_slots; ++i){
-                if(slots[i].exists && event.key.keysym.scancode == SDL_SCANCODE_F1 + i){
-                    load_slot(i);
-                }
+        if(shortcut.down(shortcut_settings_t::loadstate_slot1 + i)){
+            if(slots[i].exists){
+                load_slot(i);
             }
         }
     }
@@ -180,15 +172,17 @@ void savestate_t::event(SDL_Event& event){
 
 void savestate_t::render_menu_bar(){
 
+    shortcut_settings_t& shortcut = nanoboy->shortcut_settings;
+
     if(ImGui::BeginMenu("Save State",nanoboy->gb->cartridge_inserted)){
 
-        for(int i = 0; i < number_of_slots; ++i){
+        for(int i = 0; i < savestate_t::number_of_slots; ++i){
 
             ImGui::PushID(i);
 
-            std::string label = std::to_string(i + 1) + ". " + (slots[i].exists ? get_time_formated(slots[i].last_write_time) : "empty");
+            std::string label = std::to_string(i + 1) + ". " + (slots[i].exists ? get_time_formated(slots[i].last_write_time) : "Empty");
             
-            if(ImGui::MenuItem(label.c_str(),slots[i].shortcut_save.c_str())){
+            if(ImGui::MenuItem(label.c_str(),shortcut.str_keyboard(shortcut_settings_t::savestate_slot1 + i))){
                 save_slot(i);
             }
 
@@ -200,13 +194,13 @@ void savestate_t::render_menu_bar(){
 
     if(ImGui::BeginMenu("Load State",nanoboy->gb->cartridge_inserted)){
 
-        for(int i = 0; i < number_of_slots; ++i){
+        for(int i = 0; i < savestate_t::number_of_slots; ++i){
 
             ImGui::PushID(i);
 
-            std::string label = std::to_string(i + 1) + ". " + (slots[i].exists ?  get_time_formated(slots[i].last_write_time) : "empty");
+            std::string label = std::to_string(i + 1) + ". " + (slots[i].exists ?  get_time_formated(slots[i].last_write_time) : "Empty");
             
-            if(ImGui::MenuItem(label.c_str(),slots[i].shortcut_load.c_str(),nullptr,slots[i].exists)){
+            if(ImGui::MenuItem(label.c_str(),shortcut.str_keyboard(shortcut_settings_t::loadstate_slot1 + i),nullptr,slots[i].exists)){
                 load_slot(i);
             }
 
@@ -216,7 +210,7 @@ void savestate_t::render_menu_bar(){
         ImGui::EndMenu();
     }
 
-    if(ImGui::MenuItem("Save State Menu",nullptr,nullptr,nanoboy->gb->cartridge_inserted)){
+    if(ImGui::MenuItem("Save State Menu",shortcut.str_keyboard(shortcut_settings_t::savestate_menu),nullptr,nanoboy->gb->cartridge_inserted)){
         open = true;
     }
 }

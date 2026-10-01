@@ -144,6 +144,8 @@ target_sources(
     
     gui/screen/screen.cpp
     
+    gui/shortcut_settings/shortcut_settings.cpp
+    
     gui/tile_viewer/tile_viewer.cpp
     
     gui/tilemap_viewer/tilemap_viewer.cpp

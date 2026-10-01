@@ -49,6 +49,196 @@ void obj_palette_t::clear(){
 }
 
 
+void binding_capture_popup_t::render(){
+
+    static const char* popup_title_text[] = {
+        "Set button binding",
+        "Set key binding"
+    };
+
+    static const char* popup_text[] = {
+        "Press any button on the controller.",
+        "Press any key on the keyboard."
+    };
+
+    if(open_needed){
+        
+        open_needed = false;
+
+        _open = true;
+
+        ImGui::OpenPopup(popup_title_text[is_keyboard]);
+
+        ImVec2 viewerport_size = ImGui::GetMainViewport()->Size;
+
+        start_pos.x = viewerport_size.x * 0.5f;
+        start_pos.y = viewerport_size.y * 0.5f;
+
+        ImGuiStyle& style = ImGui::GetStyle();
+
+        size.x = ImGui::CalcTextSize(popup_text[is_keyboard]).x + style.WindowPadding.x * 2.0f;
+        size.y = ImGui::GetFrameHeight() + ImGui::GetTextLineHeight() + style.WindowPadding.y * 2.0f;
+    }
+
+    if(!_open) return;
+
+    ImGui::SetNextWindowPos(start_pos,ImGuiCond_Appearing,ImVec2(0.5f,0.5f));
+    ImGui::SetNextWindowSizeConstraints(size,size);
+
+    if(!ImGui::BeginPopupModal(popup_title_text[is_keyboard],&_open,ImGuiWindowFlags_NoResize)) return;
+
+    ImGui::SetNextFrameWantCaptureKeyboard(true);
+
+    ImGui::Text(popup_text[is_keyboard]);
+
+    ImGui::EndPopup();
+}
+
+
+const char* controller_binding_type_names[binding_count] = {
+    "None",
+    "Button",
+    "Axis"
+};
+
+int get_controller_binding_type_from_string(const char* string){
+    for(int i = 0; i < controller_binding_count; ++i){
+        if(!strcmp(controller_binding_type_names[i],string)){
+            return i;
+        }
+    }
+    return -1;
+}
+
+
+void save_keyboard_binding(cJSON* keyboard_binding_object,keyboard_binding_t& keyboard){
+    cJSON* scancode_number = cJSON_CreateNumber(keyboard.scancode);
+    cJSON_AddItemToObjectCS(keyboard_binding_object,"Scancode",scancode_number);
+
+    cJSON* modifiers_number = cJSON_CreateNumber(keyboard.modifiers);
+    cJSON_AddItemToObjectCS(keyboard_binding_object,"Modifiers",modifiers_number);
+}
+
+bool load_keyboard_binding(cJSON* keyboard_binding_object,keyboard_binding_t& keyboard){
+
+    cJSON* scancode_number = cJSON_GetObjectItemCaseSensitive(keyboard_binding_object,"Scancode");
+
+    if(!cJSON_IsNumber(scancode_number)) return false;
+
+    cJSON* modifiers_number = cJSON_GetObjectItemCaseSensitive(keyboard_binding_object,"Modifiers");
+
+    if(!cJSON_IsNumber(modifiers_number)) return false;
+
+    int scancode = cJSON_GetNumberValue(scancode_number);
+
+    if(scancode <= SDL_SCANCODE_UNKNOWN || scancode >= SDL_NUM_SCANCODES) return false;
+
+    keyboard.scancode = (SDL_Scancode)scancode;
+    keyboard.modifiers = keyboard_binding_normalize_modifiers(cJSON_GetNumberValue(modifiers_number));
+
+    return true;
+}
+
+
+void save_controller_binding(cJSON* controller_binding_object,controller_binding_t& controller){
+    cJSON* type_string = cJSON_CreateStringReference(controller_binding_type_names[controller.type]);
+    cJSON_AddItemToObjectCS(controller_binding_object,"Type",type_string);
+
+    switch(controller.type){
+        case controller_binding_button:{
+            cJSON* value_number = cJSON_CreateNumber(controller.button);
+            cJSON_AddItemToObjectCS(controller_binding_object,"Value",value_number);
+            break;
+        }
+        case controller_binding_axis:{
+            cJSON* index_number = cJSON_CreateNumber(controller.axis.index);
+            cJSON_AddItemToObjectCS(controller_binding_object,"Index",index_number);
+
+            cJSON* negative_bool = cJSON_CreateBool(controller.axis.negative);
+            cJSON_AddItemToObjectCS(controller_binding_object,"Negative",negative_bool);
+            break;
+        }
+    }
+}
+
+bool load_controller_binding(cJSON* controller_binding_object,controller_binding_t& controller){
+
+    cJSON* type_string = cJSON_GetObjectItemCaseSensitive(controller_binding_object,"Type");
+
+    if(!cJSON_IsString(type_string)) return false;
+
+    int type = get_controller_binding_type_from_string(cJSON_GetStringValue(type_string));
+
+    if(type < controller_binding_none || type >= controller_binding_count) return false;
+
+    switch(type){
+        case controller_binding_button:{
+            cJSON* value_number = cJSON_GetObjectItemCaseSensitive(controller_binding_object,"Value");
+
+            if(!cJSON_IsNumber(value_number)) return false;
+
+            controller.button = (uint8_t)cJSON_GetNumberValue(value_number);
+            break;
+        }
+        case controller_binding_axis:{
+            cJSON* index_number = cJSON_GetObjectItemCaseSensitive(controller_binding_object,"Index");
+
+            if(!cJSON_IsNumber(index_number)) return false;
+
+            int index = cJSON_GetNumberValue(index_number);
+
+            if(index < SDL_CONTROLLER_AXIS_LEFTX || index >= SDL_CONTROLLER_AXIS_MAX) return false;
+
+            cJSON* negative_bool = cJSON_GetObjectItemCaseSensitive(controller_binding_object,"Negative");
+
+            if(!cJSON_IsBool(negative_bool)) return false;
+            
+            controller.axis.index = (uint8_t)index;
+            controller.axis.negative = cJSON_IsTrue(negative_bool);
+            break;
+        }
+    }
+
+    controller.type = type;
+
+    return true;
+}
+
+
+std::string get_keyboard_binding_string(const keyboard_binding_t& keyboard){
+    std::string str;
+
+    if(keyboard.modifiers & KMOD_CTRL) str += "Ctrl+";
+
+    if(keyboard.modifiers & KMOD_SHIFT) str += "Shift+";
+
+    if(keyboard.modifiers & KMOD_ALT) str += "Alt+";
+
+    if(keyboard.modifiers & KMOD_GUI) str += "GUI+";
+
+    str += SDL_GetScancodeName(keyboard.scancode);
+
+    return str;
+}
+
+std::string get_controller_binding_string(const controller_binding_t& controller){
+    std::string str;
+
+    switch(controller.type){
+        case controller_binding_button:{
+            str = SDL_GameControllerGetStringForButton((SDL_GameControllerButton)controller.button);
+            break;
+        }
+        case controller_binding_axis:{
+            str = SDL_GameControllerGetStringForAxis((SDL_GameControllerAxis)controller.axis.index);
+            break;
+        }
+    }
+
+    return str;
+}
+
+
 void render_size_text(size_t size){
 
     if(size >= gigabytes){

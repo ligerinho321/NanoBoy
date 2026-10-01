@@ -35,6 +35,7 @@ enum{
     gigahertz = 1000 * megahertz
 };
 
+
 struct palette_t{
     enum{
         texture_max_width = gb_palette_colors * gb_tile_size,
@@ -154,6 +155,98 @@ struct obj_palette_t : public palette_t {
         memcpy(colors,palette->state.obj_cram_converted,sizeof(colors)); 
     }
 };
+
+
+enum contoller_binding_type_t{
+    controller_binding_none,
+    controller_binding_button,
+    controller_binding_axis,
+    controller_binding_count
+};
+
+enum binding_type_t{
+    binding_none,
+    binding_keyboard,
+    binding_controller,
+    binding_count
+};
+
+extern const char* controller_binding_type_names[binding_count];
+
+enum{
+    controller_axis_deadzone = 8000
+};
+
+struct keyboard_binding_t {
+    SDL_Scancode scancode;
+    SDL_Keymod modifiers;
+};
+
+struct controller_binding_t {
+    uint8_t type;
+    union{            
+        uint8_t button;
+        struct{ 
+            uint8_t index;
+            bool negative;
+        }axis;
+    };
+};
+
+struct binding_state_t {
+    bool down;
+    bool pressed;
+    bool released;
+};
+
+struct binding_capture_popup_t {
+private:
+    bool is_keyboard = false;
+
+    bool _open = false;
+    bool open_needed = false;
+
+    ImVec2 start_pos = {};
+    ImVec2 size = {};
+public:
+    void render();
+
+    void open(bool _is_keyboard) noexcept {
+        if(!_open){
+            is_keyboard = _is_keyboard;
+            open_needed = true;
+        }
+    }
+
+    void close() noexcept {
+        _open = false;
+        open_needed = false;
+    }
+
+    bool get_open() const noexcept {
+        return _open;
+    }
+};
+
+inline SDL_Keymod keyboard_binding_normalize_modifiers(int mod){
+    int result = KMOD_NONE;
+    if(mod & KMOD_CTRL)  result |= KMOD_CTRL;
+    if(mod & KMOD_SHIFT) result |= KMOD_SHIFT;
+    if(mod & KMOD_ALT)   result |= KMOD_ALT;
+    if(mod & KMOD_GUI)   result |= KMOD_GUI;
+    return (SDL_Keymod)result;
+}
+
+int get_controller_binding_type_from_string(const char* string);
+
+void save_keyboard_binding(cJSON* keyboard_binding_object,keyboard_binding_t& keyboard);
+bool load_keyboard_binding(cJSON* keyboard_binding_object,keyboard_binding_t& keyboard);
+
+void save_controller_binding(cJSON* controller_binding_object,controller_binding_t& controller);
+bool load_controller_binding(cJSON* controller_binding_object,controller_binding_t& controller);
+
+std::string get_keyboard_binding_string(const keyboard_binding_t& keyboard);
+std::string get_controller_binding_string(const controller_binding_t& controller);
 
 
 inline float get_input_scalar_width(int digit_count){

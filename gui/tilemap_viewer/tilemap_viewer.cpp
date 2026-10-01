@@ -343,21 +343,21 @@ void tilemap_viewer_t::render_tile_tooltip(bool tilemap,uint8_t col,uint8_t row)
         //Tilemap address
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
-        ImGui::TextUnformatted("Tilemap address");
+        ImGui::TextUnformatted("Tilemap Address");
         ImGui::TableNextColumn();
         ImGui::Text("$%04X",tilemap_address);
 
         //Tile index
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
-        ImGui::TextUnformatted("Tile index");
+        ImGui::TextUnformatted("Tile Index");
         ImGui::TableNextColumn();
         ImGui::Text("$%02X",tile_index);
 
         //Tile address
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
-        ImGui::TextUnformatted("Tile address");
+        ImGui::TextUnformatted("Tile Address");
         ImGui::TableNextColumn();
         ImGui::Text("$%04X",tile_address);
 
@@ -365,28 +365,28 @@ void tilemap_viewer_t::render_tile_tooltip(bool tilemap,uint8_t col,uint8_t row)
             //Attribute address
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
-            ImGui::TextUnformatted("Attribute address");
+            ImGui::TextUnformatted("Attribute Address");
             ImGui::TableNextColumn();
             ImGui::Text("$%04X",attribute_address);
 
             //Attribute data
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
-            ImGui::TextUnformatted("Attribute data");
+            ImGui::TextUnformatted("Attribute Data");
             ImGui::TableNextColumn();
             ImGui::Text("$%02X",attribute);
 
             //Palette index
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
-            ImGui::TextUnformatted("Palette index");
+            ImGui::TextUnformatted("Palette Index");
             ImGui::TableNextColumn();
             ImGui::Text("$%02X",palette_index);
 
             //Horizontal flip
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
-            ImGui::TextUnformatted("Horizontal flip");
+            ImGui::TextUnformatted("Horizontal Flip");
             ImGui::TableNextColumn();
             if(attribute & gb_tilemap_horizontal_flip_mask){
                 ImGui::TextUnformatted("True");
@@ -398,7 +398,7 @@ void tilemap_viewer_t::render_tile_tooltip(bool tilemap,uint8_t col,uint8_t row)
             //Vertical flip
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
-            ImGui::TextUnformatted("Vertical flip");
+            ImGui::TextUnformatted("Vertical Flip");
             ImGui::TableNextColumn();
             if(attribute & gb_tilemap_vertical_flip_mask){
                 ImGui::TextUnformatted("True");
@@ -504,19 +504,19 @@ void tilemap_viewer_t::render(){
 
             ImGui::TableNextColumn();
 
-            ImGui::Checkbox("Show tile grid",&show_tile_grid);
+            ImGui::Checkbox("Show Tile Grid",&show_tile_grid);
 
-            ImGui::Checkbox("Shwo scroll overlay",&show_scroll_overlay);
+            ImGui::Checkbox("Shwo Scroll Overlay",&show_scroll_overlay);
 
             ImGui::SetNextItemWidth(input_scalar_width);
-            if(ImGui::InputScalar("Refresh on scanline",ImGuiDataType_U8,&callback_handler.scanline,&input_scalar_step,&input_scalar_step_fast)){
+            if(ImGui::InputScalar("Refresh On Scanline",ImGuiDataType_U8,&callback_handler.scanline,&input_scalar_step,&input_scalar_step_fast)){
                 if(callback_handler.scanline >= gb_scanlines){
                     callback_handler.scanline = gb_scanlines - 1;
                 }
             }
 
             ImGui::SetNextItemWidth(input_scalar_width);
-            if(ImGui::InputScalar("Refresh on cycle",ImGuiDataType_U16,&callback_handler.cycle,&input_scalar_step,&input_scalar_step_fast)){
+            if(ImGui::InputScalar("Refresh On Cycle",ImGuiDataType_U16,&callback_handler.cycle,&input_scalar_step,&input_scalar_step_fast)){
                 if(callback_handler.cycle >= gb_scanline_cycles){
                     callback_handler.cycle = gb_scanline_cycles - 1;
                 }

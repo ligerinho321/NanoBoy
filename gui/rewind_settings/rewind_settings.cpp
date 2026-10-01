@@ -33,7 +33,7 @@ void rewind_settings_t::update_window_size_constraints(){
 
 void rewind_settings_t::save(cJSON* object){
     cJSON* rewind_settings_object = cJSON_CreateObject();
-    cJSON_AddItemToObjectCS(object,"Rewind settings",rewind_settings_object);
+    cJSON_AddItemToObjectCS(object,"Rewind Settings",rewind_settings_object);
 
     cJSON* enabled_bool = cJSON_CreateBool(gb_rewind_get_enabled(gb));
     cJSON_AddItemToObjectCS(rewind_settings_object,"Enabled",enabled_bool);
@@ -45,35 +45,35 @@ void rewind_settings_t::save(cJSON* object){
     cJSON_AddItemToObjectCS(rewind_settings_object,"Recording Interval",recording_interval_number);
 
     cJSON* frame_time_number = cJSON_CreateNumber(gb_rewind_get_frame_time(gb));
-    cJSON_AddItemToObjectCS(rewind_settings_object,"Frame time",frame_time_number);
+    cJSON_AddItemToObjectCS(rewind_settings_object,"Frame Time",frame_time_number);
 }
 
 void rewind_settings_t::load(cJSON* object){
-    cJSON* rewind_settings_object = cJSON_GetObjectItemCaseSensitive(object,"Rewind settings");
+    cJSON* rewind_settings_object = cJSON_GetObjectItemCaseSensitive(object,"Rewind Settings");
 
-    if(!rewind_settings_object || !cJSON_IsObject(rewind_settings_object)) return;
+    if(!cJSON_IsObject(rewind_settings_object)) return;
 
     cJSON* enabled_bool = cJSON_GetObjectItemCaseSensitive(rewind_settings_object,"Enabled");
 
-    if(enabled_bool && cJSON_IsBool(enabled_bool)){
+    if(cJSON_IsBool(enabled_bool)){
         gb_rewind_set_enabled(gb,cJSON_IsTrue(enabled_bool));
     }
 
     cJSON* capacity_number = cJSON_GetObjectItemCaseSensitive(rewind_settings_object,"Capacity");
 
-    if(capacity_number && cJSON_IsNumber(capacity_number)){
+    if(cJSON_IsNumber(capacity_number)){
         gb_rewind_set_capacity(gb,cJSON_GetNumberValue(capacity_number));
     }
 
     cJSON* recording_interval_number = cJSON_GetObjectItemCaseSensitive(rewind_settings_object,"Recording Interval");
 
-    if(recording_interval_number && cJSON_IsNumber(recording_interval_number)){
+    if(cJSON_IsNumber(recording_interval_number)){
         gb_rewind_set_recording_interval(gb,cJSON_GetNumberValue(recording_interval_number));
     }
 
-    cJSON* frame_time_number = cJSON_GetObjectItemCaseSensitive(rewind_settings_object,"Frame time");
+    cJSON* frame_time_number = cJSON_GetObjectItemCaseSensitive(rewind_settings_object,"Frame Time");
 
-    if(frame_time_number && cJSON_IsNumber(frame_time_number)){
+    if(cJSON_IsNumber(frame_time_number)){
         gb_rewind_set_frame_time(gb,cJSON_GetNumberValue(frame_time_number));
     }
 }

@@ -128,8 +128,8 @@ void memory_viewer_t::render_control(){
     uint8_t data = gb_memory_type_read_byte(gb,current_memory_type,editing_address);
     
     ImGui::Text("Hexadecimal: %02X",data);
-    ImGui::Text("Signed interger: %hhd",data);
-    ImGui::Text("Unsigned interger: %hhu",data);
+    ImGui::Text("Signed Interger: %hhd",data);
+    ImGui::Text("Unsigned Interger: %hhu",data);
     ImGui::Text("String: %c",data < 0x20 || data >= 0x7F ? '\0' : data);
 }
 

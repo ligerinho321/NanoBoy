@@ -16,6 +16,7 @@
 #include <gui/boot_settings/boot_settings.hpp>
 #include <gui/rewind_settings/rewind_settings.hpp>
 #include <gui/input_settings/input_settings.hpp>
+#include <gui/shortcut_settings/shortcut_settings.hpp>
 
 #include <gui/debugger/debugger.hpp>
 #include <gui/register_viewer/register_viewer.hpp>
@@ -45,31 +46,6 @@ private:
     std::string rom_name;
 
     std::list<std::string> recent_roms;
-
-    std::string get_rom_save_path() const {
-        std::filesystem::path path = saves_path / (rom_name + ".s");
-        return path.u8string();
-    }
-
-    std::string get_rom_rtc_path() const {
-        std::filesystem::path path = saves_path / (rom_name + ".rtc");
-        return path.u8string();
-    }
-
-    std::string get_rom_cheat_path() const {
-        std::filesystem::path path = cheats_path / (rom_name + ".json");
-        return path.u8string();
-    }
-
-    std::string get_imgui_ini_path() const {
-        std::filesystem::path path = main_folder_path / "imgui.ini";
-        return path.u8string();
-    }
-
-    std::string get_settings_path() const {
-        std::filesystem::path path = main_folder_path / "settings.json";
-        return path.u8string();
-    };
 
     void init_directories();
     void init_sdl();
@@ -106,6 +82,7 @@ public:
     boot_settings_t boot_settings;
     rewind_settings_t rewind_settings;
     input_settings_t input_settings;
+    shortcut_settings_t shortcut_settings;
     
     file_selector_t file_selector;
 
@@ -142,4 +119,30 @@ public:
     void sdl_render();
 
     void run();
+
+private:
+    std::string get_rom_save_path() const {
+        std::filesystem::path path = saves_path / (rom_name + ".s");
+        return path.u8string();
+    }
+
+    std::string get_rom_rtc_path() const {
+        std::filesystem::path path = saves_path / (rom_name + ".rtc");
+        return path.u8string();
+    }
+
+    std::string get_rom_cheat_path() const {
+        std::filesystem::path path = cheats_path / (rom_name + ".json");
+        return path.u8string();
+    }
+
+    std::string get_imgui_ini_path() const {
+        std::filesystem::path path = main_folder_path / "imgui.ini";
+        return path.u8string();
+    }
+
+    std::string get_settings_path() const {
+        std::filesystem::path path = main_folder_path / "settings.json";
+        return path.u8string();
+    };
 };

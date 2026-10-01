@@ -177,11 +177,11 @@ void dmg_palette_t::save(cJSON* object){
 void dmg_palette_t::load(cJSON* object){
     cJSON* dmg_palette_object = cJSON_GetObjectItemCaseSensitive(object,"DMG Palette");
 
-    if(!dmg_palette_object || !cJSON_IsObject(dmg_palette_object)) return;
+    if(!cJSON_IsObject(dmg_palette_object)) return;
 
     cJSON* preset_number = cJSON_GetObjectItemCaseSensitive(dmg_palette_object,"Preset");
 
-    if(preset_number && cJSON_IsNumber(preset_number)){
+    if(cJSON_IsNumber(preset_number)){
         
         double value = cJSON_GetNumberValue(preset_number);
         
@@ -192,93 +192,90 @@ void dmg_palette_t::load(cJSON* object){
 
     cJSON* bgp_array = cJSON_GetObjectItemCaseSensitive(dmg_palette_object,"Background");
 
-    if(bgp_array && cJSON_IsArray(bgp_array)){
+    if(cJSON_IsArray(bgp_array)){
 
         for(int i = 0; i < gb_palette_colors; ++i){
             
             cJSON* bg_color_array = cJSON_GetArrayItem(bgp_array,i);
 
-            if(bg_color_array && cJSON_IsArray(bg_color_array)){
+            if(!cJSON_IsArray(bg_color_array)) continue;
 
-                cJSON* r_number = cJSON_GetArrayItem(bg_color_array,0);
-                
-                if(r_number && cJSON_IsNumber(r_number)){
-                    gb->palette.bgp_colors[i].r = cJSON_GetNumberValue(r_number);
-                }
+            cJSON* r_number = cJSON_GetArrayItem(bg_color_array,0);
+            
+            if(cJSON_IsNumber(r_number)){
+                gb->palette.bgp_colors[i].r = cJSON_GetNumberValue(r_number);
+            }
 
-                cJSON* g_number = cJSON_GetArrayItem(bg_color_array,1);
+            cJSON* g_number = cJSON_GetArrayItem(bg_color_array,1);
 
-                if(g_number && cJSON_IsNumber(g_number)){
-                    gb->palette.bgp_colors[i].g = cJSON_GetNumberValue(g_number);
-                }
+            if(cJSON_IsNumber(g_number)){
+                gb->palette.bgp_colors[i].g = cJSON_GetNumberValue(g_number);
+            }
 
-                cJSON* b_number = cJSON_GetArrayItem(bg_color_array,2);
+            cJSON* b_number = cJSON_GetArrayItem(bg_color_array,2);
 
-                if(b_number && cJSON_IsNumber(b_number)){
-                    gb->palette.bgp_colors[i].b = cJSON_GetNumberValue(b_number);
-                }
+            if(cJSON_IsNumber(b_number)){
+                gb->palette.bgp_colors[i].b = cJSON_GetNumberValue(b_number);
             }
         }
     }
 
     cJSON* obj0_array = cJSON_GetObjectItemCaseSensitive(dmg_palette_object,"Object 0");
 
-    if(obj0_array && cJSON_IsArray(obj0_array)){
+    if(cJSON_IsArray(obj0_array)){
 
         for(int i = 0; i < gb_palette_colors; ++i){
             
             cJSON* obj0_color_array = cJSON_GetArrayItem(obj0_array,i);
 
-            if(obj0_color_array && cJSON_IsArray(obj0_color_array)){
+            if(!cJSON_IsArray(obj0_color_array)) continue;
 
-                cJSON* r_number = cJSON_GetArrayItem(obj0_color_array,0);
-                
-                if(r_number && cJSON_IsNumber(r_number)){
-                    gb->palette.obp_colors[0][i].r = cJSON_GetNumberValue(r_number);
-                }
+            cJSON* r_number = cJSON_GetArrayItem(obj0_color_array,0);
+            
+            if(cJSON_IsNumber(r_number)){
+                gb->palette.obp_colors[0][i].r = cJSON_GetNumberValue(r_number);
+            }
 
-                cJSON* g_number = cJSON_GetArrayItem(obj0_color_array,1);
+            cJSON* g_number = cJSON_GetArrayItem(obj0_color_array,1);
 
-                if(g_number && cJSON_IsNumber(g_number)){
-                    gb->palette.obp_colors[0][i].g = cJSON_GetNumberValue(g_number);
-                }
+            if(cJSON_IsNumber(g_number)){
+                gb->palette.obp_colors[0][i].g = cJSON_GetNumberValue(g_number);
+            }
 
-                cJSON* b_number = cJSON_GetArrayItem(obj0_color_array,2);
+            cJSON* b_number = cJSON_GetArrayItem(obj0_color_array,2);
 
-                if(b_number && cJSON_IsNumber(b_number)){
-                    gb->palette.obp_colors[0][i].b = cJSON_GetNumberValue(b_number);
-                }
+            if(cJSON_IsNumber(b_number)){
+                gb->palette.obp_colors[0][i].b = cJSON_GetNumberValue(b_number);
             }
         }
     }
 
     cJSON* obj1_array = cJSON_GetObjectItemCaseSensitive(dmg_palette_object,"Object 1");
 
-    if(obj1_array && cJSON_IsArray(obj1_array)){
+    if(cJSON_IsArray(obj1_array)){
 
         for(int i = 0; i < gb_palette_colors; ++i){
             
             cJSON* obj1_color_array = cJSON_GetArrayItem(obj1_array,i);
 
-            if(obj1_color_array && cJSON_IsArray(obj1_color_array)){
+            if(!cJSON_IsArray(obj1_color_array)) continue;
 
-                cJSON* r_number = cJSON_GetArrayItem(obj1_color_array,0);
-                
-                if(r_number && cJSON_IsNumber(r_number)){
-                    gb->palette.obp_colors[1][i].r = cJSON_GetNumberValue(r_number);
-                }
+            cJSON* r_number = cJSON_GetArrayItem(obj1_color_array,0);
+            
+            if(cJSON_IsNumber(r_number)){
+                gb->palette.obp_colors[1][i].r = cJSON_GetNumberValue(r_number);
+            }
 
-                cJSON* g_number = cJSON_GetArrayItem(obj1_color_array,1);
+            cJSON* g_number = cJSON_GetArrayItem(obj1_color_array,1);
 
-                if(g_number && cJSON_IsNumber(g_number)){
-                    gb->palette.obp_colors[1][i].g = cJSON_GetNumberValue(g_number);
-                }
+            if(cJSON_IsNumber(g_number)){
+                gb->palette.obp_colors[1][i].g = cJSON_GetNumberValue(g_number);
+            }
 
-                cJSON* b_number = cJSON_GetArrayItem(obj1_color_array,2);
+            cJSON* b_number = cJSON_GetArrayItem(obj1_color_array,2);
 
-                if(b_number && cJSON_IsNumber(b_number)){
-                    gb->palette.obp_colors[1][i].b = cJSON_GetNumberValue(b_number);
-                }
+            if(cJSON_IsNumber(b_number)){
+                gb->palette.obp_colors[1][i].b = cJSON_GetNumberValue(b_number);
             }
         }
     }

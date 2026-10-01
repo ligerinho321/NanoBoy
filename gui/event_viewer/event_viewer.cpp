@@ -1069,7 +1069,7 @@ void event_viewer_t::render(){
 
                 render_io_event_configs("Registers","RegistersTable",gb_event_joypad_type,gb_event_others_type);
 
-                ImGui::Checkbox("Show previous frame events",&show_previous_frame_event);
+                ImGui::Checkbox("Show Previous Frame Events",&show_previous_frame_event);
 
                 if(ImGui::Button("Select All")){
                     for(int i = gb_event_halt_type; i <= gb_event_irq_joypad_type; ++i){

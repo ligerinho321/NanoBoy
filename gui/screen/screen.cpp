@@ -44,16 +44,16 @@ void screen_t::save(cJSON* settings_object){
     cJSON_AddItemToObjectCS(screen_object,"Floating",floating_bool);
 
     cJSON* aspect_ratio_bool = cJSON_CreateBool(aspect_ratio);
-    cJSON_AddItemToObjectCS(screen_object,"Aspect ratio",aspect_ratio_bool);
+    cJSON_AddItemToObjectCS(screen_object,"Aspect Ratio",aspect_ratio_bool);
 
     cJSON* interger_scale_bool = cJSON_CreateBool(interger_scale);
-    cJSON_AddItemToObjectCS(screen_object,"Interger scale",interger_scale_bool);
+    cJSON_AddItemToObjectCS(screen_object,"Interger Scale",interger_scale_bool);
 
     cJSON* bilinear_filtering_bool = cJSON_CreateBool(bilinear_filtering);
-    cJSON_AddItemToObjectCS(screen_object,"Bilinear filtering",bilinear_filtering_bool);
+    cJSON_AddItemToObjectCS(screen_object,"Bilinear Filtering",bilinear_filtering_bool);
 
     cJSON* interframe_blending_bool = cJSON_CreateBool(gb->ppu.interframe_blending);
-    cJSON_AddItemToObjectCS(screen_object,"Interframe blending",interframe_blending_bool);
+    cJSON_AddItemToObjectCS(screen_object,"Interframe Blending",interframe_blending_bool);
 
     cJSON* disable_background_bool = cJSON_CreateBool(gb->ppu.background_disabled);
     cJSON_AddItemToObjectCS(screen_object,"Disable Background",disable_background_bool);
@@ -65,47 +65,47 @@ void screen_t::save(cJSON* settings_object){
 void screen_t::load(cJSON* settings_object){
     cJSON* screen_object = cJSON_GetObjectItemCaseSensitive(settings_object,"Screen");
     
-    if(!screen_object || !cJSON_IsObject(screen_object)) return;
+    if(!cJSON_IsObject(screen_object)) return;
 
     cJSON* floating_bool = cJSON_GetObjectItemCaseSensitive(screen_object,"Floating");
 
-    if(floating_bool && cJSON_IsBool(floating_bool)){
+    if(cJSON_IsBool(floating_bool)){
         _floating = cJSON_IsTrue(floating_bool);
     }
 
-    cJSON* aspect_ratio_bool = cJSON_GetObjectItemCaseSensitive(screen_object,"Aspect ratio");
+    cJSON* aspect_ratio_bool = cJSON_GetObjectItemCaseSensitive(screen_object,"Aspect Ratio");
 
-    if(aspect_ratio_bool && cJSON_IsBool(aspect_ratio_bool)){
+    if(cJSON_IsBool(aspect_ratio_bool)){
         aspect_ratio = cJSON_IsTrue(aspect_ratio_bool);
     }
 
-    cJSON* interger_scale_bool = cJSON_GetObjectItemCaseSensitive(screen_object,"Interger scale");
+    cJSON* interger_scale_bool = cJSON_GetObjectItemCaseSensitive(screen_object,"Interger Scale");
 
-    if(interger_scale_bool && cJSON_IsBool(interger_scale_bool)){
+    if(cJSON_IsBool(interger_scale_bool)){
         interger_scale = cJSON_IsTrue(interger_scale_bool);
     }
 
-    cJSON* bilinear_filtering_bool = cJSON_GetObjectItemCaseSensitive(screen_object,"Bilinear filtering");
+    cJSON* bilinear_filtering_bool = cJSON_GetObjectItemCaseSensitive(screen_object,"Bilinear Filtering");
 
-    if(bilinear_filtering_bool && cJSON_IsBool(bilinear_filtering_bool)){
+    if(cJSON_IsBool(bilinear_filtering_bool)){
         set_bilinear_filtering(cJSON_IsTrue(bilinear_filtering_bool));
     }
 
-    cJSON* interframe_blending_bool = cJSON_GetObjectItemCaseSensitive(screen_object,"Interframe blending");
+    cJSON* interframe_blending_bool = cJSON_GetObjectItemCaseSensitive(screen_object,"Interframe Blending");
 
-    if(interframe_blending_bool && cJSON_IsBool(interframe_blending_bool)){
+    if(cJSON_IsBool(interframe_blending_bool)){
         gb->ppu.interframe_blending = cJSON_IsTrue(interframe_blending_bool);
     }
 
     cJSON* disable_background_bool = cJSON_GetObjectItemCaseSensitive(screen_object,"Disable Background");
 
-    if(disable_background_bool && cJSON_IsBool(disable_background_bool)){
+    if(cJSON_IsBool(disable_background_bool)){
         gb->ppu.background_disabled = cJSON_IsTrue(disable_background_bool);
     }
 
     cJSON* disable_objects_bool = cJSON_GetObjectItemCaseSensitive(screen_object,"Disable Objects");
     
-    if(disable_objects_bool && cJSON_IsBool(disable_objects_bool)){
+    if(cJSON_IsBool(disable_objects_bool)){
         gb->ppu.objects_disabled = cJSON_IsTrue(disable_objects_bool);
     }
     
@@ -189,6 +189,54 @@ void screen_t::set_bilinear_filtering(bool new_bilinear_filtering){
 }
 
 
+void screen_t::toggle_fullscreen(){
+    if(SDL_GetWindowFlags(nanoboy->window) & SDL_WINDOW_FULLSCREEN_DESKTOP){
+        SDL_SetWindowFullscreen(nanoboy->window,0);
+    }
+    else{
+        SDL_SetWindowFullscreen(nanoboy->window,SDL_WINDOW_FULLSCREEN_DESKTOP);
+    }
+}
+
+void screen_t::toggle_floating(){
+    _floating = !_floating;
+}
+
+void screen_t::toggle_acpect_ratio(){
+    aspect_ratio = !aspect_ratio;
+
+    update_embedded_size();
+
+    last_evail_size.x = 0.0f;
+    last_evail_size.y = 0.0f;
+}
+
+void screen_t::toggle_interger_scale(){
+    interger_scale = !interger_scale;
+
+    update_embedded_size();
+
+    last_evail_size.x = 0.0f;
+    last_evail_size.y = 0.0f;
+}
+
+void screen_t::toggle_interframe_blending(){
+    gb->ppu.interframe_blending = !gb->ppu.interframe_blending;
+}
+
+void screen_t::toggle_bilinear_filtering(){
+    set_bilinear_filtering(!bilinear_filtering);
+}
+
+void screen_t::toggle_disable_background(){
+    gb->ppu.background_disabled = !gb->ppu.background_disabled;
+}
+
+void screen_t::toggle_disable_objects(){
+     gb->ppu.objects_disabled = !gb->ppu.objects_disabled;
+}
+
+
 void screen_t::update_screen(){
 
     uint8_t* pixels = nullptr;
@@ -201,34 +249,60 @@ void screen_t::update_screen(){
 }
 
 
-void screen_t::event(SDL_Event& event){
+void screen_t::shortcut_event(){
 
-    switch(event.type){
-        case SDL_WINDOWEVENT:{
-            if(event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED){
-                update_embedded_size();
-            }
-            break;
-        }
-        case SDL_KEYDOWN:{
-            if(SDL_GetModState() & KMOD_ALT){
-                if(event.key.keysym.scancode >= SDL_SCANCODE_1 && event.key.keysym.scancode <= SDL_SCANCODE_9){
-                    int scale = (event.key.keysym.scancode - SDL_SCANCODE_1) + 1;
-                    set_embedded_scale(scale);
-                }
-            }
-            else{
-                if(event.key.keysym.scancode == SDL_SCANCODE_F11){
-                    if(SDL_GetWindowFlags(nanoboy->window) & SDL_WINDOW_FULLSCREEN_DESKTOP){
-                        SDL_SetWindowFullscreen(nanoboy->window,0);
-                    }
-                    else{
-                        SDL_SetWindowFullscreen(nanoboy->window,SDL_WINDOW_FULLSCREEN_DESKTOP);
-                    }
-                }
-            }
-            break;
-        }
+    shortcut_settings_t& shortcut = nanoboy->shortcut_settings;
+
+    if(shortcut.down(shortcut_settings_t::set_scale_1x)){
+        set_embedded_scale(1);
+    }
+    if(shortcut.down(shortcut_settings_t::set_scale_2x)){
+        set_embedded_scale(2);
+    }
+    if(shortcut.down(shortcut_settings_t::set_scale_3x)){
+        set_embedded_scale(3);
+    }
+    if(shortcut.down(shortcut_settings_t::set_scale_4x)){
+        set_embedded_scale(4);
+    }
+    if(shortcut.down(shortcut_settings_t::set_scale_5x)){
+        set_embedded_scale(5);
+    }
+    if(shortcut.down(shortcut_settings_t::set_scale_6x)){
+        set_embedded_scale(6);
+    }
+    if(shortcut.down(shortcut_settings_t::set_scale_7x)){
+        set_embedded_scale(7);
+    }
+    if(shortcut.down(shortcut_settings_t::set_scale_8x)){
+        set_embedded_scale(8);
+    }
+    if(shortcut.down(shortcut_settings_t::set_scale_9x)){
+        set_embedded_scale(9);
+    }
+    if(shortcut.down(shortcut_settings_t::toggle_fullscreen)){
+        toggle_fullscreen();
+    }
+    if(shortcut.down(shortcut_settings_t::toggle_floating)){
+        toggle_floating();
+    }
+    if(shortcut.down(shortcut_settings_t::toggle_aspect_ratio)){
+        toggle_acpect_ratio();
+    }
+    if(shortcut.down(shortcut_settings_t::toggle_interger_scale)){
+        toggle_interger_scale();
+    }
+    if(shortcut.down(shortcut_settings_t::toggle_interframe_blending)){
+        toggle_interframe_blending();
+    }
+    if(shortcut.down(shortcut_settings_t::toggle_bilinear_filtering)){
+        toggle_bilinear_filtering();
+    }
+    if(shortcut.down(shortcut_settings_t::toggle_disable_background)){
+        toggle_disable_background();
+    }
+    if(shortcut.down(shortcut_settings_t::toggle_disable_objects)){
+        toggle_disable_objects();
     }
 }
 
@@ -237,72 +311,59 @@ void screen_t::render_menu_bar(){
 
     if(!ImGui::BeginMenu("Screen")) return;
 
+    shortcut_settings_t& shortcut = nanoboy->shortcut_settings;
+
     if(ImGui::BeginMenu("Scale")){
 
         int scale = 0;
 
-        if(ImGui::MenuItem("1x","Alt+1")) scale = 1;
-        if(ImGui::MenuItem("2x","Alt+2")) scale = 2;
-        if(ImGui::MenuItem("3x","Alt+3")) scale = 3;
-        if(ImGui::MenuItem("4x","Alt+4")) scale = 4;
-        if(ImGui::MenuItem("5x","Alt+5")) scale = 5;
-        if(ImGui::MenuItem("6x","Alt+6")) scale = 6;
-        if(ImGui::MenuItem("7x","Alt+7")) scale = 7;
-        if(ImGui::MenuItem("8x","Alt+8")) scale = 8;
-        if(ImGui::MenuItem("9x","Alt+9")) scale = 9;
+        if(ImGui::MenuItem("1x",shortcut.str_keyboard(shortcut_settings_t::set_scale_1x))) scale = 1;
+        if(ImGui::MenuItem("2x",shortcut.str_keyboard(shortcut_settings_t::set_scale_2x))) scale = 2;
+        if(ImGui::MenuItem("3x",shortcut.str_keyboard(shortcut_settings_t::set_scale_3x))) scale = 3;
+        if(ImGui::MenuItem("4x",shortcut.str_keyboard(shortcut_settings_t::set_scale_4x))) scale = 4;
+        if(ImGui::MenuItem("5x",shortcut.str_keyboard(shortcut_settings_t::set_scale_5x))) scale = 5;
+        if(ImGui::MenuItem("6x",shortcut.str_keyboard(shortcut_settings_t::set_scale_6x))) scale = 6;
+        if(ImGui::MenuItem("7x",shortcut.str_keyboard(shortcut_settings_t::set_scale_7x))) scale = 7;
+        if(ImGui::MenuItem("8x",shortcut.str_keyboard(shortcut_settings_t::set_scale_8x))) scale = 8;
+        if(ImGui::MenuItem("9x",shortcut.str_keyboard(shortcut_settings_t::set_scale_9x))) scale = 9;
 
         if(scale > 0){
             set_embedded_scale(scale);
         }
 
-        if(ImGui::MenuItem("FullScreen","F11")){
-            if(SDL_GetWindowFlags(nanoboy->window) & SDL_WINDOW_FULLSCREEN_DESKTOP){
-                SDL_SetWindowFullscreen(nanoboy->window,0);
-            }
-            else{
-                SDL_SetWindowFullscreen(nanoboy->window,SDL_WINDOW_FULLSCREEN_DESKTOP);
-            }
+        if(ImGui::MenuItem("FullScreen",shortcut.str_keyboard(shortcut_settings_t::toggle_fullscreen))){
+            toggle_fullscreen();
         }
 
         ImGui::EndMenu();
     }
 
-    if(ImGui::MenuItem("Floating",nullptr,_floating)){
-        _floating = !_floating;
+    if(ImGui::MenuItem("Floating",shortcut.str_keyboard(shortcut_settings_t::toggle_floating),_floating)){
+        toggle_floating();
     }
 
-    if(ImGui::MenuItem("Aspect ratio",nullptr,aspect_ratio)){
-        aspect_ratio = !aspect_ratio;
-
-        update_embedded_size();
-
-        last_evail_size.x = 0.0f;
-        last_evail_size.y = 0.0f;
+    if(ImGui::MenuItem("Aspect Ratio",shortcut.str_keyboard(shortcut_settings_t::toggle_aspect_ratio),aspect_ratio)){
+        toggle_acpect_ratio();
     }
 
-    if(ImGui::MenuItem("Interger scale",nullptr,interger_scale)){
-        interger_scale = !interger_scale;
-
-        update_embedded_size();
-
-        last_evail_size.x = 0.0f;
-        last_evail_size.y = 0.0f;
+    if(ImGui::MenuItem("Interger Scale",shortcut.str_keyboard(shortcut_settings_t::toggle_interger_scale),interger_scale)){
+        toggle_interger_scale();
     }
 
-    if(ImGui::MenuItem("Interframe blending",nullptr,gb->ppu.interframe_blending)){
-        gb->ppu.interframe_blending = !gb->ppu.interframe_blending;
+    if(ImGui::MenuItem("Interframe Blending",shortcut.str_keyboard(shortcut_settings_t::toggle_interframe_blending),gb->ppu.interframe_blending)){
+        toggle_interframe_blending();
     }
 
-    if(ImGui::MenuItem("Bilinear filtering",nullptr,bilinear_filtering)){
-        set_bilinear_filtering(!bilinear_filtering);
+    if(ImGui::MenuItem("Bilinear Filtering",shortcut.str_keyboard(shortcut_settings_t::toggle_bilinear_filtering),bilinear_filtering)){
+        toggle_bilinear_filtering();
     }
 
-    if(ImGui::MenuItem("Disable Background",nullptr,gb->ppu.background_disabled)){
-        gb->ppu.background_disabled = !gb->ppu.background_disabled;
+    if(ImGui::MenuItem("Disable Background",shortcut.str_keyboard(shortcut_settings_t::toggle_disable_background),gb->ppu.background_disabled)){
+        toggle_disable_background();
     }
 
-    if(ImGui::MenuItem("Disable Objects",nullptr,gb->ppu.objects_disabled)){
-        gb->ppu.objects_disabled = !gb->ppu.objects_disabled;
+    if(ImGui::MenuItem("Disable Objects",shortcut.str_keyboard(shortcut_settings_t::toggle_disable_objects),gb->ppu.objects_disabled)){
+       toggle_disable_objects();
     }
 
     ImGui::EndMenu();

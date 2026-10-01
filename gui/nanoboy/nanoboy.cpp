@@ -4,18 +4,16 @@ static void joypad_callback(void* data,gb_joypad_button_state_t* button_state){
 
     nanoboy_t* nanoboy = (nanoboy_t*)data;
 
-    if(ImGui::GetIO().WantCaptureKeyboard) return;
-
     input_settings_t& input_settings = nanoboy->input_settings;
 
-    button_state->down = input_settings.button_pressed(gb_button_down);
-    button_state->up = input_settings.button_pressed(gb_button_up);
-    button_state->left = input_settings.button_pressed(gb_button_left);
-    button_state->right = input_settings.button_pressed(gb_button_right);
-    button_state->start = input_settings.button_pressed(gb_button_start);
-    button_state->select = input_settings.button_pressed(gb_button_select);
-    button_state->a = input_settings.button_pressed(gb_button_a);
-    button_state->b = input_settings.button_pressed(gb_button_b);
+    button_state->down = input_settings.pressed(gb_button_down);
+    button_state->up = input_settings.pressed(gb_button_up);
+    button_state->left = input_settings.pressed(gb_button_left);
+    button_state->right = input_settings.pressed(gb_button_right);
+    button_state->start = input_settings.pressed(gb_button_start);
+    button_state->select = input_settings.pressed(gb_button_select);
+    button_state->a = input_settings.pressed(gb_button_a);
+    button_state->b = input_settings.pressed(gb_button_b);
 }
 
 static void audio_callback(void* userdata,uint8_t* data,int len){
@@ -64,7 +62,6 @@ nanoboy_t::nanoboy_t(){
     dmg_palette.init(gb);
     boot_settings.init(gb);
     rewind_settings.init(gb);
-    input_settings.init();
 
     file_selector.init();
     file_selector.set_extensions(file_extensions,file_extensions_count);
@@ -111,7 +108,6 @@ nanoboy_t::~nanoboy_t(){
     printer.uninit();
     cheats.uninit();
     screen.uninit();
-    input_settings.uninit();
     boot_settings.uninit();
 
     ImGui_ImplSDLRenderer2_Shutdown();
@@ -241,7 +237,7 @@ void nanoboy_t::save_window_settings(cJSON* settings_object){
     cJSON_AddItemToObjectCS(window_object,"Height",height_number);
 
     cJSON* fullscreen_bool = cJSON_CreateBool(SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN_DESKTOP);
-    cJSON_AddItemToObjectCS(window_object,"Fullscreen",fullscreen_bool);
+    cJSON_AddItemToObjectCS(window_object,"FullScreen",fullscreen_bool);
 }
 
 void nanoboy_t::load_window_settings(cJSON* settings_object){
@@ -254,35 +250,35 @@ void nanoboy_t::load_window_settings(cJSON* settings_object){
 
     cJSON* window_object = cJSON_GetObjectItemCaseSensitive(settings_object,"Window");
     
-    if(!window_object || !cJSON_IsObject(window_object)) return;
+    if(!cJSON_IsObject(window_object)) return;
 
     cJSON* x_number = cJSON_GetObjectItemCaseSensitive(window_object,"X");
 
-    if(x_number && cJSON_IsNumber(x_number)){
+    if(cJSON_IsNumber(x_number)){
         x = (int)cJSON_GetNumberValue(x_number);
     }
 
     cJSON* y_number = cJSON_GetObjectItemCaseSensitive(window_object,"Y");
 
-    if(y_number && cJSON_IsNumber(y_number)){
+    if(cJSON_IsNumber(y_number)){
         y = (int)cJSON_GetNumberValue(y_number);
     }
 
     cJSON* w_number = cJSON_GetObjectItemCaseSensitive(window_object,"Width");
 
-    if(w_number && cJSON_IsNumber(w_number)){
+    if(cJSON_IsNumber(w_number)){
         w = (int)cJSON_GetNumberValue(w_number);
     }
 
     cJSON* h_number = cJSON_GetObjectItemCaseSensitive(window_object,"Height");
 
-    if(h_number && cJSON_IsNumber(h_number)){
+    if(cJSON_IsNumber(h_number)){
         h = (int)cJSON_GetNumberValue(h_number);
     }
 
-    cJSON* fullscreen_bool = cJSON_GetObjectItemCaseSensitive(window_object,"Fullscreen");
+    cJSON* fullscreen_bool = cJSON_GetObjectItemCaseSensitive(window_object,"FullScreen");
 
-    if(fullscreen_bool && cJSON_IsBool(fullscreen_bool)){
+    if(cJSON_IsBool(fullscreen_bool)){
         fullscreen = cJSON_IsTrue(fullscreen_bool);
     }
 
@@ -308,7 +304,7 @@ void nanoboy_t::load_recent_roms(cJSON* settings_object){
 
     cJSON* recent_roms_array = cJSON_GetObjectItemCaseSensitive(settings_object,"Recent ROMs");
     
-    if(!recent_roms_array || !cJSON_IsArray(recent_roms_array)) return;
+    if(!cJSON_IsArray(recent_roms_array)) return;
 
     cJSON* current_child = recent_roms_array->child;
 
@@ -328,11 +324,6 @@ void nanoboy_t::save_settings(){
 
     cJSON* settings_object = cJSON_CreateObject();
 
-    if(!settings_object){
-        gb_printf_error("cJSON_CreateObject failed");
-        return;
-    }
-
     save_window_settings(settings_object);
 
     save_recent_roms(settings_object);
@@ -351,6 +342,8 @@ void nanoboy_t::save_settings(){
     rewind_settings.save(settings_object);
 
     input_settings.save(settings_object);
+
+    shortcut_settings.save(settings_object);
 
     
     char* settings_string = cJSON_Print(settings_object);
@@ -388,7 +381,7 @@ void nanoboy_t::load_settings(){
     screen.load(settings_object);
 
     is_cgb_bool = cJSON_GetObjectItemCaseSensitive(settings_object,"Is CGB");
-    if(is_cgb_bool != nullptr && cJSON_IsBool(is_cgb_bool)){
+    if(cJSON_IsBool(is_cgb_bool)){
         gb->is_cgb_pending = cJSON_IsTrue(is_cgb_bool);
     }
 
@@ -400,6 +393,8 @@ void nanoboy_t::load_settings(){
 
     input_settings.load(settings_object);
 
+    shortcut_settings.load(settings_object);
+    
     end:
     free(data);
     cJSON_Delete(settings_object);
@@ -554,63 +549,101 @@ void nanoboy_t::reset(){
 void nanoboy_t::event(){
     SDL_Event event{0};
 
-    ImGuiIO& io = ImGui::GetIO();
+    input_settings.init_binding_frame();
+    shortcut_settings.init_binding_frame();
 
     while(SDL_PollEvent(&event)){
         
         ImGui_ImplSDL2_ProcessEvent(&event);
 
-        input_settings.event(event);
-        savestate.event(event);
-        screen.event(event);
+        input_settings.process_binding_event(event);
+        shortcut_settings.process_binding_event(event);
 
-        if(event.type == SDL_QUIT){
-            running = false;
-            continue;
-        }
-        
-        if(io.WantCaptureKeyboard) continue;
+        input_settings.process_capture_event(event);
+        shortcut_settings.process_capture_event(event);
 
         switch(event.type){
-            case SDL_KEYDOWN:{
-                if(gb->cartridge_inserted){
-                    if(SDL_GetModState() & KMOD_CTRL){
-                        if(event.key.keysym.scancode == SDL_SCANCODE_R){
-                            reset();
-                        }
-                    }
-                    else{
-                        if(event.key.keysym.scancode == SDL_SCANCODE_ESCAPE){
-                            pause();
-                        }
-                        else if(event.key.keysym.scancode == SDL_SCANCODE_EQUALS){
-                            set_speed(gb->speed + gb_speed_step);
-                        }
-                        else if(event.key.keysym.scancode == SDL_SCANCODE_MINUS){
-                            set_speed(gb->speed - gb_speed_step);
-                        }
-                        else if(event.key.keysym.scancode == SDL_SCANCODE_BACKSPACE){
-                            if(gb_rewind_start(gb)){
-                                SDL_LockAudioDevice(audio_device);
-                            }
-                        }
-                        else if(event.key.keysym.scancode == SDL_SCANCODE_F12){
-                            take_screenshot();
-                        }
-                    }
-                }
+            case SDL_QUIT:{
+                running = false;
                 break;
             }
-            case SDL_KEYUP:{
-                if(event.key.keysym.scancode == SDL_SCANCODE_BACKSPACE){
-                    if(gb_rewind_end(gb)){
-                        SDL_UnlockAudioDevice(audio_device);
-                    }
+            case SDL_WINDOWEVENT:{
+                if(event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED){
+                    screen.update_embedded_size();
                 }
                 break;
             }
         }
     }
+
+    if(shortcut_settings.down(shortcut_settings_t::open_file)){
+        file_selector.set_open(true);
+    }
+
+    if(shortcut_settings.down(shortcut_settings_t::take_screenshot) && gb->cartridge_inserted){
+        take_screenshot();
+    }
+
+    savestate.shortcut_event();
+
+    if(shortcut_settings.down(shortcut_settings_t::exit)){
+        running = false;
+    }
+
+    if(gb->cartridge_inserted){
+        if(shortcut_settings.down(shortcut_settings_t::pause)){
+            pause();
+        }
+        if(shortcut_settings.down(shortcut_settings_t::reset)){
+            reset();
+        }
+        if(shortcut_settings.down(shortcut_settings_t::increase_speed)){
+            set_speed(gb->speed + gb_speed_step);
+        }
+        if(shortcut_settings.down(shortcut_settings_t::decrease_speed)){
+            set_speed(gb->speed - gb_speed_step);
+        }
+        
+        if(shortcut_settings.down(shortcut_settings_t::rewind_held)){
+            if(gb_rewind_start(gb)){
+                SDL_LockAudioDevice(audio_device);
+            }
+        }
+        if(shortcut_settings.released(shortcut_settings_t::rewind_held)){
+            if(gb_rewind_end(gb)){
+                SDL_UnlockAudioDevice(audio_device);
+            }
+        }
+
+        if(shortcut_settings.down(shortcut_settings_t::cheats)){
+            cheats.set_open(true);
+        }
+        if(shortcut_settings.down(shortcut_settings_t::printer)){
+            printer.set_open(true);
+        }
+        if(shortcut_settings.down(shortcut_settings_t::power_off)){
+            remove_cartridge();
+        }
+    }
+
+    screen.shortcut_event();
+
+    if(shortcut_settings.down(shortcut_settings_t::dmg_palette_settings)){
+        dmg_palette.open();
+    }
+    if(shortcut_settings.down(shortcut_settings_t::boot_settings)){
+        boot_settings.open();
+    }
+    if(shortcut_settings.down(shortcut_settings_t::rewind_settings)){
+        rewind_settings.open();
+    }
+    if(shortcut_settings.down(shortcut_settings_t::input_settings)){
+        input_settings.open();
+    }
+    if(shortcut_settings.down(shortcut_settings_t::shortcut_settings)){
+        shortcut_settings.open();
+    }
+
 }
 
 
@@ -629,7 +662,7 @@ void nanoboy_t::render_main_menu_bar(){
         
     if(ImGui::BeginMenu("File")){
         
-        if(ImGui::MenuItem("Open File")){
+        if(ImGui::MenuItem("Open File",shortcut_settings.str_keyboard(shortcut_settings_t::open_file))){
             file_selector.set_open(true);
         }
 
@@ -648,7 +681,7 @@ void nanoboy_t::render_main_menu_bar(){
 
         ImGui::Separator();
 
-        if(ImGui::MenuItem("Take Screenshot","F12",nullptr,gb->cartridge_inserted)){
+        if(ImGui::MenuItem("Take Screenshot",shortcut_settings.str_keyboard(shortcut_settings_t::take_screenshot),nullptr,gb->cartridge_inserted)){
             take_screenshot();
         }
 
@@ -658,7 +691,7 @@ void nanoboy_t::render_main_menu_bar(){
 
         ImGui::Separator();
 
-        if(ImGui::MenuItem("Exit")){
+        if(ImGui::MenuItem("Exit",shortcut_settings.str_keyboard(shortcut_settings_t::exit))){
             running = false;
         }
 
@@ -667,31 +700,31 @@ void nanoboy_t::render_main_menu_bar(){
 
     if(ImGui::BeginMenu("Game")){
         
-        if(ImGui::MenuItem("Pause","Esq",nullptr,gb->cartridge_inserted)){
+        if(ImGui::MenuItem("Pause",shortcut_settings.str_keyboard(shortcut_settings_t::pause),nullptr,gb->cartridge_inserted)){
             pause();
         }
 
-        if(ImGui::MenuItem("Reset","Ctrl+R",nullptr,gb->cartridge_inserted)){
+        if(ImGui::MenuItem("Reset",shortcut_settings.str_keyboard(shortcut_settings_t::reset),nullptr,gb->cartridge_inserted)){
             reset();
         }
 
-        if(ImGui::MenuItem("Increase speed","=",nullptr,gb->cartridge_inserted)){
+        if(ImGui::MenuItem("Increase Speed",shortcut_settings.str_keyboard(shortcut_settings_t::increase_speed),nullptr,gb->cartridge_inserted)){
             set_speed(gb->speed + gb_speed_step);
         }
         
-        if(ImGui::MenuItem("Decrease speed","-",nullptr,gb->cartridge_inserted)){
+        if(ImGui::MenuItem("Decrease Speed",shortcut_settings.str_keyboard(shortcut_settings_t::decrease_speed),nullptr,gb->cartridge_inserted)){
             set_speed(gb->speed - gb_speed_step);
         }
 
-        if(ImGui::MenuItem("Cheats",nullptr,nullptr,gb->cartridge_inserted)){
+        if(ImGui::MenuItem("Cheats",shortcut_settings.str_keyboard(shortcut_settings_t::cheats),nullptr,gb->cartridge_inserted)){
             cheats.set_open(true);
         }
 
-        if(ImGui::MenuItem("Printer",nullptr,nullptr,gb->cartridge_inserted)){
+        if(ImGui::MenuItem("Printer",shortcut_settings.str_keyboard(shortcut_settings_t::printer),nullptr,gb->cartridge_inserted)){
             printer.set_open(true);
         }
 
-        if(ImGui::MenuItem("Power off",nullptr,nullptr,gb->cartridge_inserted)){
+        if(ImGui::MenuItem("Power Off",shortcut_settings.str_keyboard(shortcut_settings_t::power_off),nullptr,gb->cartridge_inserted)){
             remove_cartridge();
         }
         
@@ -714,51 +747,55 @@ void nanoboy_t::render_main_menu_bar(){
             ImGui::EndMenu();
         }
 
-        if(ImGui::MenuItem("DMG Palette")){
+        if(ImGui::MenuItem("DMG Palette",shortcut_settings.str_keyboard(shortcut_settings_t::dmg_palette_settings))){
             dmg_palette.open();
         }
 
-        if(ImGui::MenuItem("Boot")){
+        if(ImGui::MenuItem("Boot",shortcut_settings.str_keyboard(shortcut_settings_t::boot_settings))){
             boot_settings.open();
         }
 
-        if(ImGui::MenuItem("Rewind")){
+        if(ImGui::MenuItem("Rewind",shortcut_settings.str_keyboard(shortcut_settings_t::rewind_settings))){
             rewind_settings.open();
         }
 
-        if(ImGui::MenuItem("Input")){
+        if(ImGui::MenuItem("Input",shortcut_settings.str_keyboard(shortcut_settings_t::input_settings))){
             input_settings.open();
         }
 
+        if(ImGui::MenuItem("Shortcut",shortcut_settings.str_keyboard(shortcut_settings_t::shortcut_settings))){
+            shortcut_settings.open();
+        }
+        
         ImGui::EndMenu();
     }
 
     if(ImGui::BeginMenu("Debug")){
-        if(ImGui::MenuItem("Debugger",nullptr,nullptr,gb->cartridge_inserted)){
+        if(ImGui::MenuItem("Debugger",shortcut_settings.str_keyboard(shortcut_settings_t::debugger),nullptr,gb->cartridge_inserted)){
             debugger.set_open(true);
         }
-        if(ImGui::MenuItem("Register Viewer",nullptr,nullptr,gb->cartridge_inserted)){
+        if(ImGui::MenuItem("Register Viewer",shortcut_settings.str_keyboard(shortcut_settings_t::register_viewer),nullptr,gb->cartridge_inserted)){
             register_viewer.set_open(true);
         }
-        if(ImGui::MenuItem("Event Viewer",nullptr,nullptr,gb->cartridge_inserted)){
+        if(ImGui::MenuItem("Event Viewer",shortcut_settings.str_keyboard(shortcut_settings_t::event_viewer),nullptr,gb->cartridge_inserted)){
             event_viewer.set_open(true);
         }
-        if(ImGui::MenuItem("Memory Viewer",nullptr,nullptr,gb->cartridge_inserted)){
+        if(ImGui::MenuItem("Memory Viewer",shortcut_settings.str_keyboard(shortcut_settings_t::memory_viewer),nullptr,gb->cartridge_inserted)){
             memory_viewer.set_open(true);
         }
-        if(ImGui::MenuItem("Tilemap Viewer",nullptr,nullptr,gb->cartridge_inserted)){
+        if(ImGui::MenuItem("Tilemap Viewer",shortcut_settings.str_keyboard(shortcut_settings_t::tilemap_viewer),nullptr,gb->cartridge_inserted)){
             tilemap_viewer.set_open(true);
         }
-        if(ImGui::MenuItem("Tile Viewer",nullptr,nullptr,gb->cartridge_inserted)){
+        if(ImGui::MenuItem("Tile Viewer",shortcut_settings.str_keyboard(shortcut_settings_t::tile_viewer),nullptr,gb->cartridge_inserted)){
             tile_viewer.set_open(true);
         }
-        if(ImGui::MenuItem("Object Viewer",nullptr,nullptr,gb->cartridge_inserted)){
+        if(ImGui::MenuItem("Object Viewer",shortcut_settings.str_keyboard(shortcut_settings_t::object_viewer),nullptr,gb->cartridge_inserted)){
             object_viewer.set_open(true);
         }
-        if(ImGui::MenuItem("Palette Viewer",nullptr,nullptr,gb->cartridge_inserted)){
+        if(ImGui::MenuItem("Palette Viewer",shortcut_settings.str_keyboard(shortcut_settings_t::palette_viewer),nullptr,gb->cartridge_inserted)){
             palette_viewer.set_open(true);
         }
-        if(ImGui::MenuItem("Wave Form",nullptr,nullptr,gb->cartridge_inserted)){
+        if(ImGui::MenuItem("Wave Form",shortcut_settings.str_keyboard(shortcut_settings_t::wave_form),nullptr,gb->cartridge_inserted)){
             wave_form.set_open(true,false);
         }
         ImGui::EndMenu();
@@ -785,6 +822,7 @@ void nanoboy_t::imgui_render(){
     boot_settings.render();
     rewind_settings.render();
     input_settings.render();
+    shortcut_settings.render();
 
     file_selector.render();
 

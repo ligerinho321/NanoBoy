@@ -12,8 +12,6 @@ private:
 
     struct slot_t {
         std::string name;
-        std::string shortcut_save;
-        std::string shortcut_load;
 
         std::filesystem::path path;
         
@@ -58,7 +56,7 @@ public:
 
     void update_slots();
     
-    void event(SDL_Event& event);
+    void shortcut_event();
 
     void render_menu_bar();
 

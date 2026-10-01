@@ -64,28 +64,28 @@ void boot_settings_t::file_selector_cgb_callback(void* userdata,std::filesystem:
 
 void boot_settings_t::save(cJSON* object){
     cJSON* boot_settings_object = cJSON_CreateObject();
-    cJSON_AddItemToObjectCS(object,"Boot settings",boot_settings_object);
+    cJSON_AddItemToObjectCS(object,"Boot Settings",boot_settings_object);
 
     cJSON* dmg_path_string = cJSON_CreateStringReference(dmg_path);
-    cJSON_AddItemToObjectCS(boot_settings_object,"DMG path",dmg_path_string);
+    cJSON_AddItemToObjectCS(boot_settings_object,"DMG Path",dmg_path_string);
 
     cJSON* cgb_path_string = cJSON_CreateStringReference(cgb_path);
-    cJSON_AddItemToObjectCS(boot_settings_object,"CGB path",cgb_path_string);
+    cJSON_AddItemToObjectCS(boot_settings_object,"CGB Path",cgb_path_string);
 
     cJSON* skip_enabled_bool = cJSON_CreateBool(skip_enabled);
-    cJSON_AddItemToObjectCS(boot_settings_object,"Skip enabled",skip_enabled_bool);
+    cJSON_AddItemToObjectCS(boot_settings_object,"Skip Enabled",skip_enabled_bool);
 
     file_selector.save(boot_settings_object);
 }
 
 void boot_settings_t::load(cJSON* object){
-    cJSON* boot_settings_object = cJSON_GetObjectItemCaseSensitive(object,"Boot settings");
+    cJSON* boot_settings_object = cJSON_GetObjectItemCaseSensitive(object,"Boot Settings");
     
-    if(!boot_settings_object && !cJSON_IsObject(boot_settings_object)) return;
+    if(!cJSON_IsObject(boot_settings_object)) return;
 
-    cJSON* dmg_path_string = cJSON_GetObjectItemCaseSensitive(boot_settings_object,"DMG path");
+    cJSON* dmg_path_string = cJSON_GetObjectItemCaseSensitive(boot_settings_object,"DMG Path");
 
-    if(dmg_path_string && cJSON_IsString(dmg_path_string)){
+    if(cJSON_IsString(dmg_path_string)){
         
         char* string = cJSON_GetStringValue(dmg_path_string);
         
@@ -96,9 +96,9 @@ void boot_settings_t::load(cJSON* object){
         }
     }
 
-    cJSON* cgb_path_string = cJSON_GetObjectItemCaseSensitive(boot_settings_object,"CGB path");
+    cJSON* cgb_path_string = cJSON_GetObjectItemCaseSensitive(boot_settings_object,"CGB Path");
 
-    if(cgb_path_string && cJSON_IsString(cgb_path_string)){
+    if(cJSON_IsString(cgb_path_string)){
         
         char* string = cJSON_GetStringValue(cgb_path_string);
         
@@ -109,9 +109,9 @@ void boot_settings_t::load(cJSON* object){
         }
     }
 
-    cJSON* skip_enabled_bool = cJSON_GetObjectItemCaseSensitive(boot_settings_object,"Skip enabled");
+    cJSON* skip_enabled_bool = cJSON_GetObjectItemCaseSensitive(boot_settings_object,"Skip Enabled");
     
-    if(skip_enabled_bool && cJSON_IsBool(skip_enabled_bool)){
+    if(cJSON_IsBool(skip_enabled_bool)){
         
         skip_enabled = cJSON_IsTrue(skip_enabled_bool);
 
@@ -141,7 +141,7 @@ void boot_settings_t::render(){
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
             ImGui::AlignTextToFramePadding();
-            ImGui::TextUnformatted("DMG boot path");
+            ImGui::TextUnformatted("DMG Boot Path");
             ImGui::TableNextColumn();
 
             ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - browser_button_width - style.ItemInnerSpacing.x);
@@ -158,7 +158,7 @@ void boot_settings_t::render(){
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
             ImGui::AlignTextToFramePadding();
-            ImGui::TextUnformatted("CGB boot path");
+            ImGui::TextUnformatted("CGB Boot Path");
             ImGui::TableNextColumn();
 
             ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - browser_button_width - style.ItemInnerSpacing.x);
@@ -175,7 +175,7 @@ void boot_settings_t::render(){
             ImGui::EndTable();
         }
 
-        ImGui::Checkbox("Skip boot",&temp_skip_enabled);
+        ImGui::Checkbox("Skip Boot",&temp_skip_enabled);
 
         ImGui::SameLine();
         

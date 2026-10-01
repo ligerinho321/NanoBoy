@@ -319,35 +319,35 @@ void object_viewer_t::render_object_tooltip(object_t* object){
         //Tile index
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
-        ImGui::TextUnformatted("Tile index");
+        ImGui::TextUnformatted("Tile Index");
         ImGui::TableNextColumn();
         ImGui::Text("$%02X",object->tile_index);
 
         //Tile address
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
-        ImGui::TextUnformatted("Tile address");
+        ImGui::TextUnformatted("Tile Address");
         ImGui::TableNextColumn();
         ImGui::Text("$%04X",object->tile_address);
 
         //Palette index
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
-        ImGui::TextUnformatted("Palette index");
+        ImGui::TextUnformatted("Palette Index");
         ImGui::TableNextColumn();
         ImGui::Text("%d",object->palette_index);
 
         //Horizontal flip
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
-        ImGui::TextUnformatted("Horizontal flip");
+        ImGui::TextUnformatted("Horizontal Flip");
         ImGui::TableNextColumn();
         (object->horizontal_flip ? ImGui::TextUnformatted("True") : ImGui::TextUnformatted("False"));
 
         //Vertical flip
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
-        ImGui::TextUnformatted("Vertical flip");
+        ImGui::TextUnformatted("Vertical Flip");
         ImGui::TableNextColumn();
         (object->vertical_flip ? ImGui::TextUnformatted("True") : ImGui::TextUnformatted("False"));
 
@@ -516,21 +516,21 @@ void object_viewer_t::render(){
 
             render_oam_table();
 
-            if(ImGui::Checkbox("Show offscreen",&show_offscreen)){
+            if(ImGui::Checkbox("Show OffScreen",&show_offscreen)){
                 update_bg_metrics();
             }
 
-            ImGui::Checkbox("Show outline",&show_outline);
+            ImGui::Checkbox("Show Outline",&show_outline);
 
             ImGui::SetNextItemWidth(input_scalar_width);
-            if(ImGui::InputScalar("Refresh on scanline",ImGuiDataType_U8,&callback_handler.scanline,&input_scalar_step,&input_scalar_step_fast)){
+            if(ImGui::InputScalar("Refresh On Scanline",ImGuiDataType_U8,&callback_handler.scanline,&input_scalar_step,&input_scalar_step_fast)){
                 if(callback_handler.scanline >= gb_scanlines){
                     callback_handler.scanline = gb_scanlines - 1;
                 }
             }
 
             ImGui::SetNextItemWidth(input_scalar_width);
-            if(ImGui::InputScalar("Refresh on cycle",ImGuiDataType_U16,&callback_handler.cycle,&input_scalar_step,&input_scalar_step_fast)){
+            if(ImGui::InputScalar("Refresh On Cycle",ImGuiDataType_U16,&callback_handler.cycle,&input_scalar_step,&input_scalar_step_fast)){
                 if(callback_handler.cycle >= gb_scanline_cycles){
                     callback_handler.cycle = gb_scanline_cycles - 1;
                 }

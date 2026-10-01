@@ -17,20 +17,20 @@ void file_base_dialog_t::init(){
 
 void file_base_dialog_t::save(cJSON* object){
     cJSON* file_dialog_object = cJSON_CreateObject();
-    cJSON_AddItemToObjectCS(object,"File dialog",file_dialog_object);
+    cJSON_AddItemToObjectCS(object,"File Dialog",file_dialog_object);
 
     cJSON* current_path_string = cJSON_CreateString(current_path.u8string().c_str());
-    cJSON_AddItemToObjectCS(file_dialog_object,"Current path",current_path_string);
+    cJSON_AddItemToObjectCS(file_dialog_object,"Current Path",current_path_string);
 }
 
 void file_base_dialog_t::load(cJSON* object){
-    cJSON* file_dialog_object = cJSON_GetObjectItemCaseSensitive(object,"File dialog");
+    cJSON* file_dialog_object = cJSON_GetObjectItemCaseSensitive(object,"File Dialog");
     
-    if(!file_dialog_object || !cJSON_IsObject(file_dialog_object)) return;
+    if(!cJSON_IsObject(file_dialog_object)) return;
 
-    cJSON* current_path_string = cJSON_GetObjectItemCaseSensitive(file_dialog_object,"Current path");
+    cJSON* current_path_string = cJSON_GetObjectItemCaseSensitive(file_dialog_object,"Current Path");
 
-    if(!current_path_string || !cJSON_IsString(current_path_string)) return;
+    if(!cJSON_IsString(current_path_string)) return;
 
     std::filesystem::path path = cJSON_GetStringValue(current_path_string);
 
