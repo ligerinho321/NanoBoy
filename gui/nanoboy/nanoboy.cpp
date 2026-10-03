@@ -658,6 +658,8 @@ void nanoboy_t::gb_run(){
 
 void nanoboy_t::render_main_menu_bar(){
 
+    if(SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN_DESKTOP) return;
+    
     if(!ImGui::BeginMainMenuBar()) return;
         
     if(ImGui::BeginMenu("File")){

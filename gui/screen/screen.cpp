@@ -123,11 +123,15 @@ void screen_t::set_embedded_scale(int new_scale){
     if(flags & SDL_WINDOW_MAXIMIZED){
         SDL_RestoreWindow(nanoboy->window);
     }
-    else if(flags & SDL_WINDOW_FULLSCREEN_DESKTOP){
+
+    int main_menu_bar_height = 0;
+
+    if(flags & SDL_WINDOW_FULLSCREEN_DESKTOP){
         SDL_SetWindowFullscreen(nanoboy->window,0);
     }
-
-    int main_menu_bar_height = ImGui::GetFrameHeight();
+    else{
+        main_menu_bar_height = ImGui::GetFrameHeight();
+    }
 
     embedded_rect.x = 0;
     embedded_rect.y = main_menu_bar_height;
@@ -145,7 +149,10 @@ void screen_t::update_embedded_size(){
 
     int main_menu_bar_height = 0;
 
-    main_menu_bar_height = ImGui::GetFrameHeight();    
+    if(!(SDL_GetWindowFlags(nanoboy->window) & SDL_WINDOW_FULLSCREEN_DESKTOP)){
+        main_menu_bar_height = ImGui::GetFrameHeight();
+    }
+
     window_height -= main_menu_bar_height;
 
     int width = window_width;
