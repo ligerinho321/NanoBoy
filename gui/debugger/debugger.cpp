@@ -77,7 +77,7 @@ void debugger_t::update_breakpoint_max_address(){
         --breakpoint_max_address;
     }
 
-    snprintf(breakpoint_max_address_text,sizeof(breakpoint_max_address_text),"(Max: $%zu)",breakpoint_max_address);
+    snprintf(breakpoint_max_address_text,sizeof(breakpoint_max_address_text),"(Max: $%zX)",breakpoint_max_address);
 
     breakpoint_max_address_text_width = ImGui::CalcTextSize(breakpoint_max_address_text).x;
 }
@@ -257,7 +257,7 @@ void debugger_t::render_breakpoints(){
 
             ImGui::TableNextColumn();
 
-            ImGui::Text("$%zu",breakpoint->address);
+            ImGui::Text("$%zX",breakpoint->address);
 
             ImGui::PopID();
         }

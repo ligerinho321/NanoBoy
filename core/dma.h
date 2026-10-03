@@ -44,6 +44,8 @@ void gb_oam_dma_clock(gb_dma_t* dma);
 
 bool gb_oam_dma_bus_conflict(gb_dma_t* dma,uint16_t address);
 
+uint16_t gb_oam_dma_get_current_read_address(gb_dma_t* dma);
+
 void gb_oam_dma_write_register(void* data,uint8_t value,uint16_t address);
 
 uint8_t gb_oam_dma_peek_register(gb_t* gb);

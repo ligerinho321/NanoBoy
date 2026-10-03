@@ -1,15 +1,5 @@
 #include <gui/printer/printer.hpp>
 
-const char* image_extensions[] = {
-    "PNG\0.png",
-    "BMP\0.bmp",
-    "TGA\0.tga",
-    "JPG\0.jpg"
-};
-
-const int image_extensions_count = sizeof(image_extensions) / sizeof(image_extensions[0]);
-
-
 void printer_t::init(gb_t* _gb,SDL_Renderer* _renderer){
     gb = _gb;
     renderer = _renderer;
@@ -29,9 +19,8 @@ void printer_t::uninit(){
 
 
 void printer_t::gb_printer_callback(void* userdata,const uint8_t* data,int len){
-    printer_t* printer = (printer_t*)userdata;
 
-    printer->mutex.lock();
+    printer_t* printer = (printer_t*)userdata;
 
     size_t size = printer->buffer.size();
 
@@ -46,9 +35,47 @@ void printer_t::gb_printer_callback(void* userdata,const uint8_t* data,int len){
 
     memcpy(printer->buffer.data() + size,data,len);
 
-    printer->update_texture.store(true,std::memory_order_release);
 
-    printer->mutex.unlock();
+    printer->texture_height = printer->buffer.size() / gb_printer_image_pitch;
+
+    if(printer->texture_height <= 0) return;
+
+    if(printer->texture_height > printer->texture_max_height){
+        
+        printer->texture_max_height += gb_max(printer_t::texture_expand_height,printer->texture_height);
+
+        if(printer->texture != nullptr){
+            SDL_DestroyTexture(printer->texture);
+            printer->texture = nullptr;
+        }
+
+        printer->texture = SDL_CreateTexture(
+            printer->renderer,
+            printer_t::texture_format,
+            printer_t::texture_access,
+            printer_t::texture_width,
+            printer->texture_max_height
+        );
+        
+        if(printer->texture == nullptr){
+            printf("SDL_CreateTexture: %s\n",SDL_GetError());
+            return;
+        }
+    }
+
+    uint8_t* pixels = nullptr;
+    int pitch = 0;
+    SDL_Rect rect{0,0,printer_t::texture_width,printer->texture_height};
+
+    if(SDL_LockTexture(printer->texture,&rect,(void**)&pixels,&pitch) >= 0){
+
+        memcpy(pixels,printer->buffer.data(),gb_printer_image_pitch * printer->texture_height);
+
+        SDL_UnlockTexture(printer->texture);   
+    }
+    else{
+        printf("SDL_LockTexture: %s\n",SDL_GetError());
+    }
 }
 
 
@@ -101,55 +128,6 @@ const char* printer_t::get_print_file_name() const noexcept {
 }
 
 
-void printer_t::update(){
-    if(!update_texture.load(std::memory_order_acquire)) return;
-
-    mutex.lock();
-
-    texture_height = buffer.size() / gb_printer_image_pitch;
-
-    uint8_t* pixels = nullptr;
-    int pitch = 0;
-    SDL_Rect rect{};
-
-    if(!texture_height) goto end;
-
-    if(texture_height > texture_max_height){
-        
-        texture_max_height += gb_max(printer_t::texture_expand_height,texture_height);
-
-        if(texture != nullptr){
-            SDL_DestroyTexture(texture);
-            texture = nullptr;
-        }
-
-        texture = SDL_CreateTexture(renderer,printer_t::texture_format,printer_t::texture_access,printer_t::texture_width,texture_max_height);
-        
-        if(!texture){
-            printf("SDL_CreateTexture: %s\n",SDL_GetError());
-            goto end;
-        }
-    }
-
-    rect.w = printer_t::texture_width;
-    rect.h = texture_height;
-
-    if(SDL_LockTexture(texture,&rect,(void**)&pixels,&pitch) < 0){
-        printf("SDL_LockTexture: %s\n",SDL_GetError());
-        goto end;
-    }
-
-    memcpy(pixels,buffer.data(),gb_printer_image_pitch * texture_height);
-
-    SDL_UnlockTexture(texture);
-
-    end:
-    update_texture.store(false,std::memory_order_relaxed);
-
-    mutex.unlock();
-}
-
-
 void printer_t::render(){
 
     if(!open) return;
@@ -168,8 +146,6 @@ void printer_t::render(){
         );
 
         if(ImGui::BeginChild("PrinterChild",child_size,ImGuiChildFlags_Borders)){
-
-            update();
 
             if(texture != nullptr){
 
@@ -220,15 +196,16 @@ void printer_t::render(){
 
 
 void printer_t::clear(){
-    mutex.lock();
-
+    
+    if(texture != nullptr){
+        SDL_DestroyTexture(texture);
+        texture = nullptr;
+    }
+    
     texture_height = 0;
+    texture_max_height = 0;
 
-    buffer.clear();
-
-    update_texture.store(false,std::memory_order_relaxed);
-
-    mutex.unlock();
+    std::vector<uint8_t>().swap(buffer);
 }
 
 

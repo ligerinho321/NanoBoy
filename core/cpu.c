@@ -21,53 +21,89 @@ void gb_cpu_init(gb_cpu_t* cpu,gb_t* gb){
 
 void gb_cpu_write_byte(gb_cpu_t* cpu,uint8_t value,uint16_t address){
     gb_cpu_cycle(cpu);
-    gb_memory_cpu_write(&cpu->gb->memory,value,address);
+    gb_memory_cpu_write(&cpu->gb->memory,value,address,gb_oam_write_glitch_type);
 }
 
 uint8_t gb_cpu_read_byte(gb_cpu_t* cpu,uint16_t address){
     gb_cpu_cycle(cpu);
-    return gb_memory_cpu_read(&cpu->gb->memory,address);
+    return gb_memory_cpu_read(&cpu->gb->memory,address,gb_oam_read_glitch_type);
 }
 
 
-void gb_cpu_write_word(gb_cpu_t* cpu,uint16_t value,uint16_t address){
-    gb_cpu_write_byte(cpu,value & 0xFF,address);
-    gb_cpu_write_byte(cpu,value >> 0x08,address + 0x01);
+static inline uint8_t gb_cpu_read_code_byte(gb_cpu_t* cpu){
+    gb_cpu_cycle(cpu);
+    return gb_memory_cpu_read(&cpu->gb->memory,cpu->state.pc++,gb_oam_read_id_glitch_type);
 }
 
-uint16_t gb_cpu_read_word(gb_cpu_t* cpu,uint16_t address){
-    uint8_t lo = gb_cpu_read_byte(cpu,address);
-    uint8_t hi = gb_cpu_read_byte(cpu,address + 0x01);
+static inline uint16_t gb_cpu_read_code_word(gb_cpu_t* cpu){
+    uint8_t lo = gb_cpu_read_code_byte(cpu);
+    uint8_t hi = gb_cpu_read_code_byte(cpu);
     return (hi << 0x08) | lo;
 }
 
 
+static inline void gb_cpu_push_word(gb_cpu_t* cpu,uint16_t word){
+    gb_cpu_cycle(cpu);
+    
+    gb_ppu_oam_glitch(&cpu->gb->ppu,cpu->state.sp,gb_oam_write_glitch_type);
+
+    --cpu->state.sp;
+
+    gb_cpu_write_byte(cpu,word >> 0x08,cpu->state.sp);
+
+    --cpu->state.sp;
+
+    gb_cpu_write_byte(cpu,word & 0xFF,cpu->state.sp);
+}
+
+static inline void gb_cpu_pop_word(gb_cpu_t* cpu,uint16_t* word){
+    gb_cpu_cycle(cpu);
+
+    *word = gb_memory_cpu_read(&cpu->gb->memory,cpu->state.sp,gb_oam_read_id_glitch_type);
+
+    ++cpu->state.sp;
+
+    *word |= gb_cpu_read_byte(cpu,cpu->state.sp) << 0x08;
+
+    ++cpu->state.sp;
+
+    cpu->state.af &= 0xFFF0;
+}
+
+
 static inline void gb_cpu_ld_r16_imm16(gb_cpu_t* cpu,uint16_t* word){
-    *word = gb_cpu_read_word(cpu,cpu->state.pc);
-    cpu->state.pc += 2;
+    *word = gb_cpu_read_code_word(cpu);
 }
 
 static inline void gb_cpu_ld_pimm16_byte(gb_cpu_t* cpu,uint8_t byte){
-    uint16_t address = gb_cpu_read_word(cpu,cpu->state.pc);
-    cpu->state.pc += 2;
+    uint16_t address = gb_cpu_read_code_word(cpu);
     gb_cpu_write_byte(cpu,byte,address);
 }
 
 static inline void gb_cpu_ld_pimm16_word(gb_cpu_t* cpu,uint16_t word){
-    uint16_t address = gb_cpu_read_word(cpu,cpu->state.pc);
-    cpu->state.pc += 2;
-    gb_cpu_write_word(cpu,word,address);
+    uint16_t address = gb_cpu_read_code_word(cpu);
+    gb_cpu_write_byte(cpu,word & 0xFF,address);
+    gb_cpu_write_byte(cpu,word >> 0x08,address + 0x01);
 }
 
 static inline void gb_cpu_ld_a_pimm16(gb_cpu_t* cpu){
-    uint16_t address = gb_cpu_read_word(cpu,cpu->state.pc);
-    cpu->state.pc += 2;
+    uint16_t address = gb_cpu_read_code_word(cpu);
     cpu->state.a = gb_cpu_read_byte(cpu,address);
 }
 
 static inline void gb_cpu_ld_sp_hl(gb_cpu_t* cpu){
     cpu->state.sp = cpu->state.hl;
     gb_cpu_cycle(cpu);
+}
+
+static inline void gb_cpu_ld_a_phli(gb_cpu_t* cpu){
+    gb_cpu_cycle(cpu);
+    cpu->state.a = gb_memory_cpu_read(&cpu->gb->memory,cpu->state.hl++,gb_oam_read_id_glitch_type);
+}
+
+static inline void gb_cpu_ld_a_phld(gb_cpu_t* cpu){
+    gb_cpu_cycle(cpu);
+    cpu->state.a = gb_memory_cpu_read(&cpu->gb->memory,cpu->state.hl--,gb_oam_read_id_glitch_type);
 }
 
 
@@ -97,14 +133,17 @@ static inline void gb_cpu_dec_phl(gb_cpu_t* cpu){
     gb_cpu_write_byte(cpu,byte,cpu->state.hl);
 }
 
+
 static inline void gb_cpu_inc_word(gb_cpu_t* cpu,uint16_t* word){
-    *word += 1;
     gb_cpu_cycle(cpu);
+    gb_ppu_oam_glitch(&cpu->gb->ppu,*word,gb_oam_write_glitch_type);
+    *word += 1;
 }
 
 static inline void gb_cpu_dec_word(gb_cpu_t* cpu,uint16_t* word){
-    *word -= 1;
     gb_cpu_cycle(cpu);
+    gb_ppu_oam_glitch(&cpu->gb->ppu,*word,gb_oam_write_glitch_type);
+    *word -= 1;
 }
 
 
@@ -301,18 +340,17 @@ static inline void gb_cpu_set_phl(gb_cpu_t* cpu,uint8_t bit){
 }
 
 
-
 static inline void gb_cpu_jr_imm8(gb_cpu_t* cpu,bool condition){
-    int8_t offset = gb_cpu_read_byte(cpu,cpu->state.pc++);
+    int8_t offset = gb_cpu_read_code_byte(cpu);
     if(condition){
-        cpu->state.pc += offset;
         gb_cpu_cycle(cpu);
+        gb_ppu_oam_glitch(&cpu->gb->ppu,cpu->state.pc,gb_oam_write_glitch_type);
+        cpu->state.pc += offset;
     }
 }
 
 static inline void gb_cpu_jp_imm16(gb_cpu_t* cpu,bool condition){
-    uint16_t address = gb_cpu_read_word(cpu,cpu->state.pc);
-    cpu->state.pc += 2;
+    uint16_t address = gb_cpu_read_code_word(cpu);
     if(condition){
         cpu->state.pc = address;
         gb_cpu_cycle(cpu);
@@ -320,12 +358,9 @@ static inline void gb_cpu_jp_imm16(gb_cpu_t* cpu,bool condition){
 }
 
 static inline void gb_cpu_call_imm16(gb_cpu_t* cpu,bool condition){
-    uint16_t address = gb_cpu_read_word(cpu,cpu->state.pc);
-    cpu->state.pc += 2;
+    uint16_t address = gb_cpu_read_code_word(cpu);
     if(condition){
-        gb_cpu_cycle(cpu);
-        gb_cpu_write_byte(cpu,cpu->state.pc >> 0x08,--cpu->state.sp);
-        gb_cpu_write_byte(cpu,cpu->state.pc & 0xFF,--cpu->state.sp);
+        gb_cpu_push_word(cpu,cpu->state.pc);
         cpu->state.pc = address;
     }
 }
@@ -411,7 +446,7 @@ static inline void gb_cpu_cp_byte(gb_cpu_t* cpu,uint8_t byte){
 
 
 static inline uint16_t gb_cpu_sp_plus_imm8(gb_cpu_t* cpu){
-    uint8_t byte = gb_cpu_read_byte(cpu,cpu->state.pc++);
+    uint8_t byte = gb_cpu_read_code_byte(cpu);
     gb_cpu_set_flag(gb_cpu_carry_flag,(cpu->state.sp & 0xFF) + byte > 0xFF);
     gb_cpu_set_flag(gb_cpu_half_carry_flag,(cpu->state.sp & 0x0F) + (byte & 0x0F) > 0x0F);
     gb_cpu_set_flag(gb_cpu_subtraction_flag | gb_cpu_zero_flag,false);
@@ -431,6 +466,7 @@ static inline void gb_cpu_ld_hl_sp_plus_imm8(gb_cpu_t* cpu){
 
 
 static inline void gb_cpu_add_hl_word(gb_cpu_t* cpu,uint16_t word){
+    gb_cpu_cycle(cpu);
     int result = cpu->state.hl + word;
     gb_cpu_set_flag(gb_cpu_carry_flag,result > 0xFFFF);
     gb_cpu_set_flag(gb_cpu_half_carry_flag,(cpu->state.hl & 0x0FFF) + (word & 0x0FFF) > 0x0FFF);
@@ -439,55 +475,28 @@ static inline void gb_cpu_add_hl_word(gb_cpu_t* cpu,uint16_t word){
 }
 
 
-static inline void gb_cpu_push_word(gb_cpu_t* cpu,uint16_t word){
-    gb_cpu_cycle(cpu);
-    gb_cpu_write_byte(cpu,word >> 0x08,--cpu->state.sp);
-    gb_cpu_write_byte(cpu,word & 0xFF,--cpu->state.sp);
-}
-
-static inline void gb_cpu_pop_word(gb_cpu_t* cpu,uint16_t* word){
-    *word = gb_cpu_read_byte(cpu,cpu->state.sp++);
-    *word |= gb_cpu_read_byte(cpu,cpu->state.sp++) << 0x08;
-}
-
-static inline void gb_cpu_push_af(gb_cpu_t* cpu){
-    gb_cpu_cycle(cpu);
-    gb_cpu_write_byte(cpu,cpu->state.a,--cpu->state.sp);
-    gb_cpu_write_byte(cpu,cpu->state.f & 0xF0,--cpu->state.sp);
-}
-
-static inline void gb_cpu_pop_af(gb_cpu_t* cpu){
-    cpu->state.f = gb_cpu_read_byte(cpu,cpu->state.sp++) & 0xF0;
-    cpu->state.a = gb_cpu_read_byte(cpu,cpu->state.sp++);
-}
-
 
 static inline void gb_cpu_ret(gb_cpu_t* cpu){
-    cpu->state.pc = gb_cpu_read_byte(cpu,cpu->state.sp++);
-    cpu->state.pc |= gb_cpu_read_byte(cpu,cpu->state.sp++) << 0x08;
+    gb_cpu_pop_word(cpu,&cpu->state.pc);
     gb_cpu_cycle(cpu);
 }
 
 static inline void gb_cpu_ret_cc(gb_cpu_t* cpu,bool condition){
     gb_cpu_cycle(cpu);
     if(condition){
-        cpu->state.pc = gb_cpu_read_byte(cpu,cpu->state.sp++);
-        cpu->state.pc |= gb_cpu_read_byte(cpu,cpu->state.sp++) << 0x08;
+        gb_cpu_pop_word(cpu,&cpu->state.pc);
         gb_cpu_cycle(cpu);
     }
 }
 
 static inline void gb_cpu_reti(gb_cpu_t* cpu){
-    cpu->state.pc = gb_cpu_read_byte(cpu,cpu->state.sp++);
-    cpu->state.pc |= gb_cpu_read_byte(cpu,cpu->state.sp++) << 0x08;
+    gb_cpu_pop_word(cpu,&cpu->state.pc);
     cpu->state.ime = true;
     gb_cpu_cycle(cpu);
 }
 
 static inline void gb_cpu_rst(gb_cpu_t* cpu,uint8_t target){
-    gb_cpu_cycle(cpu);
-    gb_cpu_write_byte(cpu,cpu->state.pc >> 0x08,--cpu->state.sp);
-    gb_cpu_write_byte(cpu,cpu->state.pc & 0xFF,--cpu->state.sp);
+    gb_cpu_push_word(cpu,cpu->state.pc);
     cpu->state.pc = target;
 }
 
@@ -510,7 +519,7 @@ static inline void gb_cpu_stop(gb_cpu_t* cpu){
         }
         else{
             //STOP is a 2byte opcode, HALT mode is entered, DIV is not reset
-            gb_cpu_read_byte(cpu,cpu->state.pc++);
+            gb_cpu_read_code_byte(cpu);
 
             gb_cpu_set_mode(cpu,gb_cpu_halted_mode);
         }
@@ -523,7 +532,7 @@ static inline void gb_cpu_stop(gb_cpu_t* cpu){
             }
             else{
                 //STOP is a 2byte opcode, HALT mode is entered, DIV is reset, CPU speed changes
-                gb_cpu_read_byte(cpu,cpu->state.pc++);
+                gb_cpu_read_code_byte(cpu);
                 
                 gb_cpu_set_mode(cpu,gb_cpu_halted_mode);
 
@@ -542,7 +551,7 @@ static inline void gb_cpu_stop(gb_cpu_t* cpu){
             }
             else{
                 //STOP is a 2byte opcode, STOP mode is entered, DIV is reset
-                gb_cpu_read_byte(cpu,cpu->state.pc++);
+                gb_cpu_read_code_byte(cpu);
 
                 gb_cpu_set_mode(cpu,gb_cpu_stopped_mode);
 
@@ -552,17 +561,29 @@ static inline void gb_cpu_stop(gb_cpu_t* cpu){
     }
 }
 
-static inline void gb_cpu_irq(gb_cpu_t* cpu){
-    cpu->state.pc--;
-    
-    gb_cpu_cycle(cpu);
+static inline void gb_cpu_irq(gb_cpu_t* cpu){    
     gb_cpu_cycle(cpu);
 
-    gb_cpu_write_byte(cpu,cpu->state.pc >> 0x08,--cpu->state.sp);
-    
+    gb_ppu_oam_glitch(&cpu->gb->ppu,cpu->state.pc,gb_oam_write_glitch_type);
+
+    --cpu->state.pc;
+
+
+    gb_cpu_cycle(cpu);
+
+    gb_ppu_oam_glitch(&cpu->gb->ppu,cpu->state.sp,gb_oam_write_glitch_type);
+
+    --cpu->state.sp;
+
+
+    gb_cpu_write_byte(cpu,cpu->state.pc >> 0x08,cpu->state.sp);
+
+    --cpu->state.sp;
+
     uint8_t vector = gb_interrupt_get_vector(&cpu->gb->interrupt);
     
-    gb_cpu_write_byte(cpu,cpu->state.pc & 0xFF,--cpu->state.sp);
+    gb_cpu_write_byte(cpu,cpu->state.pc & 0xFF,cpu->state.sp);
+
 
     cpu->state.pc = vector;
     
@@ -1123,7 +1144,7 @@ static inline void gb_cpu_opcode(gb_cpu_t* cpu,uint8_t opcode){
         //DEC B
         case 0x05: gb_cpu_dec_byte(cpu,&cpu->state.b); break;
         //LD B,IMM8
-        case 0x06: cpu->state.b = gb_cpu_read_byte(cpu,cpu->state.pc++); break;
+        case 0x06: cpu->state.b = gb_cpu_read_code_byte(cpu); break;
         //RLCA
         case 0x07: gb_cpu_rlca(cpu); break;
         //LD [IMM16],SP
@@ -1139,7 +1160,7 @@ static inline void gb_cpu_opcode(gb_cpu_t* cpu,uint8_t opcode){
         //DEC C
         case 0x0D: gb_cpu_dec_byte(cpu,&cpu->state.c); break;
         //LD C,IMM8
-        case 0x0E: cpu->state.c = gb_cpu_read_byte(cpu,cpu->state.pc++); break;
+        case 0x0E: cpu->state.c = gb_cpu_read_code_byte(cpu); break;
         //RRCA
         case 0x0F: gb_cpu_rrca(cpu); break;
 
@@ -1156,7 +1177,7 @@ static inline void gb_cpu_opcode(gb_cpu_t* cpu,uint8_t opcode){
         //DEC D
         case 0x15: gb_cpu_dec_byte(cpu,&cpu->state.d); break;
         //LD D,IMM8
-        case 0x16: cpu->state.d = gb_cpu_read_byte(cpu,cpu->state.pc++); break;
+        case 0x16: cpu->state.d = gb_cpu_read_code_byte(cpu); break;
         //RLA
         case 0x17: gb_cpu_rla(cpu); break;
         //JR IMM8
@@ -1172,7 +1193,7 @@ static inline void gb_cpu_opcode(gb_cpu_t* cpu,uint8_t opcode){
         //DEC E
         case 0x1D: gb_cpu_dec_byte(cpu,&cpu->state.e); break;
         //LD E,IMM8
-        case 0x1E: cpu->state.e = gb_cpu_read_byte(cpu,cpu->state.pc++); break;
+        case 0x1E: cpu->state.e = gb_cpu_read_code_byte(cpu); break;
         //RRA
         case 0x1F: gb_cpu_rra(cpu); break;
 
@@ -1189,7 +1210,7 @@ static inline void gb_cpu_opcode(gb_cpu_t* cpu,uint8_t opcode){
         //DEC H
         case 0x25: gb_cpu_dec_byte(cpu,&cpu->state.h); break;
         //LD H,IMM8
-        case 0x26: cpu->state.h = gb_cpu_read_byte(cpu,cpu->state.pc++); break;
+        case 0x26: cpu->state.h = gb_cpu_read_code_byte(cpu); break;
         //DAA
         case 0x27: gb_cpu_daa(cpu); break;
         //JR Z,IMM8
@@ -1197,7 +1218,7 @@ static inline void gb_cpu_opcode(gb_cpu_t* cpu,uint8_t opcode){
         //ADD HL,HL
         case 0x29: gb_cpu_add_hl_word(cpu,cpu->state.hl); break;
         //LD A,[HL+]
-        case 0x2A: cpu->state.a = gb_cpu_read_byte(cpu,cpu->state.hl++); break;
+        case 0x2A: gb_cpu_ld_a_phli(cpu); break;
         //DEC HL
         case 0x2B: gb_cpu_dec_word(cpu,&cpu->state.hl); break;
         //INC L
@@ -1205,7 +1226,7 @@ static inline void gb_cpu_opcode(gb_cpu_t* cpu,uint8_t opcode){
         //DEC L
         case 0x2D: gb_cpu_dec_byte(cpu,&cpu->state.l); break;
         //LD L,IMM8
-        case 0x2E: cpu->state.l = gb_cpu_read_byte(cpu,cpu->state.pc++); break;
+        case 0x2E: cpu->state.l = gb_cpu_read_code_byte(cpu); break;
         //CPL
         case 0x2F: gb_cpu_cpl(cpu); break;
 
@@ -1222,7 +1243,7 @@ static inline void gb_cpu_opcode(gb_cpu_t* cpu,uint8_t opcode){
         //DEC [HL]
         case 0x35: gb_cpu_dec_phl(cpu); break;
         //LD [HL],IMM8
-        case 0x36: gb_cpu_write_byte(cpu,gb_cpu_read_byte(cpu,cpu->state.pc++),cpu->state.hl); break;
+        case 0x36: gb_cpu_write_byte(cpu,gb_cpu_read_code_byte(cpu),cpu->state.hl); break;
         //SCF
         case 0x37: gb_cpu_scf(cpu); break;
         //JR C,IMM8
@@ -1230,7 +1251,7 @@ static inline void gb_cpu_opcode(gb_cpu_t* cpu,uint8_t opcode){
         //ADD HL,SP
         case 0x39: gb_cpu_add_hl_word(cpu,cpu->state.sp); break;
         //LD A,[HL-]
-        case 0x3A: cpu->state.a = gb_cpu_read_byte(cpu,cpu->state.hl--); break;
+        case 0x3A: gb_cpu_ld_a_phld(cpu); break;
         //DEC SP
         case 0x3B: gb_cpu_dec_word(cpu,&cpu->state.sp); break;
         //INC A
@@ -1238,7 +1259,7 @@ static inline void gb_cpu_opcode(gb_cpu_t* cpu,uint8_t opcode){
         //DEC A
         case 0x3D: gb_cpu_dec_byte(cpu,&cpu->state.a); break;
         //LD A,IMM8
-        case 0x3E: cpu->state.a = gb_cpu_read_byte(cpu,cpu->state.pc++); break;
+        case 0x3E: cpu->state.a = gb_cpu_read_code_byte(cpu); break;
         //CCF
         case 0x3F: gb_cpu_ccf(cpu); break;
         
@@ -1519,7 +1540,7 @@ static inline void gb_cpu_opcode(gb_cpu_t* cpu,uint8_t opcode){
         //PUSH BC
         case 0xC5: gb_cpu_push_word(cpu,cpu->state.bc); break;
         //ADD A,IMM8
-        case 0xC6: gb_cpu_add_byte(cpu,gb_cpu_read_byte(cpu,cpu->state.pc++)); break;
+        case 0xC6: gb_cpu_add_byte(cpu,gb_cpu_read_code_byte(cpu)); break;
         //RST $00
         case 0xC7: gb_cpu_rst(cpu,0x00); break;
         //RET Z
@@ -1529,13 +1550,13 @@ static inline void gb_cpu_opcode(gb_cpu_t* cpu,uint8_t opcode){
         //JP Z,IMM16
         case 0xCA: gb_cpu_jp_imm16(cpu,cpu->state.f & gb_cpu_zero_flag); break;
         //PREFIX
-        case 0xCB: gb_cpu_prefix(cpu,gb_cpu_read_byte(cpu,cpu->state.pc++)); break;
+        case 0xCB: gb_cpu_prefix(cpu,gb_cpu_read_code_byte(cpu)); break;
         //CALL Z,IMM16
         case 0xCC: gb_cpu_call_imm16(cpu,cpu->state.f & gb_cpu_zero_flag); break;
         //CALL IMM16
         case 0xCD: gb_cpu_call_imm16(cpu,true); break;
         //ADC A,IMM8
-        case 0xCE: gb_cpu_adc_byte(cpu,gb_cpu_read_byte(cpu,cpu->state.pc++)); break;
+        case 0xCE: gb_cpu_adc_byte(cpu,gb_cpu_read_code_byte(cpu)); break;
         //RST $08
         case 0xCF: gb_cpu_rst(cpu,0x08); break;
 
@@ -1552,7 +1573,7 @@ static inline void gb_cpu_opcode(gb_cpu_t* cpu,uint8_t opcode){
         //PUSH DE
         case 0xD5: gb_cpu_push_word(cpu,cpu->state.de); break;
         //SUB A,IMM8
-        case 0xD6: gb_cpu_sub_byte(cpu,gb_cpu_read_byte(cpu,cpu->state.pc++)); break;
+        case 0xD6: gb_cpu_sub_byte(cpu,gb_cpu_read_code_byte(cpu)); break;
         //RST $10
         case 0xD7: gb_cpu_rst(cpu,0x10); break;
         //RET C
@@ -1568,12 +1589,12 @@ static inline void gb_cpu_opcode(gb_cpu_t* cpu,uint8_t opcode){
         //Undefined
         case 0xDD: break;
         //SBC A,IMM8
-        case 0xDE: gb_cpu_sbc_byte(cpu,gb_cpu_read_byte(cpu,cpu->state.pc++)); break;
+        case 0xDE: gb_cpu_sbc_byte(cpu,gb_cpu_read_code_byte(cpu)); break;
         //RST $18
         case 0xDF: gb_cpu_rst(cpu,0x18); break;
 
         //LDH [IMM8],A
-        case 0xE0: gb_cpu_write_byte(cpu,cpu->state.a,0xFF00 | gb_cpu_read_byte(cpu,cpu->state.pc++)); break;
+        case 0xE0: gb_cpu_write_byte(cpu,cpu->state.a,0xFF00 | gb_cpu_read_code_byte(cpu)); break;
         //POP HL
         case 0xE1: gb_cpu_pop_word(cpu,&cpu->state.hl); break;
         //LDH [C],A
@@ -1585,7 +1606,7 @@ static inline void gb_cpu_opcode(gb_cpu_t* cpu,uint8_t opcode){
         //PUSH HL
         case 0xE5: gb_cpu_push_word(cpu,cpu->state.hl); break;
         //AND A,IMM8
-        case 0xE6: gb_cpu_and_byte(cpu,gb_cpu_read_byte(cpu,cpu->state.pc++)); break;
+        case 0xE6: gb_cpu_and_byte(cpu,gb_cpu_read_code_byte(cpu)); break;
         //RST $20
         case 0xE7: gb_cpu_rst(cpu,0x20); break;
         //ADD SP,IMM8
@@ -1601,14 +1622,14 @@ static inline void gb_cpu_opcode(gb_cpu_t* cpu,uint8_t opcode){
         //Unedefined
         case 0xED: break;
         //XOR A,IMM8
-        case 0xEE: gb_cpu_xor_byte(cpu,gb_cpu_read_byte(cpu,cpu->state.pc++)); break;
+        case 0xEE: gb_cpu_xor_byte(cpu,gb_cpu_read_code_byte(cpu)); break;
         //RST $28
         case 0xEF: gb_cpu_rst(cpu,0x28); break;
 
         //LDH A,[IMM8]
-        case 0xF0: cpu->state.a = gb_cpu_read_byte(cpu,0xFF00 | gb_cpu_read_byte(cpu,cpu->state.pc++)); break;
+        case 0xF0: cpu->state.a = gb_cpu_read_byte(cpu,0xFF00 | gb_cpu_read_code_byte(cpu)); break;
         //POP AF
-        case 0xF1: gb_cpu_pop_af(cpu); break;
+        case 0xF1: gb_cpu_pop_word(cpu,&cpu->state.af); break;
         //LDH A,[C]
         case 0xF2: cpu->state.a = gb_cpu_read_byte(cpu,0xFF00 | cpu->state.c); break;
         //DI
@@ -1616,9 +1637,9 @@ static inline void gb_cpu_opcode(gb_cpu_t* cpu,uint8_t opcode){
         //Undefined
         case 0xF4: break;
         //PUSH AF
-        case 0xF5: gb_cpu_push_af(cpu); break;
+        case 0xF5: gb_cpu_push_word(cpu,cpu->state.af); break;
         //OR A,IMM8
-        case 0xF6: gb_cpu_or_byte(cpu,gb_cpu_read_byte(cpu,cpu->state.pc++)); break;
+        case 0xF6: gb_cpu_or_byte(cpu,gb_cpu_read_code_byte(cpu)); break;
         //RST $30
         case 0xF7: gb_cpu_rst(cpu,0x30); break;
         //LD HL,SP+IMM8
@@ -1634,7 +1655,7 @@ static inline void gb_cpu_opcode(gb_cpu_t* cpu,uint8_t opcode){
         //Undefined
         case 0xFD: break;
         //CP A,IMM8
-        case 0xFE: gb_cpu_cp_byte(cpu,gb_cpu_read_byte(cpu,cpu->state.pc++)); break;
+        case 0xFE: gb_cpu_cp_byte(cpu,gb_cpu_read_code_byte(cpu)); break;
         //RST $38
         case 0xFF: gb_cpu_rst(cpu,0x38); break;
     }
@@ -1645,12 +1666,15 @@ static void gb_cpu_running(gb_cpu_t* cpu){
 
     cpu->instruction_pc = cpu->state.pc;
 
-    uint8_t opcode = gb_cpu_read_byte(cpu,cpu->state.pc);
+    gb_cpu_cycle(cpu);
+
+    uint8_t opcode = 0x00;
 
     if(!cpu->state.halt_bug){
-        cpu->state.pc++;
+        opcode = gb_memory_cpu_read(&cpu->gb->memory,cpu->state.pc++,gb_oam_read_id_glitch_type);
     }
     else{
+        opcode = gb_memory_cpu_read(&cpu->gb->memory,cpu->state.pc,gb_oam_read_glitch_type);
         cpu->state.halt_bug = false;
     }
 
@@ -1676,7 +1700,7 @@ static void gb_cpu_halted(gb_cpu_t* cpu){
 
         cpu->instruction_pc = cpu->state.pc;
 
-        uint8_t opcode = gb_memory_cpu_read(&cpu->gb->memory,cpu->state.pc++);
+        uint8_t opcode = gb_memory_cpu_read(&cpu->gb->memory,cpu->state.pc++,gb_oam_read_id_glitch_type);
 
         if(cpu->state.ime && gb_cpu_irq_pending(cpu)){
             gb_cpu_irq(cpu);
@@ -1701,7 +1725,7 @@ static void gb_cpu_stopped(gb_cpu_t* cpu){
 
         cpu->instruction_pc = cpu->state.pc;
 
-        uint8_t opcode = gb_memory_cpu_read(&cpu->gb->memory,cpu->state.pc++);
+        uint8_t opcode = gb_memory_cpu_read(&cpu->gb->memory,cpu->state.pc++,gb_oam_read_id_glitch_type);
 
         if(cpu->state.ime && gb_cpu_irq_pending(cpu)){
             gb_cpu_irq(cpu);

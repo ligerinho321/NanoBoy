@@ -1,6 +1,7 @@
 #pragma once
 
 #include <gui/utils/utils.hpp>
+#include <gui/file_dialog/file_save_dialog.hpp>
 
 class tile_viewer_t {
 private:
@@ -27,14 +28,16 @@ private:
         layout_16x16
     };
 
-    gb_t* gb;
+    gb_t* gb = nullptr;
+
+    file_save_dialog_t file_save;
 
     SDL_Texture* texture = nullptr;
 
-    bool cgb_mode;
+    bool cgb_mode = false;
 
     std::array<uint8_t,tile_viewer_t::data_capacity> data;
-    size_t data_length;
+    size_t data_length = 0;
 
     bool obj_palette_selected = false;
     uint8_t palette_index = 0;
@@ -57,9 +60,9 @@ private:
     
     bool show_tile_grid = false;
 
-    ImVec2 texture_size;
-    ImVec2 texture_uv0;
-    ImVec2 texture_uv1;
+    ImVec2 texture_size = {};
+    ImVec2 texture_uv0 = {};
+    ImVec2 texture_uv1 = {};
 
     uint32_t grid_color = 0;
     uint32_t border_hovered_color = 0;
@@ -69,6 +72,7 @@ private:
     bool open = false;
 
     static void ppu_callback(void* userdata);
+    static void file_save_callback(void* userdata,std::filesystem::path path);
 
     void render_layout8x8(uint8_t* pixels,int pitch,const gb_rgb_t* colors) noexcept;
     void render_layout8x16(uint8_t* pixels,int pitch,const gb_rgb_t* colors) noexcept;

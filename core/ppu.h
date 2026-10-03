@@ -2,6 +2,13 @@
 
 #include "utils.h"
 
+typedef enum _gb_oam_glitch_type_t {
+    gb_oam_none_glitch_type,
+    gb_oam_write_glitch_type,
+    gb_oam_read_id_glitch_type,
+    gb_oam_read_glitch_type
+} gb_oam_glitch_type_t;
+
 typedef enum _gb_ppu_mode_t {
     gb_ppu_hblank_mode = 0x00,
     gb_ppu_vblank_mode = 0x01,
@@ -197,6 +204,7 @@ uint8_t gb_ppu_read_vbk_register(void* data,uint16_t address);
 
 void gb_ppu_write_oam(void* data,uint8_t value,uint16_t address);
 uint8_t gb_ppu_read_oam(void* data,uint16_t address);
+void gb_ppu_oam_glitch(gb_ppu_t* ppu,uint16_t address,uint8_t type);
 size_t gb_ppu_oam_absolute_address(gb_ppu_t* ppu,uint16_t relative_address);
 
 void gb_ppu_map(gb_ppu_t* ppu);

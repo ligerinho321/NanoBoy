@@ -1,6 +1,7 @@
 #pragma once
 
 #include <gui/utils/utils.hpp>
+#include <gui/file_dialog/file_save_dialog.hpp>
 
 class tilemap_viewer_t {
 private:
@@ -9,8 +10,8 @@ private:
         texture_bytes_per_pixel = SDL_BYTESPERPIXEL(texture_format),
         texture_access = SDL_TEXTUREACCESS_STREAMING,
 
-        tilemap_texture_width = gb_tilemap_columns * gb_tile_size,
-        tilemap_texture_height = gb_tilemap_rows * gb_tile_size,
+        texture_width = gb_tilemap_columns * gb_tile_size,
+        texture_height = gb_tilemap_rows * gb_tile_size,
 
         tooltip_tile_scale = 8,
         tooltip_palette_scale = 2
@@ -18,7 +19,11 @@ private:
 
     gb_t* gb = nullptr;
 
+    file_save_dialog_t file_save;
+
     SDL_Texture* tilemap_texture[2] = {};
+
+    int current_tilemap_index = 0;
 
     uint32_t grid_color = 0;
     uint32_t scroll_overlay_border_color = 0;
@@ -46,11 +51,12 @@ private:
     bg_palette_t bg_palette;
     uint8_t vram[gb_vram_length] = {0};
 
-    gb_ppu_handler_t callback_handler = {callback,this,gb_vblank_scanline,0,nullptr};
+    gb_ppu_handler_t callback_handler = {ppu_callback,this,gb_vblank_scanline,0,nullptr};
 
     bool open = false;
 
-    static void callback(void* data);
+    static void ppu_callback(void* userdata);
+    static void file_save_callback(void* userdata,std::filesystem::path path);
 
     void update_tilemap_texture(uint8_t map_index);
 
@@ -58,12 +64,12 @@ private:
     
     void render_grid(ImVec2 tilemap_start,ImVec2 tilemap_end);
     void render_scroll_overlay(ImVec2 tilemap_start,ImVec2 tilemap_end);
-    void render_tile_tooltip(bool tilemap,uint8_t col,uint8_t row);
-    void render_tilemap(const char* str_id,bool tilemap);
+    void render_tile_tooltip(uint8_t col,uint8_t row);
+    void render_tilemap(const char* str_id);
 
     void update_tilemap_size(){
-        tilemap_size.x = tilemap_texture_width * tilemap_scale;
-        tilemap_size.y = tilemap_texture_height * tilemap_scale;
+        tilemap_size.x = tilemap_viewer_t::texture_width * tilemap_scale;
+        tilemap_size.y = tilemap_viewer_t::texture_height * tilemap_scale;
     }
     
 public:

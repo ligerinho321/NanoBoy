@@ -10,6 +10,7 @@ private:
         texture_bytes_per_pixel = SDL_BYTESPERPIXEL(texture_format),
         texture_access = SDL_TEXTUREACCESS_STREAMING,
         texture_width = gb_screen_width,
+
         texture_expand_height = gb_screen_height,
         buffer_expand_size = gb_printer_image_pitch * texture_expand_height
     };
@@ -19,13 +20,13 @@ private:
     file_save_dialog_t file_save;
 
     SDL_Renderer* renderer = nullptr;
+
     SDL_Texture* texture = nullptr;
+    
     int texture_height = 0;
     int texture_max_height = 0;
 
-    std::mutex mutex;
     std::vector<uint8_t> buffer;
-    std::atomic<bool> update_texture = false;
     
     bool open = false;
 
@@ -34,9 +35,7 @@ private:
     static void file_save_callback(void* userdata,std::filesystem::path path);
     
     const char* get_print_file_name() const noexcept;
-
-    void update();
-
+    
 public:
     void init(gb_t* _gb,SDL_Renderer* _renderer);
     void uninit();

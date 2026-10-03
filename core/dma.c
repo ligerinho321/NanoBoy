@@ -71,6 +71,7 @@ void gb_oam_dma_clock(gb_dma_t* dma){
 
 
 bool gb_oam_dma_bus_conflict(gb_dma_t* dma,uint16_t address){
+
     uint8_t src = dma->state.oam_src;
 
     if(dma->gb->state.is_cgb){
@@ -91,6 +92,11 @@ bool gb_oam_dma_bus_conflict(gb_dma_t* dma,uint16_t address){
             (src >= 0x80 && src <= 0x9F && address >= 0x8000 && address <= 0x9FFF)
         );
     }
+}
+
+
+uint16_t gb_oam_dma_get_current_read_address(gb_dma_t* dma){
+    return dma->state.oam_hi_addr | dma->state.oam_counter;
 }
 
 

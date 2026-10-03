@@ -281,12 +281,3 @@ uint32_t gb_crc32(const uint8_t* buffer,size_t len){
 
 	return crc ^ 0xffffffffL;
 }
-
-
-size_t gb_align_up(size_t value,size_t alignment){
-    size_t remaining = value % alignment;
-    if(remaining){
-        value += alignment - remaining;
-    }
-    return value;
-}

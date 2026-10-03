@@ -516,12 +516,6 @@ void object_viewer_t::render(){
 
             render_oam_table();
 
-            if(ImGui::Checkbox("Show OffScreen",&show_offscreen)){
-                update_bg_metrics();
-            }
-
-            ImGui::Checkbox("Show Outline",&show_outline);
-
             ImGui::SetNextItemWidth(input_scalar_width);
             if(ImGui::InputScalar("Refresh On Scanline",ImGuiDataType_U8,&callback_handler.scanline,&input_scalar_step,&input_scalar_step_fast)){
                 if(callback_handler.scanline >= gb_scanlines){
@@ -536,6 +530,12 @@ void object_viewer_t::render(){
                 }
             }
 
+            if(ImGui::Checkbox("Show OffScreen",&show_offscreen)){
+                update_bg_metrics();
+            }
+
+            ImGui::Checkbox("Show Outline",&show_outline);
+            
             ImGui::EndTable();
         }
         

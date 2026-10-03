@@ -19,6 +19,10 @@ static const uint16_t refresh_on_cycle_step = 1;
 void tile_viewer_t::init(gb_t* _gb,SDL_Renderer* _renderer){
     gb = _gb;
 
+    file_save.init();
+    file_save.set_extensions(image_extensions,image_extensions_count);
+    file_save.set_callback(file_save_callback,this);
+
     bg_palette.init(_renderer);
     obj_palette.init(_renderer);
 
@@ -73,6 +77,54 @@ void tile_viewer_t::ppu_callback(void* userdata){
     );
 
     tile_viewer->update_texture();
+}
+
+void tile_viewer_t::file_save_callback(void* userdata,std::filesystem::path path){
+    tile_viewer_t* tile_viewer = (tile_viewer_t*)userdata;
+
+    SDL_Rect rect{0,0,tile_viewer->columns * gb_tile_size,tile_viewer->rows * gb_tile_size};
+    uint8_t* pixels = nullptr;
+    int pitch = 0;
+
+    if(!SDL_LockTexture(tile_viewer->texture,&rect,(void**)&pixels,&pitch)){
+
+        std::string extension = path.extension().u8string();
+
+        if(!strcasecmp(extension.c_str(),".png")){
+            if(!stbi_write_png(path.u8string().c_str(),rect.w,rect.h,tile_viewer_t::texture_bytes_per_pixel,pixels,pitch)){
+                gb_printf_error("stbi_write_png failed\n");
+            }
+        }
+        else{
+            size_t image_pitch = rect.w * tile_viewer_t::texture_bytes_per_pixel;
+            std::vector<uint8_t> image(rect.h * image_pitch);
+
+            for(int y = 0; y < rect.h; ++y){
+                memcpy(image.data() + y * image_pitch,pixels + y * pitch,image_pitch);
+            }
+
+            if(!strcasecmp(extension.c_str(),".bmp")){
+                if(!stbi_write_bmp(path.u8string().c_str(),rect.w,rect.h,tile_viewer_t::texture_bytes_per_pixel,image.data())){
+                    gb_printf_error("stbi_write_bmp failed\n");
+                }
+            }
+            else if(!strcasecmp(extension.c_str(),".tga")){
+                if(!stbi_write_tga(path.u8string().c_str(),rect.w,rect.h,tile_viewer_t::texture_bytes_per_pixel,image.data())){
+                    gb_printf_error("stbi_write_tga failed\n");
+                }
+            }
+            else if(!strcasecmp(extension.c_str(),".jpg")){
+                if(!stbi_write_jpg(path.u8string().c_str(),rect.w,rect.h,tile_viewer_t::texture_bytes_per_pixel,image.data(),100)){
+                    gb_printf_error("stbi_write_jpg failed\n");
+                }
+            }
+        }
+
+        SDL_UnlockTexture(tile_viewer->texture);                
+    }
+    else{
+        printf("SDL_LockTexture: %s\n",SDL_GetError());
+    }
 }
 
 
@@ -526,6 +578,12 @@ void tile_viewer_t::render(){
 
             ImGui::TableNextColumn();
 
+            if(ImGui::Button("Export")){
+                file_save.set_open(true);
+            }
+
+            ImGui::SeparatorText("View Options");
+
             if(ImGui::BeginCombo("Memory Type",gb_memory_type_names[current_memory_type])){
 
                 for(int i = 0; i < gb_memory_type_count; ++i){
@@ -608,6 +666,8 @@ void tile_viewer_t::render(){
         }
 
         event();
+
+        file_save.render();
     }
     ImGui::End();
 

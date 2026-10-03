@@ -21,8 +21,6 @@
 #include <algorithm>
 #include <string>
 #include <regex>
-#include <mutex>
-#include <atomic>
 #include <cinttypes>
 
 enum{
@@ -164,14 +162,7 @@ enum contoller_binding_type_t{
     controller_binding_count
 };
 
-enum binding_type_t{
-    binding_none,
-    binding_keyboard,
-    binding_controller,
-    binding_count
-};
-
-extern const char* controller_binding_type_names[binding_count];
+extern const char* controller_binding_type_names[controller_binding_count];
 
 enum{
     controller_axis_deadzone = 8000
@@ -228,6 +219,7 @@ public:
     }
 };
 
+
 inline SDL_Keymod keyboard_binding_normalize_modifiers(int mod){
     int result = KMOD_NONE;
     if(mod & KMOD_CTRL)  result |= KMOD_CTRL;
@@ -268,3 +260,7 @@ time_t get_file_last_write_time(std::filesystem::path file);
 const char* get_time_formated(time_t time);
 
 void clear_texture(SDL_Texture* texture,int height);
+
+
+extern const char* image_extensions[];
+extern const int image_extensions_count;

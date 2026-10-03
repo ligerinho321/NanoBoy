@@ -72,36 +72,37 @@ void gb_memory_remove_cheat_code(gb_t* gb,gb_cheat_code_t* code){
 }
 
 
-void gb_memory_cpu_write(gb_memory_t* memory,uint8_t value,uint16_t address){
+void gb_memory_cpu_write(gb_memory_t* memory,uint8_t value,uint16_t address,uint8_t oam_glitch_type){
     gb_memory_descriptor_t* descriptor = memory->bus[address];
 
-    if(!memory->gb->dma.state.oam_running || !gb_oam_dma_bus_conflict(&memory->gb->dma,address)){
-        
-        descriptor->write(descriptor->data,value,address);
+    if(memory->gb->dma.state.oam_running && gb_oam_dma_bus_conflict(&memory->gb->dma,address)) return;
 
-        if(memory->gb->event_manager.enabled){
-            gb_event_manager_io(memory->gb,gb_event_write_flag,value,address);
-        }
+    gb_ppu_oam_glitch(&memory->gb->ppu,address,oam_glitch_type);
+
+    descriptor->write(descriptor->data,value,address);
+
+    if(memory->gb->event_manager.enabled){
+        gb_event_manager_io(memory->gb,gb_event_write_flag,value,address);
     }
 }
 
-uint8_t gb_memory_cpu_read(gb_memory_t* memory,uint16_t address){
+uint8_t gb_memory_cpu_read(gb_memory_t* memory,uint16_t address,uint8_t oam_glitch_type){
     gb_memory_descriptor_t* descriptor = memory->bus[address];
     
     uint8_t value = 0xFF;
 
-    if(!memory->gb->dma.state.oam_running || !gb_oam_dma_bus_conflict(&memory->gb->dma,address)){
-        
-        value = descriptor->read(descriptor->data,address);
-
-        gb_memory_apply_cheat(memory,&value,address);
-
-        if(memory->gb->event_manager.enabled){
-            gb_event_manager_io(memory->gb,gb_event_read_flag,value,address);
-        }
+    if(memory->gb->dma.state.oam_running && gb_oam_dma_bus_conflict(&memory->gb->dma,address)){
+        address = gb_oam_dma_get_current_read_address(&memory->gb->dma);
     }
-    else{
-        value = memory->gb->dma.state.oam_byte;
+
+    gb_ppu_oam_glitch(&memory->gb->ppu,address,oam_glitch_type);
+
+    value = descriptor->read(descriptor->data,address);
+
+    gb_memory_apply_cheat(memory,&value,address);
+
+    if(memory->gb->event_manager.enabled){
+        gb_event_manager_io(memory->gb,gb_event_read_flag,value,address);
     }
 
     return value;

@@ -95,7 +95,7 @@ void binding_capture_popup_t::render(){
 }
 
 
-const char* controller_binding_type_names[binding_count] = {
+const char* controller_binding_type_names[controller_binding_count] = {
     "None",
     "Button",
     "Axis"
@@ -299,3 +299,13 @@ void clear_texture(SDL_Texture* texture,int height){
     memset(pixels,0,pitch * height);
     SDL_UnlockTexture(texture);
 }
+
+
+const char* image_extensions[] = {
+    "PNG\0.png",
+    "BMP\0.bmp",
+    "TGA\0.tga",
+    "JPG\0.jpg"
+};
+
+const int image_extensions_count = sizeof(image_extensions) / sizeof(image_extensions[0]);

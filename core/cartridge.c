@@ -81,12 +81,13 @@ bool gb_cartridge_load(gb_cartridge_t* cartridge,const char* path){
     cartridge->rom_crc32 = gb_crc32(cartridge->rom,cartridge->rom_length);
 
     fclose(file);
+    
     return true;
 
     fail:
     gb_cartridge_remove(cartridge);
 
-    fclose(file);
+    if(file != NULL) fclose(file);
     
     return false;
 }

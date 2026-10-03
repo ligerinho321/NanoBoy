@@ -4,10 +4,27 @@ void tilemap_viewer_t::init(gb_t* _gb,SDL_Renderer* _renderer){
     
     gb = _gb;
 
+    file_save.init();
+    file_save.set_extensions(image_extensions,image_extensions_count);
+    file_save.set_callback(file_save_callback,this);
+
     bg_palette.init(_renderer);
 
-    tilemap_texture[0] = SDL_CreateTexture(_renderer,texture_format,texture_access,tilemap_texture_width,tilemap_texture_height);
-    tilemap_texture[1] = SDL_CreateTexture(_renderer,texture_format,texture_access,tilemap_texture_width,tilemap_texture_height);
+    tilemap_texture[0] = SDL_CreateTexture(
+        _renderer,
+        tilemap_viewer_t::texture_format,
+        tilemap_viewer_t::texture_access,
+        tilemap_viewer_t::texture_width,
+        tilemap_viewer_t::texture_height
+    );
+
+    tilemap_texture[1] = SDL_CreateTexture(
+        _renderer,
+        tilemap_viewer_t::texture_format,
+        tilemap_viewer_t::texture_access,
+        tilemap_viewer_t::texture_width,
+        tilemap_viewer_t::texture_height
+    );
 
     ImGuiStyle& style = ImGui::GetStyle();
 
@@ -33,8 +50,8 @@ void tilemap_viewer_t::uninit(){
 }
 
 
-void tilemap_viewer_t::callback(void* data){
-    tilemap_viewer_t* tilemap_viewer = (tilemap_viewer_t*)data;
+void tilemap_viewer_t::ppu_callback(void* userdata){
+    tilemap_viewer_t* tilemap_viewer = (tilemap_viewer_t*)userdata;
     gb_t* gb = tilemap_viewer->gb;
 
     tilemap_viewer->cgb_mode = gb->state.cgb_mode;
@@ -51,6 +68,44 @@ void tilemap_viewer_t::callback(void* data){
 
     tilemap_viewer->update_tilemap_texture(0);
     tilemap_viewer->update_tilemap_texture(1);
+}
+
+void tilemap_viewer_t::file_save_callback(void* userdata,std::filesystem::path path){
+    tilemap_viewer_t* tilemap_viewer = (tilemap_viewer_t*)userdata;
+
+    uint8_t* pixels = nullptr;
+    int pitch = 0;
+
+    if(!SDL_LockTexture(tilemap_viewer->tilemap_texture[tilemap_viewer->current_tilemap_index],nullptr,(void**)&pixels,&pitch)){
+
+        std::string extension = path.extension().u8string();
+
+        if(!strcasecmp(extension.c_str(),".png")){
+            if(!stbi_write_png(path.u8string().c_str(),tilemap_viewer_t::texture_width,tilemap_viewer_t::texture_height,tilemap_viewer_t::texture_bytes_per_pixel,pixels,pitch)){
+                gb_printf_error("stbi_write_png failed\n");
+            }
+        }
+        else if(!strcasecmp(extension.c_str(),".bmp")){
+            if(!stbi_write_bmp(path.u8string().c_str(),tilemap_viewer_t::texture_width,tilemap_viewer_t::texture_height,tilemap_viewer_t::texture_bytes_per_pixel,pixels)){
+                gb_printf_error("stbi_write_bmp failed\n");
+            }
+        }
+        else if(!strcasecmp(extension.c_str(),".tga")){
+            if(!stbi_write_tga(path.u8string().c_str(),tilemap_viewer_t::texture_width,tilemap_viewer_t::texture_height,tilemap_viewer_t::texture_bytes_per_pixel,pixels)){
+                gb_printf_error("stbi_write_tga failed\n");
+            }
+        }
+        else if(!strcasecmp(extension.c_str(),".jpg")){
+            if(!stbi_write_jpg(path.u8string().c_str(),tilemap_viewer_t::texture_width,tilemap_viewer_t::texture_height,tilemap_viewer_t::texture_bytes_per_pixel,pixels,100)){
+                gb_printf_error("stbi_write_jpg failed\n");
+            }
+        }
+
+        SDL_UnlockTexture(tilemap_viewer->tilemap_texture[tilemap_viewer->current_tilemap_index]);                
+    }
+    else{
+        printf("SDL_LockTexture: %s\n",SDL_GetError());
+    }
 }
 
 
@@ -243,7 +298,7 @@ void tilemap_viewer_t::render_scroll_overlay(ImVec2 tilemap_start,ImVec2 tilemap
 
 }
 
-void tilemap_viewer_t::render_tile_tooltip(bool tilemap,uint8_t col,uint8_t row){
+void tilemap_viewer_t::render_tile_tooltip(uint8_t col,uint8_t row){
 
     if(!ImGui::BeginTooltip()) return;
 
@@ -254,7 +309,7 @@ void tilemap_viewer_t::render_tile_tooltip(bool tilemap,uint8_t col,uint8_t row)
         uint8_t x = col * gb_tile_size;
         uint8_t y = row * gb_tile_size;
         
-        uint16_t base_address = tilemap ? 0x1C00 : 0x1800;
+        uint16_t base_address = current_tilemap_index ? 0x1C00 : 0x1800;
         uint16_t tilemap_address = base_address + row * gb_tilemap_columns + col;
         uint8_t tile_index = vram[tilemap_address];
 
@@ -283,15 +338,15 @@ void tilemap_viewer_t::render_tile_tooltip(bool tilemap,uint8_t col,uint8_t row)
             gb_tile_size * tooltip_tile_scale
         );
         ImVec2 tile_texture_uv0(
-            (float)x / (float)tilemap_texture_width,
-            (float)y / (float)tilemap_texture_height
+            (float)x / (float)tilemap_viewer_t::texture_width,
+            (float)y / (float)tilemap_viewer_t::texture_height
         );
         ImVec2 tile_texture_uv1(
-            tile_texture_uv0.x + ((float)gb_tile_size / (float)tilemap_texture_width),
-            tile_texture_uv0.y + ((float)gb_tile_size / (float)tilemap_texture_height)
+            tile_texture_uv0.x + ((float)gb_tile_size / (float)tilemap_viewer_t::texture_width),
+            tile_texture_uv0.y + ((float)gb_tile_size / (float)tilemap_viewer_t::texture_height)
         );
 
-        ImGui::Image((ImTextureRef)tilemap_texture[tilemap],tile_texture_size,tile_texture_uv0,tile_texture_uv1);
+        ImGui::Image((ImTextureRef)tilemap_texture[current_tilemap_index],tile_texture_size,tile_texture_uv0,tile_texture_uv1);
 
         draw_list->AddRect(ImGui::GetItemRectMin(),ImGui::GetItemRectMax(),border_color);
 
@@ -426,11 +481,11 @@ void tilemap_viewer_t::render_tile_tooltip(bool tilemap,uint8_t col,uint8_t row)
     ImGui::EndTooltip();
 }
 
-void tilemap_viewer_t::render_tilemap(const char* str_id,bool tilemap){
+void tilemap_viewer_t::render_tilemap(const char* str_id){
 
     if(ImGui::BeginChild(str_id,ImVec2(0.0f,0.0f),ImGuiChildFlags_Borders,ImGuiWindowFlags_HorizontalScrollbar)){
         
-        ImGui::Image((ImTextureRef)tilemap_texture[tilemap],tilemap_size);
+        ImGui::Image((ImTextureRef)tilemap_texture[current_tilemap_index],tilemap_size);
         
         ImVec2 tilemap_start = ImGui::GetItemRectMin();
         ImVec2 tilemap_end = ImGui::GetItemRectMax();
@@ -460,7 +515,7 @@ void tilemap_viewer_t::render_tilemap(const char* str_id,bool tilemap){
 
             ImGui::GetWindowDrawList()->AddRect(p_min,p_max,border_hovered_color,0.0f,0,2.0f);
 
-            render_tile_tooltip(tilemap,col,row);
+            render_tile_tooltip(col,row);
         }
     }
     ImGui::EndChild();
@@ -490,12 +545,14 @@ void tilemap_viewer_t::render(){
             if(ImGui::BeginTabBar("AddressPointer")){
                 
                 if(ImGui::BeginTabItem("$9800")){
-                    render_tilemap("Tilemap0",0);
+                    current_tilemap_index = 0;
+                    render_tilemap("Tilemap0");
                     ImGui::EndTabItem();
                 }
                 
                 if(ImGui::BeginTabItem("$9C00")){
-                    render_tilemap("Tilemap1",1);
+                    current_tilemap_index = 1;
+                    render_tilemap("Tilemap1");
                     ImGui::EndTabItem();
                 }
 
@@ -504,10 +561,12 @@ void tilemap_viewer_t::render(){
 
             ImGui::TableNextColumn();
 
-            ImGui::Checkbox("Show Tile Grid",&show_tile_grid);
+            if(ImGui::Button("Export")){
+                file_save.set_open(true);
+            }
 
-            ImGui::Checkbox("Shwo Scroll Overlay",&show_scroll_overlay);
-
+            ImGui::SeparatorText("View Options");
+            
             ImGui::SetNextItemWidth(input_scalar_width);
             if(ImGui::InputScalar("Refresh On Scanline",ImGuiDataType_U8,&callback_handler.scanline,&input_scalar_step,&input_scalar_step_fast)){
                 if(callback_handler.scanline >= gb_scanlines){
@@ -522,10 +581,16 @@ void tilemap_viewer_t::render(){
                 }
             }
 
+            ImGui::Checkbox("Show Tile Grid",&show_tile_grid);
+
+            ImGui::Checkbox("Shwo Scroll Overlay",&show_scroll_overlay);
+
             ImGui::EndTable();
         }
 
         event();
+
+        file_save.render();
     }
     ImGui::End();
 
@@ -534,8 +599,8 @@ void tilemap_viewer_t::render(){
 
 
 void tilemap_viewer_t::clear(){
-    clear_texture(tilemap_texture[0],tilemap_texture_height);
-    clear_texture(tilemap_texture[1],tilemap_texture_height);
+    clear_texture(tilemap_texture[0],tilemap_viewer_t::texture_height);
+    clear_texture(tilemap_texture[1],tilemap_viewer_t::texture_height);
     cgb_mode = false;
     tiledata_area = false;
     scx = 0;

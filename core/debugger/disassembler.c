@@ -20,12 +20,12 @@ static const char* cond[4] = {"NZ", "Z", "NC", "C"};
 
 
 static inline uint8_t read_byte(gb_t* gb,uint16_t address){
-    return gb_memory_cpu_read(&gb->memory,address);
+    return gb_memory_cpu_read(&gb->memory,address,gb_oam_none_glitch_type);
 }
 
 static inline uint16_t read_word(gb_t* gb,uint16_t address){
-    uint8_t low = gb_memory_cpu_read(&gb->memory,address);
-    uint8_t high = gb_memory_cpu_read(&gb->memory,address + 0x01);
+    uint8_t low = gb_memory_cpu_read(&gb->memory,address,gb_oam_none_glitch_type);
+    uint8_t high = gb_memory_cpu_read(&gb->memory,address + 0x01,gb_oam_none_glitch_type);
     return (high << 0x08) | low;
 }
 

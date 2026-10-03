@@ -8,6 +8,7 @@ const char* gb_ppu_mode_names[gb_ppu_mode_count] = {
     "Drawing"
 };
 
+
 void gb_ppu_init(gb_ppu_t* ppu,gb_t* gb){
     ppu->gb = gb;
 
@@ -253,14 +254,16 @@ static inline void gb_ppu_oam_evaluation(gb_ppu_t* ppu){
 
     gb_ppu_state_t* state = &ppu->state;
 
-    if(!(state->cycle & 0x01) || state->object_buffer_length >= 0x0A) return;
+    if(!(state->cycle & 0x01)) return;
 
-    uint8_t ly = state->ly + 0x10;
-    uint8_t object_height = state->lcdc.object_size ? gb_object_max_height : gb_object_min_height;
-    gb_object_t* object = (gb_object_t*)(state->oam + state->oam_address);
+    if(state->object_buffer_length < 0x0A){
+        uint8_t ly = state->ly + 0x10;
+        uint8_t object_height = state->lcdc.object_size ? gb_object_max_height : gb_object_min_height;
+        gb_object_t* object = (gb_object_t*)(state->oam + state->oam_address);
 
-    if(ly >= object->y && ly < (object->y + object_height)){
-        memcpy(state->object_buffer + state->object_buffer_length++,object,0x04);
+        if(ly >= object->y && ly < (object->y + object_height)){
+            memcpy(state->object_buffer + state->object_buffer_length++,object,0x04);
+        }
     }
 
     state->oam_address += 0x04;
@@ -832,6 +835,72 @@ uint8_t gb_ppu_read_oam(void* data,uint16_t address){
     }
 
     return value;
+}
+
+void gb_ppu_oam_glitch(gb_ppu_t* ppu,uint16_t address,uint8_t type){
+
+    if(ppu->gb->state.is_cgb) return;
+
+    if(address < 0xFE00 || address >= 0xFF00) return;
+
+    gb_ppu_state_t* state = &ppu->state;
+
+    if(ppu->state.status.mode != gb_ppu_oam_mode) return;
+
+    uint16_t* base = (uint16_t*)(state->oam + state->oam_address);
+
+    switch(type){
+        case gb_oam_write_glitch_type:{
+            if(state->oam_address >= 0x08){
+
+                uint16_t a = base[0];
+                uint16_t b = base[-4];
+                uint16_t c = base[-2];
+
+                base[0] = ((a ^ c) & (b ^ c)) ^ c;
+                base[1] = base[-3];
+                base[2] = base[-2];
+                base[3] = base[-1];
+            }
+            break;
+        }
+        case gb_oam_read_id_glitch_type:{
+            if(state->oam_address >= 0x20 && state->oam_address < 0x98){
+
+                uint16_t a = base[-8];
+                uint16_t b = base[-4];
+                uint16_t c = base[0];
+                uint16_t d = base[-2];
+
+                base[-4] = (b & (a | c | d)) | (a & c & d);
+
+                base[0] = base[-4];
+                base[1] = base[-3];
+                base[2] = base[-2];
+                base[3] = base[-1];
+
+                base[-8] = base[-4];
+                base[-7] = base[-3];
+                base[-6] = base[-2];
+                base[-5] = base[-1];
+            }
+        }
+        /* fallthrough */
+        case gb_oam_read_glitch_type:{
+            if(state->oam_address >= 0x08){
+
+                uint16_t a = base[0];
+                uint16_t b = base[-4];
+                uint16_t c = base[-2];
+
+                base[0] = b | (a & c);
+                base[1] = base[-3];
+                base[2] = base[-2];
+                base[3] = base[-1];
+            }
+            break;
+        }
+    }
 }
 
 size_t gb_ppu_oam_absolute_address(gb_ppu_t* ppu,uint16_t relative_address){

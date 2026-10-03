@@ -136,7 +136,7 @@ size_t gb_memory_type_absolute_address(gb_t* gb,uint8_t memory_type,uint16_t rel
 void gb_memory_type_write_byte(gb_t* gb,uint8_t memory_type,uint8_t value,size_t address){
     switch(memory_type){
         case gb_memory_cpu_type:{
-            gb_memory_cpu_write(&gb->memory,value,address);
+            gb_memory_cpu_write(&gb->memory,value,address,gb_oam_none_glitch_type);
             break;
         }
         case gb_memory_rom_type:{
@@ -171,7 +171,7 @@ uint8_t gb_memory_type_read_byte(gb_t* gb,uint8_t memory_type,size_t address){
 
     switch(memory_type){
         case gb_memory_cpu_type:{
-            byte = gb_memory_cpu_read(&gb->memory,address);
+            byte = gb_memory_cpu_read(&gb->memory,address,gb_oam_none_glitch_type);
             break;
         }
         case gb_memory_rom_type:{
@@ -208,7 +208,7 @@ void gb_memory_type_write(gb_t* gb,uint8_t memory_type,size_t address,uint8_t* s
     switch(memory_type){
         case gb_memory_cpu_type:{
             gb_memory_t* memory = &gb->memory;
-            while(len--) gb_memory_cpu_write(memory,*src++,address++ % gb_bus_length);
+            while(len--) gb_memory_cpu_write(memory,*src++,address++ % gb_bus_length,gb_oam_none_glitch_type);
             break;
         }
         case gb_memory_rom_type:{
@@ -248,7 +248,7 @@ void gb_memory_type_read(gb_t* gb,uint8_t memory_type,size_t address,uint8_t* ds
     switch(memory_type){
         case gb_memory_cpu_type:{
             gb_memory_t* memory = &gb->memory;
-            while(len--) *dst++ = gb_memory_cpu_read(memory,address++ % gb_bus_length);
+            while(len--) *dst++ = gb_memory_cpu_read(memory,address++ % gb_bus_length,gb_oam_none_glitch_type);
             break;
         }
         case gb_memory_rom_type:{
@@ -324,7 +324,7 @@ void gb_memory_type_export(gb_t* gb,uint8_t memory_type,const char* filename){
             flockfile(file);
 
             while(address < gb_bus_length){
-                fputc_unlocked(gb_memory_cpu_read(memory,address++),file);
+                fputc_unlocked(gb_memory_cpu_read(memory,address++,gb_oam_none_glitch_type),file);
             }
             
             funlockfile(file);
