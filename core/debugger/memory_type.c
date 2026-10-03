@@ -316,7 +316,7 @@ void gb_memory_type_export(gb_t* gb,uint8_t memory_type,const char* filename){
             _lock_file(file);
 
             while(address < gb_bus_length){
-                _fputc_nolock(gb_memory_cpu_read(memory,address++),file);
+                _fputc_nolock(gb_memory_cpu_read(memory,address++,gb_oam_none_glitch_type),file);
             }
 
             _unlock_file(file);
