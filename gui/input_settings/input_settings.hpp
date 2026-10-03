@@ -20,6 +20,8 @@ private:
 
     bool _open = false;
 
+    void load_default();
+    
     void save_keyboard_bindings(cJSON* input_settings_object);
     void save_controller_bindings(cJSON* input_settings_object);
 
@@ -27,7 +29,8 @@ private:
     void load_controller_bindings(cJSON* input_settings_object);
 
 public:
-    
+    void init();
+
     void save(cJSON* object);
     void load(cJSON* object);
 

@@ -76,6 +76,10 @@ static const char* shortcut_names[] = {
     "Wave Form"
 };
 
+void shortcut_settings_t::init(){
+    load_default();
+}
+
 
 void shortcut_settings_t::load_default(){
 
@@ -169,10 +173,7 @@ void shortcut_settings_t::save(cJSON* object){
 void shortcut_settings_t::load(cJSON* object){
     cJSON* shortcut_settings_object = cJSON_GetObjectItemCaseSensitive(object,"Shortcut Settings");
 
-    if(!cJSON_IsObject(shortcut_settings_object)){
-        load_default();
-        return;
-    }
+    if(!cJSON_IsObject(shortcut_settings_object)) return;
 
     for(int i = 0; i < shortcut_settings_t::id_count; ++i){
 

@@ -62,6 +62,8 @@ nanoboy_t::nanoboy_t(){
     dmg_palette.init(gb);
     boot_settings.init(gb);
     rewind_settings.init(gb);
+    input_settings.init();
+    shortcut_settings.init();
 
     file_selector.init();
     file_selector.set_extensions(file_extensions,file_extensions_count);

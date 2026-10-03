@@ -1,5 +1,21 @@
 #include <gui/input_settings/input_settings.hpp>
 
+void input_settings_t::init(){
+    load_default();
+}
+
+void input_settings_t::load_default(){
+    keyboard_bindings[gb_button_down] = SDL_SCANCODE_S;
+    keyboard_bindings[gb_button_up] = SDL_SCANCODE_W;
+    keyboard_bindings[gb_button_left] = SDL_SCANCODE_A;
+    keyboard_bindings[gb_button_right] = SDL_SCANCODE_D;
+    keyboard_bindings[gb_button_start] = SDL_SCANCODE_P;
+    keyboard_bindings[gb_button_select] = SDL_SCANCODE_O;
+    keyboard_bindings[gb_button_b] = SDL_SCANCODE_K;
+    keyboard_bindings[gb_button_a] = SDL_SCANCODE_L;
+}
+
+
 void input_settings_t::save_keyboard_bindings(cJSON* input_settings_object){
 
     cJSON* keyboard_object = cJSON_CreateObject();

@@ -110,7 +110,9 @@ private:
     bool _open = false;
 
     void load_default();
+    
 public:
+    void init();
 
     void save(cJSON* object);
     void load(cJSON* object);

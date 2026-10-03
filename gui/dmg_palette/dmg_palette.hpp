@@ -26,6 +26,8 @@ private:
 
     void update_window_size_constraints();
 
+    void load_default();
+    
 public:
     void init(gb_t* _gb);
 

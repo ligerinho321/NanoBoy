@@ -100,15 +100,9 @@ static const int palette_presets_count = sizeof(palette_presets) / sizeof(palett
 void dmg_palette_t::init(gb_t* _gb){
     
     gb = _gb;
+
+    load_default();
     
-    const palette_preset_t* preset = palette_presets + current_preset;
-
-    for(int i = 0; i < gb_palette_colors; ++i){
-        gb->palette.bgp_colors[i] = preset->bgp[i];
-        gb->palette.obp_colors[0][i] = preset->obp0[i];
-        gb->palette.obp_colors[1][i] = preset->obp1[i];
-    }
-
     update_window_size_constraints();
 }
 
@@ -131,6 +125,18 @@ void dmg_palette_t::update_window_size_constraints(){
     window_min_size.y = window_height;
 }
 
+
+void dmg_palette_t::load_default(){
+    current_preset = 0;
+
+    const palette_preset_t* preset = palette_presets + current_preset;
+
+    for(int i = 0; i < gb_palette_colors; ++i){
+        gb->palette.bgp_colors[i] = preset->bgp[i];
+        gb->palette.obp_colors[0][i] = preset->obp0[i];
+        gb->palette.obp_colors[1][i] = preset->obp1[i];
+    }
+}
 
 void dmg_palette_t::save(cJSON* object){
 

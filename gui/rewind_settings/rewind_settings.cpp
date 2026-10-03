@@ -2,11 +2,8 @@
 
 void rewind_settings_t::init(gb_t* _gb){
     gb = _gb;
-    
-    gb_rewind_set_enabled(gb,true);
-    gb_rewind_set_capacity(gb,1800);
-    gb_rewind_set_recording_interval(gb,1);
-    gb_rewind_set_frame_time(gb,1.0f / 60.0f);
+
+    load_default();
 
     update_window_size_constraints();
 }
@@ -30,6 +27,13 @@ void rewind_settings_t::update_window_size_constraints(){
     window_max_size.y = window_height;
 }
 
+
+void rewind_settings_t::load_default(){
+    gb_rewind_set_enabled(gb,true);
+    gb_rewind_set_capacity(gb,1800);
+    gb_rewind_set_recording_interval(gb,1);
+    gb_rewind_set_frame_time(gb,1.0f / 60.0f);
+}
 
 void rewind_settings_t::save(cJSON* object){
     cJSON* rewind_settings_object = cJSON_CreateObject();
