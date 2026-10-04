@@ -241,6 +241,17 @@ std::string get_keyboard_binding_string(const keyboard_binding_t& keyboard);
 std::string get_controller_binding_string(const controller_binding_t& controller);
 
 
+struct mouse_cursor_t {
+private:
+    uint32_t last_time = 0;
+    int last_x = 0;
+    int last_y = 0;
+    bool hidden = false;
+public:
+    void update();
+};
+
+
 inline float get_input_scalar_width(int digit_count){
     ImGuiStyle& style = ImGui::GetStyle();
     return ImGui::CalcTextSize(std::string(digit_count,'0').c_str()).x + style.FramePadding.x * 2.0f + (ImGui::GetFrameHeight() + style.ItemInnerSpacing.x) * 2.0f;

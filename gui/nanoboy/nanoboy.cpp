@@ -549,7 +549,7 @@ void nanoboy_t::reset(){
 
 
 void nanoboy_t::event(){
-    SDL_Event event{0};
+    SDL_Event event = {};
 
     input_settings.init_binding_frame();
     shortcut_settings.init_binding_frame();
@@ -646,6 +646,9 @@ void nanoboy_t::event(){
         shortcut_settings.open();
     }
 
+    if(SDL_GetWindowFlags(window) & SDL_WINDOW_MOUSE_FOCUS){
+        cursor.update();
+    }
 }
 
 
@@ -812,6 +815,7 @@ void nanoboy_t::imgui_render(){
 
     ImGui_ImplSDLRenderer2_NewFrame();
     ImGui_ImplSDL2_NewFrame();
+
     ImGui::NewFrame();
 
     if(screen.floating()){

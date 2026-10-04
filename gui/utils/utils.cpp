@@ -239,6 +239,28 @@ std::string get_controller_binding_string(const controller_binding_t& controller
 }
 
 
+void mouse_cursor_t::update(){
+    int x,y;
+    SDL_GetMouseState(&x,&y);
+
+    uint32_t current_time = SDL_GetTicks();
+
+    if(x != last_x || y != last_y){
+        last_x = x;
+        last_y = y;
+        last_time = current_time;
+        hidden = false;
+    }
+    else if(!hidden && current_time - last_time >= 2000){
+        hidden = true;
+    }
+
+    if(hidden){
+        ImGui::SetMouseCursor(ImGuiMouseCursor_None);
+    }
+}
+
+
 void render_size_text(size_t size){
 
     if(size >= gigabytes){

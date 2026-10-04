@@ -47,6 +47,8 @@ private:
 
     std::list<std::string> recent_roms;
 
+    mouse_cursor_t cursor;
+
     void init_directories();
     void init_sdl();
     void init_imgui();
