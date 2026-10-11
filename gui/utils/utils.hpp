@@ -1,6 +1,6 @@
 #pragma once
 
-#include <core/gb.h>
+#include <gb/gb.h>
 
 #include <third_party/cJSON/cJSON.h>
 #include <third_party/stb_image_write/stb_image_write.h>

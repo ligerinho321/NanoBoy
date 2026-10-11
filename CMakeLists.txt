@@ -48,41 +48,41 @@ target_sources(
     NanoBoy
     PRIVATE
 
-    core/debugger/breakpoint_manager.c
-    core/debugger/disassembler.c
-    core/debugger/event_manager.c
-    core/debugger/memory_type.c
-    core/debugger/registers_label.c
+    gb/debugger/breakpoint_manager.c
+    gb/debugger/disassembler.c
+    gb/debugger/event_manager.c
+    gb/debugger/memory_type.c
+    gb/debugger/registers_label.c
 
-    core/mappers/mbc1.c
-    core/mappers/mbc2.c
-    core/mappers/mbc3.c
-    core/mappers/mbc5.c
-    core/mappers/mbc6.c
-    core/mappers/mbc7.c
-    core/mappers/mmm01.c
-    core/mappers/huc1.c
+    gb/mappers/mbc1.c
+    gb/mappers/mbc2.c
+    gb/mappers/mbc3.c
+    gb/mappers/mbc5.c
+    gb/mappers/mbc6.c
+    gb/mappers/mbc7.c
+    gb/mappers/mmm01.c
+    gb/mappers/huc1.c
 
-    core/third_party/blip_buf.c
+    gb/third_party/blip_buf.c
     
-    core/apu.c
-    core/boot.c
-    core/cartridge.c
-    core/cpu.c
-    core/dma.c
-    core/gb.c
-    core/infrared.c
-    core/interrupt.c
-    core/joypad.c
-    core/memory.c
-    core/palette.c
-    core/ppu.c
-    core/printer.c
-    core/rewind.c
-    core/savestate.c
-    core/serial.c
-    core/timer.c
-    core/utils.c
+    gb/apu.c
+    gb/boot.c
+    gb/cartridge.c
+    gb/cpu.c
+    gb/dma.c
+    gb/gb.c
+    gb/infrared.c
+    gb/interrupt.c
+    gb/joypad.c
+    gb/memory.c
+    gb/palette.c
+    gb/ppu.c
+    gb/printer.c
+    gb/rewind.c
+    gb/savestate.c
+    gb/serial.c
+    gb/timer.c
+    gb/utils.c
 )
 
 target_sources(
