@@ -2,7 +2,7 @@
 #include "arm.h"
 #include "thumb.h"
 
-static const bool gba_cpu_condition_table[256] = {
+const bool gba_cpu_condition_table[256] = {
     0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,
     1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,
     0,0,1,1,0,0,1,1,0,0,1,1,0,0,1,1,
@@ -30,6 +30,7 @@ void gba_cpu_init(gba_cpu_t* cpu,gba_t* gba){
     cpu->gba = gba;
 
     gba_cpu_arm_init_table();
+    gba_cpu_thumb_init_table();
 }
 
 
@@ -197,13 +198,6 @@ bool gba_cpu_valid_mode(uint8_t mode){
 }
 
 
-#define gba_cpu_set_nz_flag(result)\
-    gba_cpu_set_flag(gba_cpu_zero_flag,!result);\
-    gba_cpu_set_flag(gba_cpu_negative_flag,result & (1 << 31));\
-
-#define gba_cpu_set_logical_flag(result,carry)\
-    gba_cpu_set_flag(gba_cpu_carry_flag,carry);\
-    gba_cpu_set_nz_flag(result)\
 
 
 uint32_t gba_cpu_alu_and(gba_cpu_t* cpu,uint32_t op1,uint32_t op2,bool carry,bool set_flags){
@@ -316,6 +310,22 @@ uint32_t gba_cpu_rrx(uint32_t value,bool* carry){
 }
 
 
+void gba_cpu_multiply_clock(uint32_t value,bool _signed){
+
+    uint32_t mask = 0xFFFFFF00;
+    
+    while(true){
+        // TODO: I-cycle
+        
+        value &= mask;
+
+        if(value == 0 || (_signed && value == mask)) break;
+        
+        mask <<= 8;
+    }
+}
+
+
 void gba_cpu_execute(gba_cpu_t* cpu){
     gba_cpu_pipeline_t* pipeline = &cpu->pipeline;
 
@@ -325,6 +335,10 @@ void gba_cpu_execute(gba_cpu_t* cpu){
 
     if(cpu->cpsr & gba_cpu_thumb_flag){
         pipeline->fetch = gba_cpu_read_halfword(cpu,cpu->r[15]);
+
+        uint32_t i = (pipeline->execute & 0x0000FF80) >> 7;
+
+        thumb_table[i](cpu,pipeline->fetch);
     }
     else{
         pipeline->fetch = gba_cpu_read_word(cpu,cpu->r[15]);

@@ -1,3 +1,0 @@
-/home/artur/Documentos/NanoBoy/gba/build/debug/CMakeFiles/GBA.dir
-/home/artur/Documentos/NanoBoy/gba/build/debug/CMakeFiles/edit_cache.dir
-/home/artur/Documentos/NanoBoy/gba/build/debug/CMakeFiles/rebuild_cache.dir

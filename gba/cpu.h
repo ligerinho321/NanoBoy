@@ -40,7 +40,7 @@ typedef enum _gba_cpu_exception_vector_t {
     gba_cpu_software_interrupt_vector    = 0x00000008, // Supervisor  6
     gba_cpu_prefetch_abort_vector        = 0x0000000C, // Abort       5
     gba_cpu_data_abort_vector            = 0x00000010, // Abort       2
-    gba_cpu_irq_vector                   = 0x00000018, // IRQc        4
+    gba_cpu_irq_vector                   = 0x00000018, // IRQ         4
     gba_cpu_fiq_vector                   = 0x0000001C  // FIQ         3
 } gba_cpu_exception_vector_t;
 
@@ -64,22 +64,28 @@ typedef enum _gba_cpu_condition_t {
 } gba_cpu_condition_t;
 
 typedef enum _gba_cpu_alu_operation_t {
-    gba_cpu_and_operation, // Logical
-    gba_cpu_eor_operation, // Logical
-    gba_cpu_sub_operation, // Arithmetic
-    gba_cpu_rsb_operation, // Arithmetic
-    gba_cpu_add_operation, // Arithmetic
-    gba_cpu_adc_operation, // Arithmetic
-    gba_cpu_sbc_operation, // Arithmetic
-    gba_cpu_rsc_operation, // Arithmetic
-    gba_cpu_tst_operation, // Logical
-    gba_cpu_teq_operation, // Logical
-    gba_cpu_cmp_operation, // Arithmetic
-    gba_cpu_cmn_operation, // Arithmetic
-    gba_cpu_orr_operation, // Logical
-    gba_cpu_mov_operation, // Logical
-    gba_cpu_bic_operation, // Logical
-    gba_cpu_mvn_operation  // Logical
+    gba_cpu_and_operation,
+    gba_cpu_eor_operation,
+    gba_cpu_sub_operation,
+    gba_cpu_lsl_operation = gba_cpu_sub_operation,
+    gba_cpu_rsb_operation,
+    gba_cpu_lsr_operation = gba_cpu_rsb_operation,
+    gba_cpu_add_operation,
+    gba_cpu_asr_operation = gba_cpu_add_operation,
+    gba_cpu_adc_operation,
+    gba_cpu_sbc_operation,
+    gba_cpu_rsc_operation,
+    gba_cpu_ror_operation = gba_cpu_rsc_operation,
+    gba_cpu_tst_operation,
+    gba_cpu_teq_operation,
+    gba_cpu_neg_operation = gba_cpu_teq_operation,
+    gba_cpu_cmp_operation,
+    gba_cpu_cmn_operation,
+    gba_cpu_orr_operation,
+    gba_cpu_mov_operation,
+    gba_cpu_mul_operation = gba_cpu_mov_operation,
+    gba_cpu_bic_operation,
+    gba_cpu_mvn_operation
 } gba_cpu_alu_operation_t;
 
 typedef enum _gba_cpu_shift_t {
@@ -110,10 +116,21 @@ typedef struct _gba_cpu_t {
     gba_cpu_pipeline_t pipeline;
 } gba_cpu_t;
 
+extern const bool gba_cpu_condition_table[256];
+
 extern const uint8_t gba_cpu_mode_bank[32];
+
 
 #define gba_cpu_set_flag(flag,condition)\
     ((condition) ? (cpu->cpsr |= flag) : (cpu->cpsr &= ~flag))
+
+#define gba_cpu_set_nz_flag(result)\
+    gba_cpu_set_flag(gba_cpu_zero_flag,!result);\
+    gba_cpu_set_flag(gba_cpu_negative_flag,result & (1 << 31));\
+
+#define gba_cpu_set_logical_flag(result,carry)\
+    gba_cpu_set_flag(gba_cpu_carry_flag,carry);\
+    gba_cpu_set_nz_flag(result)\
 
 
 #ifdef __cplusplus
@@ -158,6 +175,8 @@ uint32_t gba_cpu_lsr(uint32_t value,uint8_t shift,bool* carry);
 uint32_t gba_cpu_asr(uint32_t value,uint8_t shift,bool* carry);
 uint32_t gba_cpu_ror(uint32_t value,uint8_t shift,bool* carry);
 uint32_t gba_cpu_rrx(uint32_t value,bool* carry);
+
+void gba_cpu_multiply_clock(uint32_t value,bool _signed);
 
 #ifdef __cplusplus
 }

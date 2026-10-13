@@ -1,11 +1,15 @@
 #include "arm.h"
 #include "cpu.h"
 
-gba_cpu_arm_instruction_callback_t arm_table[4096] = {gba_cpu_arm_undefined};
+gba_cpu_arm_instruction_callback_t arm_table[4096] = {NULL};
 
 
 void gba_cpu_arm_init_table(){
 
+    for(int i = 0; i < 4096; ++i){
+        arm_table[i] = gba_cpu_arm_undefined;
+    }
+    
     // Data Processing
     // ----_00xx_xxxx_----_----_----_xxxx_----
     for(int i = 0; i <= 0x3FF; ++i){
@@ -244,6 +248,7 @@ void gba_cpu_arm_data_processing(gba_cpu_t* cpu,uint32_t opcode){
     }
 }
 
+
 void gba_cpu_arm_msr(gba_cpu_t* cpu,uint32_t opcode){
     bool immediate = opcode & (1 << 25);
     bool is_spsr = opcode & (1 << 22);
@@ -354,18 +359,10 @@ void gba_cpu_arm_multiply(gba_cpu_t* cpu,uint32_t opcode){
         // TODO: I-cycle
     }
 
-    uint32_t v = cpu->r[rs];
-    uint32_t mask = 0xFFFFFF00;
-    while(true){
-        // TODO: I-cycle
-        v &= mask;
-        if(v == 0 || v == mask) break;
-        mask <<= 8;
-    }
+    gba_cpu_multiply_clock(cpu->r[rs],true);
 
     if(set_flags){
-        gba_cpu_set_flag(gba_cpu_zero_flag,!result);
-        gba_cpu_set_flag(gba_cpu_negative_flag,result & (1 << 31));
+        gba_cpu_set_nz_flag(result);
         // TODO: The C flag is set to a meaningless value, but how is that value calculated?
     }
 
@@ -407,14 +404,7 @@ void gba_cpu_arm_multiply_long(gba_cpu_t* cpu,uint32_t opcode){
         // TODO: I-cycle
     }
 
-    uint32_t v = cpu->r[rs];
-    uint32_t mask = 0xFFFFFF00;
-    while(true){
-        // TODO: I-cycle
-        v &= mask;
-        if(v == 0 || (_signed && v == mask)) break;
-        mask <<= 8;
-    }
+    gba_cpu_multiply_clock(cpu->r[rs],_signed);
 
     if(set_flags){
         gba_cpu_set_flag(gba_cpu_zero_flag,!result);
@@ -510,39 +500,21 @@ void gba_cpu_arm_single_data_transfer(gba_cpu_t* cpu,uint32_t opcode){
 
         uint8_t shift = (opcode >> 7) & 31;
 
+        bool carry = cpu->cpsr & gba_cpu_carry_flag;
+
         switch(shift_type){
-            case gba_cpu_logical_shift_left:{
-                offset <<= shift;
+            case gba_cpu_logical_shift_left:
+                offset = gba_cpu_lsl(offset,shift,&carry);
                 break;
-            }
-            case gba_cpu_logical_shift_right:{
-                if(shift){
-                    offset >>= shift;
-                }
-                else{
-                    offset = 0;
-                }
+            case gba_cpu_logical_shift_right:
+                offset = gba_cpu_lsr(offset,!shift ? 32 : shift,&carry);
                 break;
-            }
-            case gba_cpu_arithmetic_shift_right:{
-                if(shift){
-                    offset = (int32_t)offset >> shift;
-                }
-                else{
-                    offset = (int32_t)offset >> 31;
-                }
+            case gba_cpu_arithmetic_shift_right:
+                offset = gba_cpu_asr(offset,!shift ? 32 : shift,&carry);
                 break;
-            }
-            case gba_cpu_rotate_shift_right:{
-                if(shift){
-                    offset = (offset >> shift) | (offset << (32 - shift));
-                }
-                else{
-                    bool carry_in = cpu->cpsr & gba_cpu_carry_flag;
-                    offset = (offset >> 1) | (carry_in << 31);
-                }
+            case gba_cpu_rotate_shift_right:
+                offset = !shift ? gba_cpu_rrx(offset,&carry) : gba_cpu_ror(offset,shift,&carry);
                 break;
-            }
         }
     }
     else{
@@ -620,11 +592,7 @@ void gba_cpu_arm_block_data_transfer(gba_cpu_t* cpu,uint32_t opcode){
     uint32_t bytes = 0;
 
     if(list){
-        for(int i = 0; i < 16; ++i){
-            if(list & (1 << i)){
-                bytes += 4;
-            }
-        }
+        bytes = __builtin_popcount(list) * 4;
     }
     else{
         // Empty list: R15 loaded/stored, and Rn=Rn+/-64
@@ -843,7 +811,6 @@ void gba_cpu_arm_undefined(gba_cpu_t* cpu,uint32_t opcode){
     cpu->r[14] = cpu->r[15] - 4;
 
     cpu->cpsr &= ~gba_cpu_mode_flag;
-    
     cpu->cpsr |= gba_cpu_undefined_mode | gba_cpu_irq_flag;
 
     cpu->r[15] = gba_cpu_undefined_vector;
@@ -862,7 +829,6 @@ void gba_cpu_arm_swi(gba_cpu_t* cpu,uint32_t opcode){
     cpu->r[14] = cpu->r[15] - 4;
 
     cpu->cpsr &= ~gba_cpu_mode_flag;
-
     cpu->cpsr |= gba_cpu_supervisor_mode | gba_cpu_irq_flag;
 
     cpu->r[15] = gba_cpu_software_interrupt_vector;

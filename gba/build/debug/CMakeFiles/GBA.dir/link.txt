@@ -1,1 +1,0 @@
-/usr/bin/cc -g CMakeFiles/GBA.dir/arm.c.o CMakeFiles/GBA.dir/cpu.c.o CMakeFiles/GBA.dir/gba.c.o CMakeFiles/GBA.dir/main.c.o -o GBA 
