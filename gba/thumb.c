@@ -108,11 +108,6 @@ void gba_cpu_thumb_init_table(){
         thumb_table[0x1A0 | i] = gba_cpu_thumb_conditional_branch;
     }
 
-    // Undefined Conditional Branch Opcode E
-    // 1101_1110_x--_----
-    thumb_table[0x1BC] = gba_cpu_thumb_undefined;
-    thumb_table[0x1BD] = gba_cpu_thumb_undefined;
-
     // SWI
     // 1101_1111_x--_----
     thumb_table[0x1BE] = gba_cpu_thumb_swi;
@@ -197,7 +192,7 @@ void gba_cpu_thumb_add_subtract(gba_cpu_t* cpu,uint16_t opcode){
 void gba_cpu_thumb_mov_cmp_add_sub_immediate(gba_cpu_t* cpu,uint16_t opcode){
     uint8_t operation = (opcode >> 11) & 3;
     uint8_t rd = (opcode >> 8) & 7;
-    uint8_t offset = opcode & 255;
+    uint8_t offset = opcode & 0xFF;
 
     switch(operation){
         //MOV Rd, #Offset8
@@ -212,6 +207,7 @@ void gba_cpu_thumb_mov_cmp_add_sub_immediate(gba_cpu_t* cpu,uint16_t opcode){
         //ADD Rd, #Offset8
         case 2:
             cpu->r[rd] = gba_cpu_alu_arithmetic(cpu,cpu->r[rd],offset,0,true);
+            break;
         //SUB Rd, #Offset8
         case 3:
             cpu->r[rd] = gba_cpu_alu_arithmetic(cpu,cpu->r[rd],~offset,1,true);
@@ -360,13 +356,16 @@ void gba_cpu_thumb_alu_operations(gba_cpu_t* cpu,uint16_t opcode){
 void gba_cpu_thumb_hi_register_and_branch_exchange(gba_cpu_t* cpu,uint16_t opcode){
     uint8_t operation = (opcode >> 8) & 3;
 
-    uint8_t rs = ((opcode & (1 << 6)) >> 3) | ((opcode >> 3) & 7);
-    uint8_t rd = ((opcode & (1 << 7)) >> 4) | ((opcode >> 0) & 7);
+    uint8_t rs = (opcode >> 3) & 7;
+    if(opcode & (1 << 6)) rs |= 0x08;
+
+    uint8_t rd = opcode & 7;
+    if(opcode & (1 << 7)) rd |= 0x08;
 
     switch(operation){
         // ADD Rd, Rs
         case 0:{
-            cpu->r[rd] = gba_cpu_alu_arithmetic(cpu,cpu->r[rd],cpu->r[rs],0,true);
+            cpu->r[rd] += cpu->r[rs];
 
             if(rd == 15){
                 gba_cpu_reload_pipeline(cpu);
@@ -386,8 +385,6 @@ void gba_cpu_thumb_hi_register_and_branch_exchange(gba_cpu_t* cpu,uint16_t opcod
         // MOV Rd, Rs
         case 2:{
             cpu->r[rd] = cpu->r[rs];
-
-            gba_cpu_set_nz_flag(cpu->r[rd]);
 
             if(rd == 15){
                 gba_cpu_reload_pipeline(cpu);
@@ -751,6 +748,7 @@ void gba_cpu_thumb_multiple_load_store(gba_cpu_t* cpu,uint16_t opcode){
 void gba_cpu_thumb_conditional_branch(gba_cpu_t* cpu,uint16_t opcode){
 
     if(gba_cpu_condition_table[((opcode >> 4) & 0xF0) | (cpu->cpsr >> 28)]){
+
         uint32_t offset = opcode & 0xFF;
 
         if(offset & 0x00000080){
@@ -771,14 +769,14 @@ void gba_cpu_thumb_conditional_branch(gba_cpu_t* cpu,uint16_t opcode){
 void gba_cpu_thumb_swi(gba_cpu_t* cpu,uint16_t opcode){
     gba_unused(opcode);
 
-    cpu->spsr[gba_cpu_supervisor_bank] = cpu->cpsr;
+    cpu->spsr[gba_cpu_supervisor_bank] = cpu->cpsr | 0x10;
 
-    gba_cpu_switch_mode_bank(cpu,gba_cpu_supervisor_mode);
+    gba_cpu_set_mode(cpu,gba_cpu_supervisor_mode);
 
     cpu->r[14] = cpu->r[15] - 2;
 
-    cpu->cpsr &= ~(gba_cpu_thumb_flag | gba_cpu_mode_flag);
-    cpu->cpsr |= gba_cpu_supervisor_mode | gba_cpu_irq_flag;
+    cpu->cpsr &= ~gba_cpu_thumb_flag;
+    cpu->cpsr |= gba_cpu_irq_flag;
 
     cpu->r[15] = gba_cpu_software_interrupt_vector;
 
@@ -831,14 +829,14 @@ void gba_cpu_thumb_undefined(gba_cpu_t* cpu,uint16_t opcode){
 
     //TODO: I-cycle
 
-    cpu->spsr[gba_cpu_undefined_bank] = cpu->cpsr;
+    cpu->spsr[gba_cpu_undefined_bank] = cpu->cpsr | 0x10;
 
-    gba_cpu_switch_mode_bank(cpu,gba_cpu_undefined_mode);
+    gba_cpu_set_mode(cpu,gba_cpu_undefined_mode);
 
     cpu->r[14] = cpu->r[15] - 2;
 
-    cpu->cpsr &= ~(gba_cpu_thumb_flag | gba_cpu_mode_flag);
-    cpu->cpsr |= gba_cpu_undefined_mode | gba_cpu_irq_flag;
+    cpu->cpsr &= ~gba_cpu_thumb_flag;
+    cpu->cpsr |= gba_cpu_irq_flag;
 
     cpu->r[15] = gba_cpu_undefined_vector;
 

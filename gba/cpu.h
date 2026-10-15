@@ -2,6 +2,33 @@
 
 #include "utils.h"
 
+
+typedef struct _gba_cpu_state_t {
+    uint32_t r[16];
+    uint32_t r_fiq[7];
+    uint32_t r_svc[2];
+    uint32_t r_abt[2];
+    uint32_t r_irq[2];
+    uint32_t r_und[2];
+    uint32_t cpsr;
+    uint32_t spsr[5];
+    uint32_t pipeline[2];
+} gba_cpu_state_t;
+
+typedef struct _gba_cpu_transaction_t {
+    uint32_t type;
+    uint32_t size;
+    uint32_t address;
+    uint32_t data;
+} gba_cpu_transaction_t;
+
+typedef struct _gba_cpu_transactions_t {
+    gba_cpu_transaction_t* data;
+    uint32_t length;
+} gba_cpu_transactions_t;
+
+
+
 typedef enum _gba_cpu_flag_t {
     gba_cpu_mode_flag     = 0x0000001F,
     gba_cpu_thumb_flag    = 0x00000020,
@@ -26,9 +53,9 @@ typedef enum _gba_cpu_mode_t {
 typedef enum _gba_cpu_mode_bank_t {
     gba_cpu_none_bank,
     gba_cpu_fiq_bank,
-    gba_cpu_irq_bank,
     gba_cpu_supervisor_bank,
     gba_cpu_abort_bank,
+    gba_cpu_irq_bank,
     gba_cpu_undefined_bank,
     gba_cpu_invalid_bank
 } gba_cpu_mode_bank_t;
@@ -54,7 +81,7 @@ typedef enum _gba_cpu_condition_t {
     gba_cpu_vs_condition, // V
     gba_cpu_vc_condition, // !V
     gba_cpu_hi_condition, // C && !Z
-    gba_cpu_ls_condition, // !C && Z
+    gba_cpu_ls_condition, // !C || Z
     gba_cpu_ge_condition, // N == V
     gba_cpu_lt_condition, // N != V
     gba_cpu_gt_condition, // !Z && (N == V),
@@ -95,6 +122,7 @@ typedef enum _gba_cpu_shift_t {
     gba_cpu_rotate_shift_right
 } gba_cpu_shift_t;
 
+
 typedef struct _gba_cpu_pipeline_t {
     uint32_t fetch;
     uint32_t decode;
@@ -114,7 +142,10 @@ typedef struct _gba_cpu_t {
     uint32_t r[16];
 
     gba_cpu_pipeline_t pipeline;
+
+    gba_cpu_transactions_t* transactions;
 } gba_cpu_t;
+
 
 extern const bool gba_cpu_condition_table[256];
 
@@ -153,22 +184,16 @@ uint32_t gba_cpu_read_word(gba_cpu_t* cpu,uint32_t address);
 uint32_t gba_cpu_read_word_rotate(gba_cpu_t* cpu,uint32_t address);
 
 
-void gba_cpu_switch_mode_bank(gba_cpu_t* cpu,uint8_t new_mode);
+void gba_cpu_set_cpsr(gba_cpu_t* cpu,uint32_t value);
+
+void gba_cpu_set_mode(gba_cpu_t* cpu,uint8_t new_mode);
 
 void gba_cpu_reload_pipeline(gba_cpu_t* cpu);
 
-uint32_t* gba_cpu_get_register(gba_cpu_t* cpu,uint8_t index,uint8_t mode);
-
 bool gba_cpu_valid_mode(uint8_t mode);
 
-uint32_t gba_cpu_alu_and(gba_cpu_t* cpu,uint32_t op1,uint32_t op2,bool carry,bool set_flags);
-uint32_t gba_cpu_alu_xor(gba_cpu_t* cpu,uint32_t op1,uint32_t op2,bool carry,bool set_flags);
-uint32_t gba_cpu_alu_orr(gba_cpu_t* cpu,uint32_t op1,uint32_t op2,bool carry,bool set_flags);
-uint32_t gba_cpu_alu_mov(gba_cpu_t* cpu,uint32_t op1,uint32_t op2,bool carry,bool set_flags);
-uint32_t gba_cpu_alu_bic(gba_cpu_t* cpu,uint32_t op1,uint32_t op2,bool carry,bool set_flags);
-uint32_t gba_cpu_alu_mvn(gba_cpu_t* cpu,uint32_t op1,uint32_t op2,bool carry,bool set_flags);
-uint32_t gba_cpu_alu_arithmetic(gba_cpu_t* cpu,uint32_t op1,uint32_t op2,bool carry,bool set_flags);
 
+uint32_t gba_cpu_alu_arithmetic(gba_cpu_t* cpu,uint32_t op1,uint32_t op2,bool carry,bool set_flags);
 
 uint32_t gba_cpu_lsl(uint32_t value,uint8_t shift,bool* carry);
 uint32_t gba_cpu_lsr(uint32_t value,uint8_t shift,bool* carry);
@@ -177,6 +202,8 @@ uint32_t gba_cpu_ror(uint32_t value,uint8_t shift,bool* carry);
 uint32_t gba_cpu_rrx(uint32_t value,bool* carry);
 
 void gba_cpu_multiply_clock(uint32_t value,bool _signed);
+
+void gba_cpu_execute(gba_cpu_t* cpu);
 
 #ifdef __cplusplus
 }

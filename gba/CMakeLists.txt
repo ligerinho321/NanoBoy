@@ -9,4 +9,6 @@ add_executable(
     cpu.c
     gba.c
     main.c
+
+    ../third_party/cJSON/cJSON.c
 )

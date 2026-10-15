@@ -135,10 +135,10 @@ void gba_cpu_arm_data_processing(gba_cpu_t* cpu,uint32_t opcode){
     if(immediate){
         uint32_t shift = (opcode >> 7) & 30;
 
-        uint32_t value = opcode & 255;
+        op2 = opcode & 255;
 
         if(shift){
-            op2 = (value >> shift) | (value << (32 - shift));
+            op2 = (op2 >> shift) | (op2 << (32 - shift));
             carry = op2 & (1 << 31);
         }
     }
@@ -187,56 +187,105 @@ void gba_cpu_arm_data_processing(gba_cpu_t* cpu,uint32_t opcode){
     }
 
     switch(operation){
-        // Rd = Op1 & Op2
-        case gba_cpu_and_operation: cpu->r[rd] = gba_cpu_alu_and(cpu,op1,op2,carry,set_flags); break;
-        // Rd = Op1 ^ Op2
-        case gba_cpu_eor_operation: cpu->r[rd] = gba_cpu_alu_xor(cpu,op1,op2,carry,set_flags); break;
-        // Rd = Op1 - Op2
-        case gba_cpu_sub_operation: cpu->r[rd] = gba_cpu_alu_arithmetic(cpu,op1,~op2,1,set_flags); break;
-        // Rd = Op2 - Op1
-        case gba_cpu_rsb_operation: cpu->r[rd] = gba_cpu_alu_arithmetic(cpu,op2,~op1,1,set_flags); break;
-        // Rd = Op1 + Op2
-        case gba_cpu_add_operation: cpu->r[rd] = gba_cpu_alu_arithmetic(cpu,op1,op2,0,set_flags); break;
-        // Rd = Op1 + Op2 + C
-        case gba_cpu_adc_operation: cpu->r[rd] = gba_cpu_alu_arithmetic(cpu,op1,op2,cpu->cpsr & gba_cpu_carry_flag,set_flags); break;
-        // Rd = Op1 - Op2 + C - 1
-        case gba_cpu_sbc_operation: cpu->r[rd] = gba_cpu_alu_arithmetic(cpu,op1,~op2,cpu->cpsr & gba_cpu_carry_flag,set_flags); break;
-        // Rd = Op2 - Op2 + C - 1
-        case gba_cpu_rsc_operation: cpu->r[rd] = gba_cpu_alu_arithmetic(cpu,op2,~op1,cpu->cpsr & gba_cpu_carry_flag,set_flags); break;
-        // Op1 & Op2
-        case gba_cpu_tst_operation: gba_cpu_alu_and(cpu,op1,op2,carry,true); break;
-        // Op1 ^ Op2
-        case gba_cpu_teq_operation: gba_cpu_alu_xor(cpu,op1,op2,carry,true); break;
-        // Op1 - Op2
-        case gba_cpu_cmp_operation: gba_cpu_alu_arithmetic(cpu,op1,~op2,1,true); break;
-        // Op1 + Op2
-        case gba_cpu_cmn_operation: gba_cpu_alu_arithmetic(cpu,op1,op2,0,true); break;
-        // Rd = Op1 | Op2
-        case gba_cpu_orr_operation: cpu->r[rd] = gba_cpu_alu_orr(cpu,op1,op2,carry,set_flags); break;
-        // Rd = Op2
-        case gba_cpu_mov_operation: cpu->r[rd] = gba_cpu_alu_mov(cpu,op1,op2,carry,set_flags); break;
-        // Rd = Op1 & ~Op2
-        case gba_cpu_bic_operation: cpu->r[rd] = gba_cpu_alu_bic(cpu,op1,op2,carry,set_flags); break;
-        // Rd = ~Op2
-        case gba_cpu_mvn_operation: cpu->r[rd] = gba_cpu_alu_mvn(cpu,op1,op2,carry,set_flags); break;
+        case gba_cpu_and_operation:{
+            uint32_t result = op1 & op2;
+            if(set_flags){
+                gba_cpu_set_logical_flag(result,carry);
+            }
+            cpu->r[rd] = result;
+            break;
+        }
+        case gba_cpu_eor_operation:{
+            uint32_t result = op1 ^ op2;
+            if(set_flags){
+                gba_cpu_set_logical_flag(result,carry);
+            }
+            cpu->r[rd] = result;
+            break;
+        }
+        case gba_cpu_sub_operation:{
+            cpu->r[rd] = gba_cpu_alu_arithmetic(cpu,op1,~op2,1,set_flags);
+            break;
+        }
+        case gba_cpu_rsb_operation:{
+            cpu->r[rd] = gba_cpu_alu_arithmetic(cpu,op2,~op1,1,set_flags);
+            break;
+        }
+        case gba_cpu_add_operation:{
+            cpu->r[rd] = gba_cpu_alu_arithmetic(cpu,op1,op2,0,set_flags);
+            break;
+        }
+        case gba_cpu_adc_operation:{
+            cpu->r[rd] = gba_cpu_alu_arithmetic(cpu,op1,op2,cpu->cpsr & gba_cpu_carry_flag,set_flags);
+            break;
+        }
+        case gba_cpu_sbc_operation:{
+            cpu->r[rd] = gba_cpu_alu_arithmetic(cpu,op1,~op2,cpu->cpsr & gba_cpu_carry_flag,set_flags);
+            break;
+        }
+        case gba_cpu_rsc_operation:{
+            cpu->r[rd] = gba_cpu_alu_arithmetic(cpu,op2,~op1,cpu->cpsr & gba_cpu_carry_flag,set_flags);
+            break;
+        }
+        case gba_cpu_tst_operation:{
+            uint32_t result = op1 & op2;
+            gba_cpu_set_logical_flag(result,carry);
+            break;
+        }
+        case gba_cpu_teq_operation:{
+            uint32_t result = op1 ^ op2;
+            gba_cpu_set_logical_flag(result,carry);
+            break;
+        }
+        case gba_cpu_cmp_operation:{
+            gba_cpu_alu_arithmetic(cpu,op1,~op2,1,true);
+            break;
+        }
+        case gba_cpu_cmn_operation:{
+            gba_cpu_alu_arithmetic(cpu,op1,op2,0,true);
+            break;
+        }
+        case gba_cpu_orr_operation:{
+            uint32_t result = op1 | op2;
+            if(set_flags){
+                gba_cpu_set_logical_flag(result,carry);
+            }
+            cpu->r[rd] = result;
+            break;
+        }
+        case gba_cpu_mov_operation:{
+            if(set_flags){
+                gba_cpu_set_logical_flag(op2,carry);
+            }
+            cpu->r[rd] = op2;
+            break;
+        }
+        case gba_cpu_bic_operation:{
+            uint32_t result = op1 & ~op2;
+            if(set_flags){
+                gba_cpu_set_logical_flag(result,carry);
+            }
+            cpu->r[rd] = result;
+            break;
+        }
+        case gba_cpu_mvn_operation:{
+            uint32_t result = ~op2;
+            if(set_flags){
+                gba_cpu_set_logical_flag(result,carry);
+            }
+            cpu->r[rd] = result;
+            break;
+        }
     }
 
     if(rd == 15){
         uint8_t mode = cpu->cpsr & gba_cpu_mode_flag;
 
-        // TODO: What will be written to CPSR if the mode is User/System?
         if(set_flags && mode != gba_cpu_user_mode && mode != gba_cpu_system_mode){
-
-            uint32_t new_cpsr = cpu->spsr[gba_cpu_mode_bank[mode]];
-
-            // TODO: What happens when writing an invalid mode to CPSR?
-
-            gba_cpu_switch_mode_bank(cpu,new_cpsr & gba_cpu_mode_flag);
-
-            cpu->cpsr = new_cpsr;
+            gba_cpu_set_cpsr(cpu,cpu->spsr[gba_cpu_mode_bank[mode]]);
         }
 
-        if(operation < gba_cpu_teq_operation || operation > gba_cpu_cmn_operation){
+        if(operation < gba_cpu_tst_operation || operation > gba_cpu_cmn_operation){
             gba_cpu_reload_pipeline(cpu);
         }
         else{
@@ -255,16 +304,14 @@ void gba_cpu_arm_msr(gba_cpu_t* cpu,uint32_t opcode){
 
     uint32_t mask = 0;
 
-    // Unused PSR bits cannot be modified.
-
     //Flags
     if(opcode & (1 << 19)) mask |= 0xF0000000;
 
     // Status
-    // if(opcode & (1 << 18)) mask |= 0x00FF0000;
+    //if(opcode & (1 << 18)) mask |= 0x00FF0000;
 
     // Extended
-    // if(opcode & (1 << 17)) mask |= 0x0000FF00;
+    //if(opcode & (1 << 17)) mask |= 0x0000FF00;
 
     //Control
     if(opcode & (1 << 16)) mask |= 0x000000FF;
@@ -286,30 +333,24 @@ void gba_cpu_arm_msr(gba_cpu_t* cpu,uint32_t opcode){
         value = cpu->r[rm];
     }
 
-    // TODO: What happens when writing an invalid mode to CPSR or SPSR?
-
     uint8_t mode = cpu->cpsr & gba_cpu_mode_flag;
 
+    // Since there is no SPSR for User/System modes, nothing is done according to the ROM psr.gba
     if(is_spsr && mode != gba_cpu_user_mode && mode != gba_cpu_system_mode){
+
         uint8_t mode_bank = gba_cpu_mode_bank[mode];
 
-        cpu->spsr[mode_bank] = (value & mask) & (cpu->spsr[mode_bank] & ~mask);
+        cpu->spsr[mode_bank] = (value & mask) | (cpu->spsr[mode_bank] & ~mask) | 0x10;
     }
     else if(!is_spsr){
         // In user mode, the CPSR control bits cannot be modified.
         if(mode == gba_cpu_user_mode){
             mask &= ~0x000000FF;
         }
-        else{
-            // The Thumb bit cannot be changed in the CPSR.
-            mask &= ~gba_cpu_thumb_flag;
-        }
         
-        uint32_t new_cpsr = (value & mask) | (cpu->cpsr & ~mask);
+        // TODO: Handling if the Thumb bit is set
 
-        gba_cpu_switch_mode_bank(cpu,new_cpsr & gba_cpu_mode_flag);
-
-        cpu->cpsr = new_cpsr;
+        gba_cpu_set_cpsr(cpu,(value & mask) | (cpu->cpsr & ~mask));
     }
 
     cpu->r[15] += 4;
@@ -321,11 +362,10 @@ void gba_cpu_arm_mrs(gba_cpu_t* cpu,uint32_t opcode){
     // R15 cannot be used as the destination register.
     uint8_t rd = (opcode >> 12) & 15;
 
-    // TODO: What will be written to Rd if the mode is User/System?
+    uint8_t mode = cpu->cpsr & gba_cpu_mode_flag;
 
-    if(is_spsr){
-        uint8_t mode = cpu->cpsr & gba_cpu_mode_flag;
-
+    // Since there is no SPSR for User/System modes, the CPSR is written to Rd, in accordance with the psr.gba ROM
+    if(is_spsr && mode != gba_cpu_user_mode && mode != gba_cpu_system_mode){
         cpu->r[rd] = cpu->spsr[gba_cpu_mode_bank[mode]];
     }
     else{
@@ -352,6 +392,8 @@ void gba_cpu_arm_multiply(gba_cpu_t* cpu,uint32_t opcode){
     uint8_t rs = (opcode >> 8) & 15;
     uint8_t rm = opcode & 15;
 
+    cpu->r[15] += 4;
+
     uint32_t result = cpu->r[rm] * cpu->r[rs];
     
     if(accumulate){
@@ -371,9 +413,6 @@ void gba_cpu_arm_multiply(gba_cpu_t* cpu,uint32_t opcode){
     if(rd == 15){
         gba_cpu_reload_pipeline(cpu);
     }
-    else{
-        cpu->r[15] += 4;
-    }
 }
 
 void gba_cpu_arm_multiply_long(gba_cpu_t* cpu,uint32_t opcode){
@@ -388,6 +427,8 @@ void gba_cpu_arm_multiply_long(gba_cpu_t* cpu,uint32_t opcode){
     uint8_t rs = (opcode >> 8) & 15;
     uint8_t rm = opcode & 15;
 
+    cpu->r[15] += 4;
+    
     uint64_t result = 0;
     
     if(_signed){
@@ -418,9 +459,6 @@ void gba_cpu_arm_multiply_long(gba_cpu_t* cpu,uint32_t opcode){
     if(rdlo == 15 || rdhi == 15){
         gba_cpu_reload_pipeline(cpu);
     }
-    else{
-        cpu->r[15] += 4;
-    }
 }
 
 
@@ -431,6 +469,8 @@ void gba_cpu_arm_single_data_swap_byte(gba_cpu_t* cpu,uint32_t opcode){
     uint8_t rm = opcode & 15;
 
     // TODO: What is the value of Rn or Rm if R15 is used? Instruction +8 or +12?
+
+    cpu->r[15] += 4;
 
     uint32_t address = cpu->r[rn];
 
@@ -445,9 +485,6 @@ void gba_cpu_arm_single_data_swap_byte(gba_cpu_t* cpu,uint32_t opcode){
     if(rd == 15){
         gba_cpu_reload_pipeline(cpu);
     }
-    else{
-        cpu->r[15] += 4;
-    }
 }
 
 void gba_cpu_arm_single_data_swap_word(gba_cpu_t* cpu,uint32_t opcode){
@@ -457,6 +494,8 @@ void gba_cpu_arm_single_data_swap_word(gba_cpu_t* cpu,uint32_t opcode){
     uint8_t rm = opcode & 15;
 
     // TODO: What is the value of Rn or Rm if R15 is used? Instruction +8 or +12?
+
+    cpu->r[15] += 4;
 
     uint32_t address = cpu->r[rn];
 
@@ -471,9 +510,6 @@ void gba_cpu_arm_single_data_swap_word(gba_cpu_t* cpu,uint32_t opcode){
 
     if(rd == 15){
         gba_cpu_reload_pipeline(cpu);
-    }
-    else{
-        cpu->r[15] += 4;
     }
 }
 
@@ -529,6 +565,12 @@ void gba_cpu_arm_single_data_transfer(gba_cpu_t* cpu,uint32_t opcode){
 
     if(pre) address += offset;
 
+
+    // When R15 is the source register (Rd) of a register store (STR) instruction, the stored
+    // value will be address of the instruction plus 12.
+    cpu->r[15] += 4;
+
+
     // LDR
     if(load){
         uint32_t value = 0;
@@ -550,16 +592,11 @@ void gba_cpu_arm_single_data_transfer(gba_cpu_t* cpu,uint32_t opcode){
     }
     // STR
     else{
-        // When R15 is the source register (Rd) of a register store (STR) instruction, the stored
-        // value will be address of the instruction plus 12.
-        uint32_t value = cpu->r[rd] + ((rd == 15) ? 4 : 0);
-
         if(byte){
-            gba_cpu_write_byte(cpu,value,address);
+            gba_cpu_write_byte(cpu,cpu->r[rd],address);
         }
         else{
-            //address & ~3
-            gba_cpu_write_word(cpu,value,address);
+            gba_cpu_write_word(cpu,cpu->r[rd],address);
         }
 
         if(write_back || !pre){
@@ -571,9 +608,6 @@ void gba_cpu_arm_single_data_transfer(gba_cpu_t* cpu,uint32_t opcode){
 
     if((rd == 15 && load) || (rn == 15 && (write_back || !pre))){
         gba_cpu_reload_pipeline(cpu);
-    }
-    else{
-        cpu->r[15] += 4;
     }
 }
 
@@ -600,13 +634,6 @@ void gba_cpu_arm_block_data_transfer(gba_cpu_t* cpu,uint32_t opcode){
         bytes = 64;
     }
 
-    bool r15_in_list = list & (1 << 15);
-
-    uint8_t register_mode = cpu->cpsr & gba_cpu_mode_flag;
-
-    if(s && (!r15_in_list || !load)){
-        register_mode = gba_cpu_user_mode;
-    }
 
     uint32_t address = cpu->r[rn];
 
@@ -620,9 +647,19 @@ void gba_cpu_arm_block_data_transfer(gba_cpu_t* cpu,uint32_t opcode){
         if(!pre) address += 4;
     }
 
+
     // Whenever R15 is stored to memory the stored value is the address of the STM
     // instruction plus 12.
     cpu->r[15] += 4;
+
+
+    bool r15_in_list = list & (1 << 15);
+
+    uint8_t mode = cpu->cpsr & gba_cpu_mode_flag;
+
+    if(s && (!r15_in_list || !load)){
+        gba_cpu_set_mode(cpu,gba_cpu_user_mode);
+    }
     
     if(load){
         //A LDM will always overwrite the updated base if the base is in the list.
@@ -634,31 +671,13 @@ void gba_cpu_arm_block_data_transfer(gba_cpu_t* cpu,uint32_t opcode){
             
             if(!(list & (1 << i))) continue;
 
-            uint32_t* dst = gba_cpu_get_register(cpu,i,register_mode);
-
             //address & ~3
-            *dst = gba_cpu_read_word(cpu,address);
+            cpu->r[i] = gba_cpu_read_word(cpu,address);
             
             address += 4;
         }
 
         // TODO: I-cycle
-
-        if(s && r15_in_list){
-
-            uint8_t mode = cpu->cpsr & gba_cpu_mode_flag;
-
-            if(mode != gba_cpu_user_mode && mode != gba_cpu_system_mode){
-                
-                uint32_t new_cpsr = cpu->spsr[gba_cpu_mode_bank[mode]];
-                
-                // TODO: What happens when writing an invalid mode to CPSR?
-
-                gba_cpu_switch_mode_bank(cpu,new_cpsr & gba_cpu_mode_flag);
-
-                cpu->cpsr = new_cpsr;
-            }
-        }
     }
     else{
         bool first = true;
@@ -667,10 +686,7 @@ void gba_cpu_arm_block_data_transfer(gba_cpu_t* cpu,uint32_t opcode){
             
             if(!(list & (1 << i))) continue;
 
-            uint32_t* src = gba_cpu_get_register(cpu,i,register_mode);
-
-            // address & ~3
-            gba_cpu_write_word(cpu,*src,address);
+            gba_cpu_write_word(cpu,cpu->r[i],address);
 
             address += 4;
 
@@ -682,6 +698,13 @@ void gba_cpu_arm_block_data_transfer(gba_cpu_t* cpu,uint32_t opcode){
 
             first = false;
         }
+    }
+
+    if(load && s && r15_in_list && mode != gba_cpu_user_mode && mode != gba_cpu_system_mode){
+        gba_cpu_set_cpsr(cpu,cpu->spsr[gba_cpu_mode_bank[mode]]);
+    }
+    else{
+        gba_cpu_set_mode(cpu,mode);
     }
 
     if((r15_in_list && load) || (rn == 15 && write_back)){
@@ -702,7 +725,7 @@ void gba_cpu_arm_halfword_data_transfer(gba_cpu_t* cpu,uint32_t opcode){
     uint32_t offset = 0;
 
     if(immediate_offset){
-        offset = ((opcode >> 4) & 240) | (opcode & 15);
+        offset = ((opcode >> 4) & 0xF0) | (opcode & 0x0F);
     }
     else{
         // R15 should not be specified as the register offset (Rm)
@@ -717,6 +740,12 @@ void gba_cpu_arm_halfword_data_transfer(gba_cpu_t* cpu,uint32_t opcode){
     if(!add_address) offset = -offset;
 
     if(pre) address += offset;
+
+
+    // When R15 is the source register (Rd) of a Half-word store (STRH) instruction, the
+    // stored address will be address of the instruction plus 12.
+    cpu->r[15] += 4;
+
 
     if(load){
         uint32_t value = 0;
@@ -739,13 +768,9 @@ void gba_cpu_arm_halfword_data_transfer(gba_cpu_t* cpu,uint32_t opcode){
         cpu->r[rd] = value;
     }
     else{
-        // When R15 is the source register (Rd) of a Half-word store (STRH) instruction, the
-        // stored address will be address of the instruction plus 12.
-        uint32_t value = cpu->r[rd] + ((rd == 15) ? 4 : 0);
-
         switch(operation){
             //STRH
-            case 1: gba_cpu_write_halfword(cpu,value,address); break;
+            case 1: gba_cpu_write_halfword(cpu,cpu->r[rd],address); break;
             //TODO: Whats?
             case 2: break;
             //TODO: Whats?
@@ -759,9 +784,6 @@ void gba_cpu_arm_halfword_data_transfer(gba_cpu_t* cpu,uint32_t opcode){
 
     if((rd == 15 && load) || (rn == 15 && (write_back || !pre))){
         gba_cpu_reload_pipeline(cpu);
-    }
-    else{
-        cpu->r[15] += 4;
     }
 }
 
@@ -804,14 +826,13 @@ void gba_cpu_arm_undefined(gba_cpu_t* cpu,uint32_t opcode){
 
     //TODO: I-cycle
 
-    cpu->spsr[gba_cpu_undefined_bank] = cpu->cpsr;
+    cpu->spsr[gba_cpu_undefined_bank] = cpu->cpsr | 0x10;
 
-    gba_cpu_switch_mode_bank(cpu,gba_cpu_undefined_mode);
+    gba_cpu_set_mode(cpu,gba_cpu_undefined_mode);
 
     cpu->r[14] = cpu->r[15] - 4;
 
-    cpu->cpsr &= ~gba_cpu_mode_flag;
-    cpu->cpsr |= gba_cpu_undefined_mode | gba_cpu_irq_flag;
+    cpu->cpsr |= gba_cpu_irq_flag;
 
     cpu->r[15] = gba_cpu_undefined_vector;
 
@@ -822,14 +843,13 @@ void gba_cpu_arm_undefined(gba_cpu_t* cpu,uint32_t opcode){
 void gba_cpu_arm_swi(gba_cpu_t* cpu,uint32_t opcode){
     gba_unused(opcode);
 
-    cpu->spsr[gba_cpu_supervisor_bank] = cpu->cpsr;
+    cpu->spsr[gba_cpu_supervisor_bank] = cpu->cpsr | 0x10;
 
-    gba_cpu_switch_mode_bank(cpu,gba_cpu_supervisor_mode);
+    gba_cpu_set_mode(cpu,gba_cpu_supervisor_mode);
 
     cpu->r[14] = cpu->r[15] - 4;
 
-    cpu->cpsr &= ~gba_cpu_mode_flag;
-    cpu->cpsr |= gba_cpu_supervisor_mode | gba_cpu_irq_flag;
+    cpu->cpsr |= gba_cpu_irq_flag;
 
     cpu->r[15] = gba_cpu_software_interrupt_vector;
 
