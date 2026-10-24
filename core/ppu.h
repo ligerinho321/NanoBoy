@@ -112,6 +112,7 @@ typedef struct _gb_ppu_state_t {
     bool wy_enabled;
     bool wx_enabled;
     uint8_t window_ly;
+    bool insert_glitch_bg_pixel;
 
     gb_tile_fetcher_t tile_fetcher;
     gb_object_fetcher_t object_fetcher;

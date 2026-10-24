@@ -237,10 +237,11 @@ static inline void gb_ppu_update_irq_line(gb_ppu_t* ppu){
     gb_ppu_state_t* state = &ppu->state;
 
     bool new_irq_line = (
-        (state->status.lcy_equals_ly && state->status.lyc_enabled) ||
+        state->lcdc.lcd_enabled &&
+        ((state->status.lcy_equals_ly && state->status.lyc_enabled) ||
         (state->status.mode == gb_ppu_hblank_mode && (state->status.hblank_enabled && !(state->first_frame && state->ly == 0 && state->cycle < 84))) ||
         (state->status.mode == gb_ppu_vblank_mode && (state->status.vblank_enabled || (state->ly == 144 && state->cycle == 4 && state->status.oam_enabled))) || 
-        (state->status.mode == gb_ppu_oam_mode && state->status.oam_enabled)
+        (state->status.mode == gb_ppu_oam_mode && state->status.oam_enabled))
     );
 
     if(!state->status_irq_line && new_irq_line){
@@ -291,19 +292,19 @@ static inline void gb_ppu_render_pixel(gb_ppu_t* ppu){
 
     if(state->drawn_pixels >= 0){
 
-        gb_pixel_fifo_entry_t* tile = state->tile_fifo.data + state->tile_fifo.front;                
-        gb_pixel_fifo_entry_t* object = state->object_fifo.data + state->object_fifo.front;
+        gb_pixel_fifo_entry_t tile = state->tile_fifo.data[state->tile_fifo.front];                
+        gb_pixel_fifo_entry_t object = state->object_fifo.data[state->object_fifo.front];
 
         gb_rgb_t color = {0};
 
         gb_palette_t* palette = &ppu->gb->palette;
 
-        if(!ppu->objects_disabled && state->lcdc.object_enabled && object->color_index && (!tile->color_index || !state->lcdc.tile_enabled || (!tile->priority && !object->priority))){
+        if(!ppu->objects_disabled && state->lcdc.object_enabled && object.color_index && (!tile.color_index || !state->lcdc.tile_enabled || (!tile.priority && !object.priority))){
             if(ppu->gb->state.cgb_mode){
-                color = gb_palette_get_cgb_obp_color(palette,object->palette_index,object->color_index);
+                color = gb_palette_get_cgb_obp_color(palette,object.palette_index,object.color_index);
             }
             else{
-                color = gb_palette_get_dmg_obp_color(palette,object->palette_index,object->color_index);
+                color = gb_palette_get_dmg_obp_color(palette,object.palette_index,object.color_index);
             }
         }
         else{
@@ -313,16 +314,16 @@ static inline void gb_ppu_render_pixel(gb_ppu_t* ppu){
             When Bit 0 is cleared, both background and window become blank (white),
             and the Window Display Bit is ignored in that case.
             */
-            if((!ppu->gb->state.cgb_mode && !state->lcdc.tile_enabled) || ppu->background_disabled){
-                tile->palette_index = 0x00;
-                tile->color_index = 0x00;
+            if((!ppu->gb->state.cgb_mode && !state->lcdc.tile_enabled) || state->insert_glitch_bg_pixel || ppu->background_disabled){
+                tile.palette_index = 0x00;
+                tile.color_index = 0x00;
             }
 
             if(ppu->gb->state.cgb_mode){
-                color = gb_palette_get_cgb_bgp_color(palette,tile->palette_index,tile->color_index);
+                color = gb_palette_get_cgb_bgp_color(palette,tile.palette_index,tile.color_index);
             }
             else{
-                color = gb_palette_get_dmg_bgp_color(palette,tile->color_index);
+                color = gb_palette_get_dmg_bgp_color(palette,tile.color_index);
             }
         }
 
@@ -337,7 +338,12 @@ static inline void gb_ppu_render_pixel(gb_ppu_t* ppu){
 
     state->drawn_pixels++;
 
-    gb_pixel_fifo_pop(&state->tile_fifo);
+    if(!state->insert_glitch_bg_pixel){
+        gb_pixel_fifo_pop(&state->tile_fifo);
+    }
+
+    state->insert_glitch_bg_pixel = false;
+
     gb_pixel_fifo_pop(&state->object_fifo);
 }
 
@@ -346,6 +352,7 @@ static inline void gb_ppu_drawing(gb_ppu_t* ppu){
     gb_tile_fetcher_t* tile_fetcher = &ppu->state.tile_fetcher;
 
     if(!state->wx_enabled){
+
         state->wx_enabled = state->drawn_pixels == (state->wx - 0x07);
 
         bool fetch_window = state->lcdc.window_enabled && state->wx_enabled && state->wy_enabled;
@@ -356,6 +363,16 @@ static inline void gb_ppu_drawing(gb_ppu_t* ppu){
             state->fetch_window = fetch_window;
             state->fetch_column = 0;
             state->tile_fifo.length = 0;
+        }
+
+        if(
+            !ppu->gb->state.is_cgb &&
+            !state->lcdc.window_enabled &&
+            state->wx_enabled &&
+            state->window_ly != 0xFF &&
+            (state->wx & 0x07) == 0x07 - (state->scx & 0x07)
+        ){
+            state->insert_glitch_bg_pixel = true;
         }
     }
 
@@ -689,6 +706,7 @@ void gb_ppu_write_register(void* data,uint8_t value,uint16_t address){
             state->status.vblank_enabled = value & 0x10;
             state->status.oam_enabled = value & 0x20;
             state->status.lyc_enabled = value & 0x40;
+            gb_ppu_update_irq_line(ppu);
             break;
         }
         //SCY
