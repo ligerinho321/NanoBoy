@@ -676,6 +676,15 @@ void gb_ppu_write_register(void* data,uint8_t value,uint16_t address){
         }
         //STAT
         case 0xFF41:{
+            // DMG Spurious STAT interrupt
+            if(!ppu->gb->state.is_cgb){
+                state->status.hblank_enabled = true;
+                state->status.vblank_enabled = true;
+                state->status.oam_enabled = true;
+                state->status.lyc_enabled = true;
+                gb_ppu_update_irq_line(ppu);
+            }
+
             state->status.hblank_enabled = value & 0x08;
             state->status.vblank_enabled = value & 0x10;
             state->status.oam_enabled = value & 0x20;
