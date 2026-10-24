@@ -302,55 +302,8 @@ void gba_cpu_compare_state(gba_cpu_t* cpu,gba_cpu_state_t* state){
     }
 }
 
-
-void generate_conditional_table(){
-
-    bool table[256] = {0};
-
-    for(int i = 0; i < 16; ++i){
-        bool n = i & 0x08;
-        bool z = i & 0x04;
-        bool c = i & 0x02;
-        bool v = i & 0x01;
-
-        bool conditions[16] = {
-            z,
-            !z,
-            c,
-            !c,
-            n,
-            !n,
-            v,
-            !v,
-            c && !z,
-            !c || z,
-            n == v,
-            n != v,
-            !z && (n == v),
-            z || (n != v),
-            true,
-            false
-        };
-
-        for(int k = 0; k < 16; ++k){
-            table[(k << 4) | i] = conditions[k];
-        }
-    }
-
-    for(int i = 0; i < 16; ++i){
-        for(int j = 0; j < 16; ++j){
-            printf("%d,",table[(i << 4) | j]);
-        }
-        printf("\n");
-    }
-}
-
-
-int main(int n_args,char** args){
-
-    gba_t* gba = gba_new();
-
-/*
+void gba_cpu_execute_teste(gba_t* gba){
+    /*
     arm_b_bl.json
     arm_bx.json (R15 with required misaligned value)
     arm_cdp.json
@@ -397,8 +350,9 @@ int main(int n_args,char** args){
     thumb_b.json
     thumb_bl_blx_prefix.json
     thumb_bl_suffix.json
-*/
+    */
 
+    /*
     FILE* file = fopen("/home/artur/Downloads/gba_tests/arm_data_proc_register_shift.json","r");
 
     if(file){
@@ -452,7 +406,93 @@ int main(int n_args,char** args){
 
         fclose(file);
     }
+    */
+}
 
+void generate_conditional_table(){
+
+    bool table[256] = {0};
+
+    for(int i = 0; i < 16; ++i){
+        bool n = i & 0x08;
+        bool z = i & 0x04;
+        bool c = i & 0x02;
+        bool v = i & 0x01;
+
+        bool conditions[16] = {
+            z,
+            !z,
+            c,
+            !c,
+            n,
+            !n,
+            v,
+            !v,
+            c && !z,
+            !c || z,
+            n == v,
+            n != v,
+            !z && (n == v),
+            z || (n != v),
+            true,
+            false
+        };
+
+        for(int k = 0; k < 16; ++k){
+            table[(k << 4) | i] = conditions[k];
+        }
+    }
+
+    for(int i = 0; i < 16; ++i){
+        for(int j = 0; j < 16; ++j){
+            printf("%d,",table[(i << 4) | j]);
+        }
+        printf("\n");
+    }
+}
+
+
+int main(int n_args,char** args){
+
+    gba_t* gba = gba_new();
+
+    /*
+    Doom (USA, Europe).gba
+    Dragon Ball Z - Buu's Fury (USA).gba
+    Dragon Ball Z - The Legacy of Goku II (Europe) (En,Fr,De,Es,It).gba
+    Legend of Zelda, The - The Minish Cap (USA).gba
+    Pokemon - Emerald Version (USA, Europe).gba
+    Pokemon - FireRed Version (USA).gba
+    V-Rally 3 (USA) (En,Fr,Es).gba
+    */
+
+    gba_insert_cartridge(gba,"/home/artur/Downloads/gba_roms/Doom (USA, Europe).gba");
+
+    printf("\n");
+
+    gba_insert_cartridge(gba,"/home/artur/Downloads/gba_roms/Dragon Ball Z - Buu's Fury (USA).gba");
+
+    printf("\n");
+
+    gba_insert_cartridge(gba,"/home/artur/Downloads/gba_roms/Dragon Ball Z - The Legacy of Goku II (Europe) (En,Fr,De,Es,It).gba");
+
+    printf("\n");
+
+    gba_insert_cartridge(gba,"/home/artur/Downloads/gba_roms/Legend of Zelda, The - The Minish Cap (USA).gba");
+
+    printf("\n");
+
+    gba_insert_cartridge(gba,"/home/artur/Downloads/gba_roms/Pokemon - Emerald Version (USA, Europe).gba");
+
+    printf("\n");
+
+    gba_insert_cartridge(gba,"/home/artur/Downloads/gba_roms/Pokemon - FireRed Version (USA).gba");
+
+    printf("\n");
+
+    gba_insert_cartridge(gba,"/home/artur/Downloads/gba_roms/V-Rally 3 (USA) (En,Fr,Es).gba");
+    
     gba_delete(gba);
+
     return 0;
 }
