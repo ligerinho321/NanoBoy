@@ -1,5 +1,11 @@
 #include <gui/utils/utils.hpp>
 
+const char* console_names[console_count] = {
+    "GB",
+    "GBA"
+};
+
+
 void palette_t::update_texture(bool cgb_mode){
     
     int rows = cgb_mode ? gb_cgb_palettes : (is_obj ? gb_dmg_obj_palettes : gb_dmg_bg_palettes);

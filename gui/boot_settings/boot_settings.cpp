@@ -1,24 +1,37 @@
 #include <gui/boot_settings/boot_settings.hpp>
+#include <gui/nanoboy/nanoboy.hpp>
 
 static const char* file_extension = "All files\0";
 
-void boot_settings_t::init(gb_t* _gb){
-    gb = _gb;
+void boot_settings_t::init(nanoboy_t* _nanoboy){
+
+    nanoboy = _nanoboy;
 
     file_selector.init();
     file_selector.set_extensions(&file_extension,1);
 
-    gb_set_dmg_rom_path_reference(gb,dmg_path);
-    gb_set_cgb_rom_path_reference(gb,cgb_path);
-
-    gb_enable_skip_boot(gb,skip_enabled);
-
     update_window_size_constraints();
 }
 
-void boot_settings_t::uninit(){
-    gb_remove_dmg_rom_path_reference(gb);
-    gb_remove_cgb_rom_path_reference(gb);
+
+void boot_settings_t::apply_to_console(){
+    if(!nanoboy->console) return;
+
+    switch(nanoboy->console->type()){
+        case console_gb:{
+            gb_t* gb = (gb_t*)nanoboy->console->data();
+            gb_boot_set_dmg_path_reference(gb,dmg_path);
+            gb_boot_set_cgb_path_reference(gb,cgb_path);
+            gb_boot_enable_skip(gb,skip_enabled);
+            break;
+        }
+        case console_gba:{
+            gba_t* gba = (gba_t*)nanoboy->console->data();
+            gba_boot_set_path_reference(gba,gba_path);
+            gba_boot_enable_skip(gba,skip_enabled);
+            break;
+        }
+    }
 }
 
 
@@ -27,7 +40,7 @@ void boot_settings_t::update_window_size_constraints(){
 
     float title_bar_height = ImGui::GetFrameHeight();
 
-    float table_height = (ImGui::GetFrameHeight() + style.CellPadding.y * 2.0f) * 2.0f;
+    float table_height = (ImGui::GetFrameHeight() + style.CellPadding.y * 2.0f) * 3.0f;
 
     float button_height = ImGui::GetFrameHeightWithSpacing();
 
@@ -61,6 +74,16 @@ void boot_settings_t::file_selector_cgb_callback(void* userdata,std::filesystem:
     strcpy(boot_settings->temp_cgb_path,string.c_str());
 }
 
+void boot_settings_t::file_selector_gba_callback(void* userdata,std::filesystem::path path){
+    boot_settings_t* boot_settings = (boot_settings_t*)userdata;
+
+    std::string string = path.u8string();
+
+    if(string.length() >= boot_settings_t::buffer_length) return;
+
+    strcpy(boot_settings->temp_gba_path,string.c_str());
+}
+
 
 void boot_settings_t::save(cJSON* object){
     cJSON* boot_settings_object = cJSON_CreateObject();
@@ -71,6 +94,9 @@ void boot_settings_t::save(cJSON* object){
 
     cJSON* cgb_path_string = cJSON_CreateStringReference(cgb_path);
     cJSON_AddItemToObjectCS(boot_settings_object,"CGB Path",cgb_path_string);
+
+    cJSON* gba_path_string = cJSON_CreateStringReference(gba_path);
+    cJSON_AddItemToObjectCS(boot_settings_object,"GBA Path",gba_path_string);
 
     cJSON* skip_enabled_bool = cJSON_CreateBool(skip_enabled);
     cJSON_AddItemToObjectCS(boot_settings_object,"Skip Enabled",skip_enabled_bool);
@@ -109,13 +135,22 @@ void boot_settings_t::load(cJSON* object){
         }
     }
 
+    cJSON* gba_path_string = cJSON_GetObjectItemCaseSensitive(boot_settings_object,"GBA Path");
+
+    if(cJSON_IsString(gba_path_string)){
+        char* string = cJSON_GetStringValue(gba_path_string);
+
+        size_t len = strlen(string);
+
+        if(len < sizeof(gba_path)){
+            strcpy(gba_path,string);
+        }
+    }
+
     cJSON* skip_enabled_bool = cJSON_GetObjectItemCaseSensitive(boot_settings_object,"Skip Enabled");
     
     if(cJSON_IsBool(skip_enabled_bool)){
-        
         skip_enabled = cJSON_IsTrue(skip_enabled_bool);
-
-        gb_enable_skip_boot(gb,skip_enabled);
     }
 
     file_selector.load(boot_settings_object);
@@ -172,6 +207,23 @@ void boot_settings_t::render(){
                 file_selector.set_open(true);
             }
 
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::AlignTextToFramePadding();
+            ImGui::TextUnformatted("GBA Boot Path");
+            ImGui::TableNextColumn();
+
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - browser_button_width - style.ItemInnerSpacing.x);
+            
+            ImGui::InputText("##GBABootPathTextInput",temp_gba_path,sizeof(temp_gba_path));
+            
+            ImGui::SameLine(0.0f,style.ItemInnerSpacing.x);
+
+            if(ImGui::Button("...##GBABootPathBrowserButton")){
+                file_selector.set_callback(file_selector_gba_callback,this);
+                file_selector.set_open(true);
+            }
+
             ImGui::EndTable();
         }
 
@@ -206,6 +258,7 @@ void boot_settings_t::open() noexcept {
 
     memcpy(temp_dmg_path,dmg_path,sizeof(temp_dmg_path));
     memcpy(temp_cgb_path,cgb_path,sizeof(temp_cgb_path));
+    memcpy(temp_gba_path,gba_path,sizeof(temp_gba_path));
     temp_skip_enabled = skip_enabled;
 }
 
@@ -217,8 +270,9 @@ void boot_settings_t::close(bool discard_changes) noexcept {
     if(!discard_changes){
         memcpy(dmg_path,temp_dmg_path,sizeof(dmg_path));
         memcpy(cgb_path,temp_cgb_path,sizeof(cgb_path));
+        memcpy(gba_path,temp_gba_path,sizeof(gba_path));
         skip_enabled = temp_skip_enabled;
 
-        gb_enable_skip_boot(gb,skip_enabled);
+        apply_to_console();
     }
 }

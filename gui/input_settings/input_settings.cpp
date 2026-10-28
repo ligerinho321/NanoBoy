@@ -1,42 +1,96 @@
 #include <gui/input_settings/input_settings.hpp>
 
+void input_profile_t::init(const char** _names,int _count){
+    names = _names;
+    count = _count;
+
+    keyboard_bindings = new SDL_Scancode[count];
+    temp_keyboard_bindings = new SDL_Scancode[count];
+    keyboard_bindings_state = new binding_state_t[count];
+
+    controller_bindings = new controller_binding_t[count];
+    temp_controller_bindings = new controller_binding_t[count];
+    controller_bindings_state = new binding_state_t[count];
+}
+
+void input_profile_t::uninit(){
+    delete keyboard_bindings;
+    delete temp_keyboard_bindings;
+    delete keyboard_bindings_state;
+
+    delete controller_bindings;
+    delete temp_controller_bindings;
+    delete controller_bindings_state;
+}
+
+void input_profile_t::clear_bindings_state(){
+    memset(keyboard_bindings_state,0x00,sizeof(binding_state_t) * count);
+    memset(controller_bindings_state,0x00,sizeof(binding_state_t) * count);
+}
+
+
 void input_settings_t::init(){
+
+    profiles[console_gb].init(gb_joypad_button_names,gb_button_count);
+    profiles[console_gba].init(gba_keypad_button_names,gba_button_count);
+
     load_default();
 }
 
-void input_settings_t::load_default(){
-    keyboard_bindings[gb_button_down] = SDL_SCANCODE_S;
-    keyboard_bindings[gb_button_up] = SDL_SCANCODE_W;
-    keyboard_bindings[gb_button_left] = SDL_SCANCODE_A;
-    keyboard_bindings[gb_button_right] = SDL_SCANCODE_D;
-    keyboard_bindings[gb_button_start] = SDL_SCANCODE_P;
-    keyboard_bindings[gb_button_select] = SDL_SCANCODE_O;
-    keyboard_bindings[gb_button_b] = SDL_SCANCODE_K;
-    keyboard_bindings[gb_button_a] = SDL_SCANCODE_L;
-}
-
-
-void input_settings_t::save_keyboard_bindings(cJSON* input_settings_object){
-
-    cJSON* keyboard_object = cJSON_CreateObject();
-    cJSON_AddItemToObjectCS(input_settings_object,"Keyboard",keyboard_object);
-
-    for(int i = 0; i < gb_button_count; ++i){
-        cJSON* binding_number = cJSON_CreateNumber((double)keyboard_bindings[i]);
-        cJSON_AddItemToObjectCS(keyboard_object,gb_joypad_button_names[i],binding_number);
+void input_settings_t::uninit(){
+    for(int i = 0; i < console_count; ++i){
+        profiles[i].uninit();
     }
 }
 
-void input_settings_t::save_controller_bindings(cJSON* input_settings_object){
 
+void input_settings_t::load_default(){
+
+    SDL_Scancode* gb_keyboard = profiles[console_gb].keyboard_bindings;
+
+    gb_keyboard[gb_button_down] = SDL_SCANCODE_S;
+    gb_keyboard[gb_button_up] = SDL_SCANCODE_W;
+    gb_keyboard[gb_button_left] = SDL_SCANCODE_A;
+    gb_keyboard[gb_button_right] = SDL_SCANCODE_D;
+    gb_keyboard[gb_button_start] = SDL_SCANCODE_P;
+    gb_keyboard[gb_button_select] = SDL_SCANCODE_O;
+    gb_keyboard[gb_button_b] = SDL_SCANCODE_K;
+    gb_keyboard[gb_button_a] = SDL_SCANCODE_L;
+
+    SDL_Scancode* gba_keyboard = profiles[console_gba].keyboard_bindings;
+
+    gba_keyboard[gba_button_a] = SDL_SCANCODE_L;
+    gba_keyboard[gba_button_b] = SDL_SCANCODE_K;
+    gba_keyboard[gba_button_select] = SDL_SCANCODE_O;
+    gba_keyboard[gba_button_start] = SDL_SCANCODE_P;
+    gba_keyboard[gba_button_right] = SDL_SCANCODE_D;
+    gba_keyboard[gba_button_left] = SDL_SCANCODE_A;
+    gba_keyboard[gba_button_up] = SDL_SCANCODE_W;
+    gba_keyboard[gba_button_down] = SDL_SCANCODE_S;
+    gba_keyboard[gba_button_r] = SDL_SCANCODE_Q;
+    gba_keyboard[gba_button_l] = SDL_SCANCODE_E;
+}
+
+
+void input_settings_t::save_keyboard_bindings(input_profile_t& profile,cJSON* console_object){
+    cJSON* keyboard_object = cJSON_CreateObject();
+    cJSON_AddItemToObjectCS(console_object,"Keyboard",keyboard_object);
+
+    for(int i = 0; i < profile.count; ++i){
+        cJSON* keyboard_binding_number = cJSON_CreateNumber((double)profile.keyboard_bindings[i]);
+        cJSON_AddItemToObjectCS(keyboard_object,profile.names[i],keyboard_binding_number);
+    }
+}
+
+void input_settings_t::save_controller_bindings(input_profile_t& profile,cJSON* console_object){
     cJSON* controller_object = cJSON_CreateObject();
-    cJSON_AddItemToObjectCS(input_settings_object,"Controller",controller_object);
+    cJSON_AddItemToObjectCS(console_object,"Controller",controller_object);
 
-    for(int i = 0; i < gb_button_count; ++i){
-        cJSON* binding_object = cJSON_CreateObject();
-        cJSON_AddItemToObjectCS(controller_object,gb_joypad_button_names[i],binding_object);
+    for(int i = 0; i < profile.count; ++i){
+        cJSON* controller_binding_object = cJSON_CreateObject();
+        cJSON_AddItemToObjectCS(controller_object,profile.names[i],controller_binding_object);
 
-        save_controller_binding(binding_object,controller_bindings[i]);
+        save_controller_binding(controller_binding_object,profile.controller_bindings[i]);
     }
 }
 
@@ -44,21 +98,29 @@ void input_settings_t::save(cJSON* object){
     cJSON* input_settings_object = cJSON_CreateObject();
     cJSON_AddItemToObjectCS(object,"Input Settings",input_settings_object);
 
-    save_keyboard_bindings(input_settings_object);
+    for(int i = 0; i < console_count; ++i){
 
-    save_controller_bindings(input_settings_object);
+        input_profile_t& profile = profiles[i];
+
+        cJSON* console_object = cJSON_CreateObject();
+        cJSON_AddItemToObjectCS(input_settings_object,console_names[i],console_object);
+
+        save_keyboard_bindings(profile,console_object);
+
+        save_controller_bindings(profile,console_object);
+    }
 }
 
 
-void input_settings_t::load_keyboard_bindings(cJSON* input_settings_object){
+void input_settings_t::load_keyboard_bindings(input_profile_t& profile,cJSON* console_object){
 
-    cJSON* keyboard_object = cJSON_GetObjectItemCaseSensitive(input_settings_object,"Keyboard");
+    cJSON* keyboard_object = cJSON_GetObjectItemCaseSensitive(console_object,"Keyboard");
     
     if(!cJSON_IsObject(keyboard_object)) return;
 
-    for(int i = 0; i < gb_button_count; ++i){
+    for(int i = 0; i < profile.count; ++i){
 
-        cJSON* binding_number = cJSON_GetObjectItemCaseSensitive(keyboard_object,gb_joypad_button_names[i]);
+        cJSON* binding_number = cJSON_GetObjectItemCaseSensitive(keyboard_object,profile.names[i]);
 
         if(!cJSON_IsNumber(binding_number)) continue;
 
@@ -66,23 +128,23 @@ void input_settings_t::load_keyboard_bindings(cJSON* input_settings_object){
 
         if(value < SDL_SCANCODE_UNKNOWN || value >= SDL_NUM_SCANCODES) continue;
 
-        keyboard_bindings[i] = (SDL_Scancode)value;
+        profile.keyboard_bindings[i] = (SDL_Scancode)value;
     }
 }
 
-void input_settings_t::load_controller_bindings(cJSON* input_settings_object){
+void input_settings_t::load_controller_bindings(input_profile_t& profile,cJSON* console_object){
 
-    cJSON* controller_object = cJSON_GetObjectItemCaseSensitive(input_settings_object,"Controller");
+    cJSON* controller_object = cJSON_GetObjectItemCaseSensitive(console_object,"Controller");
 
     if(!cJSON_IsObject(controller_object)) return;
 
     for(int i = 0; i < gb_button_count; ++i){
 
-        cJSON* binding_object = cJSON_GetObjectItemCaseSensitive(controller_object,gb_joypad_button_names[i]);
+        cJSON* binding_object = cJSON_GetObjectItemCaseSensitive(controller_object,profile.names[i]);
 
         if(!cJSON_IsObject(binding_object)) continue;
 
-        load_controller_binding(binding_object,controller_bindings[i]);
+        load_controller_binding(binding_object,profile.controller_bindings[i]);
     }
 }
 
@@ -92,18 +154,27 @@ void input_settings_t::load(cJSON* object){
 
     if(!cJSON_IsObject(input_settings_object)) return;
 
-    load_keyboard_bindings(input_settings_object);
+    for(int i = 0; i < console_count; ++i){
+        cJSON* console_object = cJSON_GetObjectItemCaseSensitive(input_settings_object,console_names[i]);
 
-    load_controller_bindings(input_settings_object);
+        if(!cJSON_IsObject(console_object)) continue;
+
+        load_keyboard_bindings(profiles[i],console_object);
+
+        load_controller_bindings(profiles[i],console_object);
+    }
 }
 
 
 void input_settings_t::init_binding_frame(){
+
+    if(!current_profile) return;
+
     if(ImGui::GetIO().WantCaptureKeyboard){
         
-        for(int i = 0; i < gb_button_count; ++i){
-            binding_state_t& keyboard = keyboard_bindings_state[i];
-            binding_state_t& controller = controller_bindings_state[i];
+        for(int i = 0; i < current_profile->count; ++i){
+            binding_state_t& keyboard = current_profile->keyboard_bindings_state[i];
+            binding_state_t& controller = current_profile->controller_bindings_state[i];
 
             keyboard.released = keyboard.down || keyboard.pressed;
             keyboard.down = false;
@@ -115,9 +186,9 @@ void input_settings_t::init_binding_frame(){
         }
     }
     else{
-        for(int i = 0; i < gb_button_count; ++i){
-            binding_state_t& keyboard = keyboard_bindings_state[i];
-            binding_state_t& controller = controller_bindings_state[i];
+        for(int i = 0; i < current_profile->count; ++i){
+            binding_state_t& keyboard = current_profile->keyboard_bindings_state[i];
+            binding_state_t& controller = current_profile->controller_bindings_state[i];
 
             keyboard.down = false;
             keyboard.released = false;
@@ -130,17 +201,17 @@ void input_settings_t::init_binding_frame(){
 
 void input_settings_t::process_binding_event(SDL_Event& event){
 
-    if(ImGui::GetIO().WantCaptureKeyboard) return;
+    if(!current_profile || ImGui::GetIO().WantCaptureKeyboard) return;
 
     switch(event.type){
         case SDL_KEYDOWN:{
-            for(int i = 0; i < gb_button_count; ++i){
+            for(int i = 0; i < current_profile->count; ++i){
 
-                binding_state_t& binding_state = keyboard_bindings_state[i];
+                binding_state_t& binding_state = current_profile->keyboard_bindings_state[i];
 
                 if(binding_state.pressed || event.key.keysym.scancode == SDL_SCANCODE_UNKNOWN) continue;
 
-                if(keyboard_bindings[i] == event.key.keysym.scancode){
+                if(current_profile->keyboard_bindings[i] == event.key.keysym.scancode){
                     binding_state.down = true;
                     binding_state.pressed = true;
                 }
@@ -148,13 +219,13 @@ void input_settings_t::process_binding_event(SDL_Event& event){
             break;
         }
         case SDL_KEYUP:{
-            for(int i = 0; i < gb_button_count; ++i){
+            for(int i = 0; i < current_profile->count; ++i){
 
-                binding_state_t& binding_state = keyboard_bindings_state[i];
+                binding_state_t& binding_state = current_profile->keyboard_bindings_state[i];
 
                 if(!binding_state.pressed || event.key.keysym.scancode == SDL_SCANCODE_UNKNOWN) continue;
 
-                if(keyboard_bindings[i] == event.key.keysym.scancode){
+                if(current_profile->keyboard_bindings[i] == event.key.keysym.scancode){
                     binding_state.pressed = false;
                     binding_state.released = true;
                 }
@@ -162,10 +233,10 @@ void input_settings_t::process_binding_event(SDL_Event& event){
             break;
         }
         case SDL_CONTROLLERBUTTONDOWN:{
-            for(int i = 0; i < gb_button_count; ++i){
+            for(int i = 0; i < current_profile->count; ++i){
 
-                controller_binding_t& binding = controller_bindings[i];
-                binding_state_t& binding_state = controller_bindings_state[i];
+                controller_binding_t& binding = current_profile->controller_bindings[i];
+                binding_state_t& binding_state = current_profile->controller_bindings_state[i];
 
                 if(binding_state.pressed || binding.type != controller_binding_button) continue;
 
@@ -177,10 +248,10 @@ void input_settings_t::process_binding_event(SDL_Event& event){
             break;
         }
         case SDL_CONTROLLERBUTTONUP:{
-            for(int i = 0; i < gb_button_count; ++i){
+            for(int i = 0; i < current_profile->count; ++i){
 
-                controller_binding_t& binding = controller_bindings[i];
-                binding_state_t& binding_state = controller_bindings_state[i];
+                controller_binding_t& binding = current_profile->controller_bindings[i];
+                binding_state_t& binding_state = current_profile->controller_bindings_state[i];
 
                 if(!binding_state.pressed || binding.type != controller_binding_button) continue;
 
@@ -192,10 +263,10 @@ void input_settings_t::process_binding_event(SDL_Event& event){
             break;
         }
         case SDL_CONTROLLERAXISMOTION:{
-            for(int i = 0; i < gb_button_count; ++i){
+            for(int i = 0; i < current_profile->count; ++i){
 
-                controller_binding_t& binding = controller_bindings[i];
-                binding_state_t& binding_state = controller_bindings_state[i];
+                controller_binding_t& binding = current_profile->controller_bindings[i];
+                binding_state_t& binding_state = current_profile->controller_bindings_state[i];
 
                 if(binding.type != controller_binding_axis || binding.axis.index != event.caxis.axis) continue;
 
@@ -226,18 +297,18 @@ void input_settings_t::process_binding_event(SDL_Event& event){
 }
 
 void input_settings_t::process_capture_event(SDL_Event& event){
-    if(!_open || !popup_capture.get_open()) return;
+    if(!_open || !popup_capture.get_open() || !capture_profile) return;
 
     if(capture_is_keyboard){
         if(event.type == SDL_KEYDOWN){
-            temp_keyboard_bindings[capture_binding] = event.key.keysym.scancode;
+            capture_profile->temp_keyboard_bindings[capture_binding] = event.key.keysym.scancode;
 
             popup_capture.close();
         }
     }
     else{
         if(event.type == SDL_CONTROLLERBUTTONDOWN){
-            controller_binding_t& binding = temp_controller_bindings[capture_binding];
+            controller_binding_t& binding = capture_profile->temp_controller_bindings[capture_binding];
 
             binding.type = controller_binding_button;
             binding.button = event.cbutton.button;
@@ -245,7 +316,7 @@ void input_settings_t::process_capture_event(SDL_Event& event){
             popup_capture.close();
         }
         else if(event.type == SDL_CONTROLLERAXISMOTION && abs(event.caxis.value) > controller_axis_deadzone){
-            controller_binding_t& binding = temp_controller_bindings[capture_binding];
+            controller_binding_t& binding = capture_profile->temp_controller_bindings[capture_binding];
             
             binding.type = controller_binding_axis;
             binding.axis.index = event.caxis.axis;
@@ -257,89 +328,104 @@ void input_settings_t::process_capture_event(SDL_Event& event){
 }
 
 
+void input_settings_t::render_profile(input_profile_t* profile){
+
+    ImVec2 table_size(
+        0.0f,
+        ImGui::GetContentRegionAvail().y - ImGui::GetFrameHeightWithSpacing()
+    );
+
+    if(ImGui::BeginTable("InputTable",3,ImGuiTableFlags_Borders | ImGuiTableFlags_ScrollY,table_size)){
+        
+        ImGui::TableSetupColumn("Button",ImGuiTableColumnFlags_WidthFixed);
+        ImGui::TableSetupColumn("Keyboard",ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("Controller",ImGuiTableColumnFlags_WidthStretch);
+
+        ImGui::TableHeadersRow();
+        
+        ImVec2 button_size(-FLT_MIN,0.0f);
+
+        for(int i = 0; i < profile->count; ++i){
+
+            ImGui::PushID(i);
+
+            ImGui::TableNextRow();
+            
+            ImGui::TableNextColumn();
+            
+            ImGui::AlignTextToFramePadding();
+
+            ImGui::TextUnformatted(profile->names[i]);
+            
+            ImGui::TableNextColumn();
+            
+            ImGui::PushID("KeyboardSetup");
+
+            if(ImGui::Button(SDL_GetScancodeName(profile->temp_keyboard_bindings[i]),button_size)){
+
+                profile->temp_keyboard_bindings[i] = SDL_SCANCODE_UNKNOWN;
+
+                capture_profile = profile;
+                capture_is_keyboard = true;
+                capture_binding = i;
+
+                popup_capture.open(true);
+            }
+
+            ImGui::PopID();
+            
+            ImGui::PushID("ControllerSetup");
+
+            ImGui::TableNextColumn();
+
+            controller_binding_t& controller_binding = profile->temp_controller_bindings[i];
+
+            const char* label = "";
+
+            switch(controller_binding.type){
+                case controller_binding_button:{
+                    label = SDL_GameControllerGetStringForButton((SDL_GameControllerButton)controller_binding.button);
+                    break;
+                }
+                case controller_binding_axis:{
+                    label = SDL_GameControllerGetStringForAxis((SDL_GameControllerAxis)controller_binding.axis.index);
+                    break;
+                }
+            }
+
+            if(ImGui::Button(label,button_size)){
+
+                controller_binding.type = controller_binding_none;
+
+                capture_profile = profile;
+                capture_is_keyboard = false;
+                capture_binding = i;
+
+                popup_capture.open(false);
+            }
+
+            ImGui::PopID();
+
+            ImGui::PopID();
+        }
+
+        ImGui::EndTable();
+    }
+}
+
 void input_settings_t::render(){
     if(!_open) return;
 
     if(ImGui::Begin("Input",&_open)){
 
-        ImVec2 table_size(
-            0.0f,
-            ImGui::GetContentRegionAvail().y - ImGui::GetFrameHeightWithSpacing()
-        );
-
-        if(ImGui::BeginTable("InputTable",3,ImGuiTableFlags_Borders | ImGuiTableFlags_ScrollY,table_size)){
-            
-            ImGui::TableSetupColumn("Button",ImGuiTableColumnFlags_WidthFixed);
-            ImGui::TableSetupColumn("Keyboard",ImGuiTableColumnFlags_WidthStretch);
-            ImGui::TableSetupColumn("Controller",ImGuiTableColumnFlags_WidthStretch);
-
-            ImGui::TableHeadersRow();
-            
-            ImVec2 button_size(-FLT_MIN,0.0f);
-
-            for(int i = 0; i < gb_button_count; ++i){
-
-                ImGui::PushID(i);
-
-                ImGui::TableNextRow();
-                
-                ImGui::TableNextColumn();
-                
-                ImGui::AlignTextToFramePadding();
-
-                ImGui::TextUnformatted(gb_joypad_button_names[i]);
-                
-                ImGui::TableNextColumn();
-                
-                ImGui::PushID("KeyboardSetup");
-
-                if(ImGui::Button(SDL_GetScancodeName(temp_keyboard_bindings[i]),button_size)){
-
-                    temp_keyboard_bindings[i] = SDL_SCANCODE_UNKNOWN;
-
-                    capture_is_keyboard = true;
-                    capture_binding = i;
-
-                    popup_capture.open(true);
+        if(ImGui::BeginTabBar("ConsoleTabBar")){
+            for(int i = 0; i < console_count; ++i){
+                if(ImGui::BeginTabItem(console_names[i])){
+                    render_profile(profiles + i);
+                    ImGui::EndTabItem();
                 }
-
-                ImGui::PopID();
-                
-                ImGui::PushID("ControllerSetup");
-
-                ImGui::TableNextColumn();
-
-                controller_binding_t& controller_binding = temp_controller_bindings[i];
-
-                const char* label = "";
-
-                switch(controller_binding.type){
-                    case controller_binding_button:{
-                        label = SDL_GameControllerGetStringForButton((SDL_GameControllerButton)controller_binding.button);
-                        break;
-                    }
-                    case controller_binding_axis:{
-                        label = SDL_GameControllerGetStringForAxis((SDL_GameControllerAxis)controller_binding.axis.index);
-                        break;
-                    }
-                }
-
-                if(ImGui::Button(label,button_size)){
-
-                    controller_binding.type = controller_binding_none;
-
-                    capture_is_keyboard = false;
-                    capture_binding = i;
-
-                    popup_capture.open(false);
-                }
-
-                ImGui::PopID();
-
-                ImGui::PopID();
             }
-
-            ImGui::EndTable();
+            ImGui::EndTabBar();
         }
 
         ImGuiStyle& style = ImGui::GetStyle();
@@ -373,8 +459,10 @@ void input_settings_t::open() noexcept {
 
     _open = true;
 
-    temp_keyboard_bindings = keyboard_bindings;
-    temp_controller_bindings = controller_bindings;
+    for(input_profile_t& profile : profiles){
+        memcpy(profile.temp_keyboard_bindings,profile.keyboard_bindings,sizeof(SDL_Scancode) * profile.count);
+        memcpy(profile.temp_controller_bindings,profile.controller_bindings,sizeof(controller_binding_t) * profile.count);
+    }
 }
 
 void input_settings_t::close(bool discard_changes) noexcept {
@@ -383,7 +471,9 @@ void input_settings_t::close(bool discard_changes) noexcept {
     _open = false;
 
     if(!discard_changes){
-        keyboard_bindings = temp_keyboard_bindings;
-        controller_bindings = temp_controller_bindings;
+        for(input_profile_t& profile : profiles){
+            memcpy(profile.keyboard_bindings,profile.temp_keyboard_bindings,sizeof(SDL_Scancode) * profile.count);
+            memcpy(profile.controller_bindings,profile.temp_controller_bindings,sizeof(controller_binding_t) * profile.count);
+        }
     }
 }

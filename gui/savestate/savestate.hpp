@@ -47,6 +47,8 @@ private:
 public:
     void init(nanoboy_t* _nanoboy);
 
+    void update_console();
+    
     void load(std::filesystem::path path,std::string rom_name);
     void unload();
 

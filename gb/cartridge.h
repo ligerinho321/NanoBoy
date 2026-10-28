@@ -11,11 +11,11 @@
 #include "mappers/huc1.h"
 
 enum{
-    gb_cartridge_rom_min_size = 0x8000,
-    gb_cartridge_rom_max_size = 0x800000,
+    gb_cartridge_rom_min_length = 0x8000,
+    gb_cartridge_rom_max_length = 0x800000,
 
-    gb_cartridge_ram_min_size = 0x2000,
-    gb_cartridge_ram_max_size = 0x20000,
+    gb_cartridge_ram_min_length = 0x2000,
+    gb_cartridge_ram_max_length = 0x20000,
 };
 
 typedef enum _gb_cartridge_component_t {
@@ -100,13 +100,14 @@ extern "C" {
 
 void gb_cartridge_init(gb_cartridge_t* cartridge,gb_t* gb);
 
-bool gb_cartridge_load(gb_cartridge_t* cartridge,const char* path);
-void gb_cartridge_remove(gb_cartridge_t* cartridge);
+bool gb_cartridge_load(gb_cartridge_t* cartridge,uint8_t* rom,size_t length);
+void gb_cartridge_unload(gb_cartridge_t* cartridge);
 
 void gb_cartridge_save_ram(gb_t* gb,const char* path);
 void gb_cartridge_load_ram(gb_t* gb,const char* path);
 
-bool gb_cartridge_verify_nintendo_logo(uint8_t* header);
+bool gb_cartridge_rom_is_valid(uint8_t* rom,size_t length);
+bool gb_cartridge_verify_header_nintendo_logo(uint8_t* header);
 bool gb_cartridge_verify_header_checksum(uint8_t* header);
 
 size_t gb_cartridge_get_rom_length(uint8_t* header);

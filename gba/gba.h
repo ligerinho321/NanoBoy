@@ -11,11 +11,12 @@
 #include "keypad.h"
 #include "serial.h"
 #include "cartridge.h"
-#include "bios.h"
+#include "boot.h"
 
 typedef struct _gba_t {
 
     bool cartridge_inserted;
+    bool paused;
     
     gba_cpu_t cpu;
     gba_ppu_t ppu;
@@ -27,7 +28,7 @@ typedef struct _gba_t {
     gba_keypad_t keypad;
     gba_serial_t serial;
     gba_cartridge_t cartridge;
-    gba_bios_t bios;
+    gba_boot_t boot;
 
     uint64_t cycles;
 } gba_t;
@@ -39,9 +40,16 @@ extern "C" {
 gba_t* gba_new();
 
 bool gba_insert_cartridge(gba_t* gba,const char* path);
+bool gba_insert_cartridge_from_memory(gba_t* gba,uint8_t* rom,size_t length);
 void gba_remove_cartridge(gba_t* gba);
 
+void gba_pause(gba_t* gba,bool paused);
+
 void gba_clock(gba_t* gba,int clocks);
+
+void gba_execute_frame(gba_t* gba);
+
+void gba_reset(gba_t* gba);
 
 void gba_delete(gba_t* gba);
 

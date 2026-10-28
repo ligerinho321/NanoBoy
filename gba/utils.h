@@ -20,8 +20,8 @@ enum {
 
     gba_bus_length = 0x100000000,
     
-    gba_bios_length = 0x4000,
-    gba_bios_address_mask = 0x3FFF,
+    gba_boot_length = 0x4000,
+    gba_boot_address_mask = 0x3FFF,
     
     gba_iwram_length = 0x8000,
     gba_iwram_address_mask = 0x7FFF,
@@ -38,8 +38,20 @@ enum {
     gba_oam_length = 0x400,
     gba_oam_address_mask = 0x3FF,
 
-    gb_screen_width = 240,
-    gb_screen_height = 160
+    gba_screen_width = 240,
+    gba_screen_height = 160,
+    gba_screen_bytes_per_pixel = 3,
+    gba_screen_pitch = gba_screen_width * gba_screen_bytes_per_pixel,
+    gba_screen_length = gba_screen_pitch * gba_screen_height,
+
+    gba_scanline_hblank_start_cycle = 1006,
+
+    gba_scanline_cycles = 1232,
+
+    gba_vblank_start_scanline = 160,
+    
+    gba_scanlines = 228,
+    gba_frame_cycles = gba_scanlines * gba_scanline_cycles
 };
 
 typedef union _gba_halfword_t {
@@ -55,6 +67,9 @@ typedef union _gba_register32_t {
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+bool gba_save_file(const char* filename,void* data,size_t len);
+bool gba_load_file(const char* filename,void** data,size_t* len);
 
 uint32_t gba_crc32(const uint8_t* buffer,size_t len);
 

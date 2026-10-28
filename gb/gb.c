@@ -69,14 +69,27 @@ uint32_t gb_get_clock_rate(gb_t* gb){
 
 bool gb_insert_cartridge(gb_t* gb,const char* path){
 
+    uint8_t* data = NULL;
+    size_t length = 0;
+
+    if(!gb_load_file(path,(void**)&data,&length)){
+        gb_remove_cartridge(gb);
+        return false;
+    }
+
+    return gb_insert_cartridge_from_memory(gb,data,length);
+}
+
+bool gb_insert_cartridge_from_memory(gb_t* gb,uint8_t* rom,size_t length){
+    
     gb_remove_cartridge(gb);
 
-    if(!gb_cartridge_load(&gb->cartridge,path)){
+    if(!gb_cartridge_load(&gb->cartridge,rom,length)){
         return false;
     }
 
     if(!gb_rewind_load(&gb->rewind)){
-        gb_cartridge_remove(&gb->cartridge);
+        gb_cartridge_unload(&gb->cartridge);
         return false;
     }
 
@@ -93,7 +106,7 @@ bool gb_insert_cartridge(gb_t* gb,const char* path){
 
 void gb_remove_cartridge(gb_t* gb){
 
-    gb_cartridge_remove(&gb->cartridge);
+    gb_cartridge_unload(&gb->cartridge);
 
     gb->cartridge_inserted = false;
 
@@ -464,7 +477,11 @@ void gb_reset(gb_t* gb){
 
     gb_boot_update_roms(&gb->boot);
 
-    bool skip_boot = gb->boot.skip_enabled || (gb->state.is_cgb && !gb->boot.cgb_rom_inserted) || (!gb->state.is_cgb && !gb->boot.dmg_rom_inserted);
+    bool skip_boot = (
+        gb->boot.skip_enabled ||
+        (gb->state.is_cgb && !gb->boot.cgb_rom_inserted) ||
+        (!gb->state.is_cgb && !gb->boot.dmg_rom_inserted)
+    );
 
     if(gb->state.is_cgb && (!skip_boot || gb_cartridge_cgb_flag(&gb->cartridge))){
         gb->state.cgb_mode = true;

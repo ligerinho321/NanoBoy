@@ -183,7 +183,7 @@ void gb_ppu_init(gb_ppu_t* ppu,gb_t* gb);
 
 void gb_ppu_clock(gb_ppu_t* ppu,int cycles);
 
-const uint8_t* gb_ppu_get_render_buffer(gb_t* gb);
+const uint8_t* gb_ppu_get_screen_buffer(gb_t* gb);
 
 void gb_ppu_add_handler(gb_t* gb,gb_ppu_handler_t* handler);
 void gb_ppu_remove_handler(gb_t* gb,gb_ppu_handler_t* handler);

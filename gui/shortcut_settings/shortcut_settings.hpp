@@ -40,8 +40,6 @@ public:
         increase_speed,
         decrease_speed,
         rewind_held,
-        cheats,
-        printer,
         power_off,
 
         set_scale_1x,
@@ -60,8 +58,6 @@ public:
         toggle_interger_scale,
         toggle_interframe_blending,
         toggle_bilinear_filtering,
-        toggle_disable_background,
-        toggle_disable_objects,
 
         dmg_palette_settings,
         boot_settings,
@@ -79,6 +75,9 @@ public:
         palette_viewer,
         wave_form,
 
+        cheats,
+        printer,
+        
         id_count
     };
     

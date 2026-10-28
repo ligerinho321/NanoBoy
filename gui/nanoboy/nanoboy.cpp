@@ -1,49 +1,15 @@
 #include <gui/nanoboy/nanoboy.hpp>
 
-static void joypad_callback(void* data,gb_joypad_button_state_t* button_state){
-
-    nanoboy_t* nanoboy = (nanoboy_t*)data;
-
-    input_settings_t& input_settings = nanoboy->input_settings;
-
-    button_state->down = input_settings.pressed(gb_button_down);
-    button_state->up = input_settings.pressed(gb_button_up);
-    button_state->left = input_settings.pressed(gb_button_left);
-    button_state->right = input_settings.pressed(gb_button_right);
-    button_state->start = input_settings.pressed(gb_button_start);
-    button_state->select = input_settings.pressed(gb_button_select);
-    button_state->a = input_settings.pressed(gb_button_a);
-    button_state->b = input_settings.pressed(gb_button_b);
-}
-
-static void audio_callback(void* userdata,uint8_t* data,int len){
-    gb_t* gb = (gb_t*)userdata;
-    size_t result = gb_read_samples(gb,data,len);
-    if(result < (size_t)len){
-        memset(data + result,0,(size_t)len - result);
-    }
-}
-
-
 static const char* file_extensions[] = {
     "All files\0",
-    "GB ROM files\0.gb;.gbc"
+    "GB ROM files\0.gb;.gbc",
+    "GBA ROM files\0.gba"
 };
 
 static const int file_extensions_count = sizeof(file_extensions) / sizeof(file_extensions[0]);
 
-
-static void file_selector_callback(void* userdata,std::filesystem::path path){
-    nanoboy_t* nanoboy = (nanoboy_t*)userdata;
-    nanoboy->insert_cartridge(path);
-}
-
-
 nanoboy_t::nanoboy_t(){
     
-    gb = gb_new();
-    gb_joypad_set_callback(gb,joypad_callback,this);
-
     init_directories();
     init_sdl();
     init_imgui();
@@ -59,9 +25,9 @@ nanoboy_t::nanoboy_t(){
 
     notification_manager.init();
     
-    dmg_palette.init(gb);
-    boot_settings.init(gb);
-    rewind_settings.init(gb);
+    dmg_palette.init(this);
+    boot_settings.init(this);
+    rewind_settings.init(this);
     input_settings.init();
     shortcut_settings.init();
 
@@ -74,20 +40,6 @@ nanoboy_t::nanoboy_t(){
 
     screen.init(this);
 
-    cheats.init(gb);
-
-    printer.init(gb,renderer);
-
-    debugger.init(gb);
-    register_viewer.init(gb);
-    event_viewer.init(gb,renderer);
-    memory_viewer.init(gb);
-    tilemap_viewer.init(gb,renderer);
-    tile_viewer.init(gb,renderer);
-    object_viewer.init(gb,renderer);
-    palette_viewer.init(gb,renderer);
-    wave_form.init(gb);
-
     running = true;
 
     load_settings();
@@ -97,20 +49,15 @@ nanoboy_t::~nanoboy_t(){
 
     remove_cartridge();
 
+    if(console != nullptr){
+        delete console;
+        console = nullptr;
+    }
+
     save_settings();
     save_imgui_ini_settings();
 
-    wave_form.uninit();
-    palette_viewer.uninit();
-    object_viewer.uninit();
-    tile_viewer.uninit();
-    tilemap_viewer.uninit();
-    event_viewer.uninit();
-    debugger.uninit();
-    printer.uninit();
-    cheats.uninit();
-    screen.uninit();
-    boot_settings.uninit();
+    input_settings.uninit();
 
     ImGui_ImplSDLRenderer2_Shutdown();
     ImGui_ImplSDL2_Shutdown();
@@ -121,8 +68,22 @@ nanoboy_t::~nanoboy_t(){
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
+}
 
-    gb_delete(gb);
+
+void nanoboy_t::audio_callback(void* userdata,uint8_t* data,int len){
+    nanoboy_t* nanoboy = (nanoboy_t*)userdata;
+
+    size_t result = nanoboy->console->read_samples(data,len);
+
+    if(result < (size_t)len){
+        memset(data + result,0,(size_t)len - result);
+    }
+}
+
+void nanoboy_t::file_selector_callback(void* userdata,std::filesystem::path path){
+    nanoboy_t* nanoboy = (nanoboy_t*)userdata;
+    nanoboy->insert_cartridge(path);
 }
 
 
@@ -177,12 +138,12 @@ void nanoboy_t::init_sdl(){
     renderer = SDL_CreateRenderer(window,-1,SDL_RENDERER_ACCELERATED);
 
     SDL_AudioSpec audio_spec = {};
-    audio_spec.freq = gb_audio_sample_rate;
+    audio_spec.freq = 44100;
     audio_spec.format = AUDIO_S16;
-    audio_spec.channels = gb_audio_channels;
+    audio_spec.channels = 2;
     audio_spec.samples = 512;
     audio_spec.callback = audio_callback;
-    audio_spec.userdata = gb;
+    audio_spec.userdata = this;
 
     audio_device = SDL_OpenAudioDevice(nullptr,0,&audio_spec,nullptr,0);
 }
@@ -212,6 +173,14 @@ void nanoboy_t::init_imgui(){
     ImGui_ImplSDL2_NewFrame();
     ImGui::NewFrame();
     ImGui::Render();
+}
+
+
+void nanoboy_t::update_gb_model(){
+    if(console != nullptr && console->type() == console_gb){
+        gb_t* gb = (gb_t*)console->data();
+        gb->is_cgb_pending = is_cgb;
+    }
 }
 
 
@@ -334,7 +303,7 @@ void nanoboy_t::save_settings(){
 
     screen.save(settings_object);
 
-    cJSON* is_cgb_bool = cJSON_CreateBool(gb->is_cgb_pending);
+    cJSON* is_cgb_bool = cJSON_CreateBool(is_cgb);
     cJSON_AddItemToObjectCS(settings_object,"Is CGB",is_cgb_bool);
 
     dmg_palette.save(settings_object);
@@ -384,7 +353,7 @@ void nanoboy_t::load_settings(){
 
     is_cgb_bool = cJSON_GetObjectItemCaseSensitive(settings_object,"Is CGB");
     if(cJSON_IsBool(is_cgb_bool)){
-        gb->is_cgb_pending = cJSON_IsTrue(is_cgb_bool);
+        is_cgb = cJSON_IsTrue(is_cgb_bool);
     }
 
     dmg_palette.load(settings_object);
@@ -427,7 +396,7 @@ void nanoboy_t::load_imgui_ini_settings(){
 
 
 void nanoboy_t::take_screenshot(){
-    char timestamp[64] = {0};
+    char timestamp[64] = {};
     
     time_t current_time = time(nullptr);
     struct tm* lt = localtime(&current_time);
@@ -438,7 +407,7 @@ void nanoboy_t::take_screenshot(){
 
     std::filesystem::path path = screenshot_path / filename;
 
-    if(stbi_write_png(path.u8string().c_str(),gb_screen_width,gb_screen_height,gb_screen_bytes_per_pixel,gb_ppu_get_render_buffer(gb),gb_screen_pitch)){
+    if(console->take_screenshot(path.u8string().c_str())){
         notification_manager.push_notification("Screenshot Saved \"%s\"",filename.c_str());
     }
     else{
@@ -455,17 +424,69 @@ void nanoboy_t::insert_cartridge(std::filesystem::path path){
 
     remove_cartridge();
 
-    if(!gb_insert_cartridge(gb,(const char*)path.u8string().c_str())){
+    uint8_t* data = nullptr;
+    size_t length = 0;
 
-        notification_manager.push_notification("Failed To Load \"%s\"",path.filename().u8string().c_str());
+    if(!gb_load_file(path.u8string().c_str(),(void**)&data,&length)) goto fail;
 
-        return;
+    if(gb_cartridge_rom_is_valid(data,length)){
+
+        if(console && console->type() != console_gb){
+            delete console;
+            console = nullptr;
+        }
+
+        if(!console){
+            console = new gb_console_t(this);
+            
+            input_settings.set_current_console(console_gb);
+
+            boot_settings.apply_to_console();
+            dmg_palette.apply_to_console();
+            rewind_settings.apply_to_console();
+
+            savestate.update_console();
+            screen.update_console();
+
+            update_gb_model();
+        }
+    }
+    else if(gba_cartridge_rom_is_valid(data,length)){
+
+        if(console && console->type() != console_gba){
+            delete console;
+            console = nullptr;
+        }
+
+        if(!console){
+            console = new gba_console_t(this);
+
+            input_settings.set_current_console(console_gba);
+
+            boot_settings.apply_to_console();
+            rewind_settings.apply_to_console();
+
+            savestate.update_console();
+            screen.update_console();
+        }
+    }
+    else{
+        free(data);
+        goto fail;
     }
 
-    notification_manager.push_notification("Loaded \"%s\"",path.filename().u8string().c_str());
+    if(!console->insert_cartridge_from_memory(data,length)) goto fail;
 
     rom_path = path;
     rom_name = path.filename().replace_extension("").u8string();
+
+    console->load_ram(get_rom_save_path().c_str());
+    console->load_rtc(get_rom_rtc_path().c_str());
+    console->load_cheats(get_rom_cheats_path().c_str());
+
+    savestate.load(savestates_path,rom_name);
+
+    SDL_PauseAudioDevice(audio_device,false);
 
     recent_roms.push_front(recent_rom);
 
@@ -473,61 +494,48 @@ void nanoboy_t::insert_cartridge(std::filesystem::path path){
         recent_roms.pop_back();
     }
 
-    gb_cartridge_load_ram(gb,get_rom_save_path().c_str());
+    notification_manager.push_notification("Loaded \"%s\"",path.filename().u8string().c_str());
 
-    gb_cartridge_load_rtc(gb,get_rom_rtc_path().c_str());
+    return;
 
-    savestate.load(savestates_path,rom_name);
-
-    cheats.load(get_rom_cheat_path().c_str());
-
-    SDL_PauseAudioDevice(audio_device,false);
+    fail:
+    notification_manager.push_notification("Failed To Load \"%s\"",path.filename().u8string().c_str());
 }
 
 void nanoboy_t::remove_cartridge(){
 
-    if(!gb->cartridge_inserted) return;
+    if(!console || !console->cartridge_inserted()) return;
 
     SDL_PauseAudioDevice(audio_device,true);
 
-    gb_cartridge_save_ram(gb,get_rom_save_path().c_str());
-    
-    gb_cartridge_save_rtc(gb,get_rom_rtc_path().c_str());
+    console->save_ram(get_rom_save_path().c_str());
+    console->save_rtc(get_rom_rtc_path().c_str());
+    console->save_cheats(get_rom_cheats_path().c_str());
 
     savestate.unload();
-
-    cheats.save(get_rom_cheat_path().c_str());
-    cheats.clear();
-
-    printer.clear();
-
-    event_viewer.clear();
-    tilemap_viewer.clear();
-    tile_viewer.clear();
-    object_viewer.clear();
-    palette_viewer.clear();
-    wave_form.clear();
-    
-    screen.clear();
 
     rom_path.clear();
     rom_name.clear();
 
-    gb_remove_cartridge(gb);
+    console->remove_cartridge();
 
     SDL_SetWindowTitle(window,"NanoBoy");
 }
 
-void nanoboy_t::set_speed(float speed){
-    gb_set_speed(gb,speed);
+void nanoboy_t::increase_speed(){
+    console->increase_speed();
+    notification_manager.push_notification("Speed %d%%",(int)(console->get_speed() * 100.0f));
+}
 
-    notification_manager.push_notification("Speed %d%%",(int)(gb->speed * 100.0f));
+void nanoboy_t::decrease_speed(){
+    console->decrease_speed();
+    notification_manager.push_notification("Speed %d%%",(int)(console->get_speed() * 100.0f));
 }
 
 void nanoboy_t::pause(){
-    gb_pause(gb,!gb->paused);
+    console->pause();
 
-    if(gb->paused){
+    if(console->paused()){
         notification_manager.push_notification("Paused");
     }
     else{
@@ -538,13 +546,126 @@ void nanoboy_t::pause(){
 void nanoboy_t::reset(){
     SDL_LockAudioDevice(audio_device);
 
-    gb_reset(gb);
+    console->reset();
 
     SDL_UnlockAudioDevice(audio_device);
 
     notification_manager.push_notification("Reseted");
+}
 
-    event_viewer.reset();
+
+void nanoboy_t::file_shortcut_event(){
+    bool cartridge_inserted = console != nullptr && console->cartridge_inserted();
+
+    if(shortcut_settings.down(shortcut_settings_t::open_file)){
+        file_selector.set_open(true);
+    }
+
+    if(shortcut_settings.down(shortcut_settings_t::take_screenshot) && cartridge_inserted){
+        take_screenshot();
+    }
+
+    savestate.shortcut_event();
+
+    if(shortcut_settings.down(shortcut_settings_t::exit)){
+        running = false;
+    }
+}
+
+void nanoboy_t::game_shortcut_event(){
+    if(!console || !console->cartridge_inserted()) return;
+
+    if(shortcut_settings.down(shortcut_settings_t::pause)){
+        pause();
+    }
+    if(shortcut_settings.down(shortcut_settings_t::reset)){
+        reset();
+    }
+    if(shortcut_settings.down(shortcut_settings_t::increase_speed)){
+        increase_speed();
+    }
+    if(shortcut_settings.down(shortcut_settings_t::decrease_speed)){
+        decrease_speed();
+    }
+    if(shortcut_settings.down(shortcut_settings_t::rewind_held)){
+        if(console->start_rewind()){
+            SDL_LockAudioDevice(audio_device);
+        }
+    }
+    if(shortcut_settings.released(shortcut_settings_t::rewind_held)){
+        if(console->end_rewind()){
+            SDL_UnlockAudioDevice(audio_device);
+        }
+    }
+    if(shortcut_settings.down(shortcut_settings_t::power_off)){
+        remove_cartridge();
+    }
+}
+
+void nanoboy_t::settings_shortcut_event(){
+
+    screen.shortcut_event();
+
+    if(shortcut_settings.down(shortcut_settings_t::dmg_palette_settings)){
+        dmg_palette.open();
+    }
+    if(shortcut_settings.down(shortcut_settings_t::boot_settings)){
+        boot_settings.open();
+    }
+    if(shortcut_settings.down(shortcut_settings_t::rewind_settings)){
+        rewind_settings.open();
+    }
+    if(shortcut_settings.down(shortcut_settings_t::input_settings)){
+        input_settings.open();
+    }
+    if(shortcut_settings.down(shortcut_settings_t::shortcut_settings)){
+        shortcut_settings.open();
+    }
+}
+
+void nanoboy_t::debug_shortcut_event(){
+    if(!console || !console->cartridge_inserted()) return;
+
+    if(shortcut_settings.down(shortcut_settings_t::debugger)){
+        console->open_debugger();
+    }
+    if(shortcut_settings.down(shortcut_settings_t::register_viewer)){
+        console->open_register_viewer();
+    }
+    if(shortcut_settings.down(shortcut_settings_t::event_viewer)){
+        console->open_event_viewer();
+    }
+    if(shortcut_settings.down(shortcut_settings_t::memory_viewer)){
+        console->open_memory_viewer();
+    }
+    if(shortcut_settings.down(shortcut_settings_t::tilemap_viewer)){
+        console->open_tilemap_viewer();
+    }
+    if(shortcut_settings.down(shortcut_settings_t::tile_viewer)){
+        console->open_tile_viewer();
+    }
+    if(shortcut_settings.down(shortcut_settings_t::object_viewer)){
+        console->open_object_viewer();
+    }
+    if(shortcut_settings.down(shortcut_settings_t::palette_viewer)){
+        console->open_palette_viewer();
+    }
+    if(shortcut_settings.down(shortcut_settings_t::wave_form)){
+        console->open_wave_form();
+    }
+}
+
+void nanoboy_t::tools_shortcut_event(){
+    if(!console || !console->cartridge_inserted()) return;
+
+    if(shortcut_settings.down(shortcut_settings_t::cheats)){
+        console->open_cheats();
+    }
+
+    if(shortcut_settings.down(shortcut_settings_t::printer) && console->type() == console_gb){
+        gb_console_t* gb_console = (gb_console_t*)console;
+        gb_console->open_printer();
+    }
 }
 
 
@@ -578,86 +699,9 @@ void nanoboy_t::event(){
         }
     }
 
-    if(shortcut_settings.down(shortcut_settings_t::open_file)){
-        file_selector.set_open(true);
-    }
-
-    if(shortcut_settings.down(shortcut_settings_t::take_screenshot) && gb->cartridge_inserted){
-        take_screenshot();
-    }
-
-    savestate.shortcut_event();
-
-    if(shortcut_settings.down(shortcut_settings_t::exit)){
-        running = false;
-    }
-
-    if(gb->cartridge_inserted){
-        if(shortcut_settings.down(shortcut_settings_t::pause)){
-            pause();
-        }
-        if(shortcut_settings.down(shortcut_settings_t::reset)){
-            reset();
-        }
-        if(shortcut_settings.down(shortcut_settings_t::increase_speed)){
-            set_speed(gb->speed + gb_speed_step);
-        }
-        if(shortcut_settings.down(shortcut_settings_t::decrease_speed)){
-            set_speed(gb->speed - gb_speed_step);
-        }
-        
-        if(shortcut_settings.down(shortcut_settings_t::rewind_held)){
-            if(gb_rewind_start(gb)){
-                SDL_LockAudioDevice(audio_device);
-            }
-        }
-        if(shortcut_settings.released(shortcut_settings_t::rewind_held)){
-            if(gb_rewind_end(gb)){
-                SDL_UnlockAudioDevice(audio_device);
-            }
-        }
-
-        if(shortcut_settings.down(shortcut_settings_t::cheats)){
-            cheats.set_open(true);
-        }
-        if(shortcut_settings.down(shortcut_settings_t::printer)){
-            printer.set_open(true);
-        }
-        if(shortcut_settings.down(shortcut_settings_t::power_off)){
-            remove_cartridge();
-        }
-    }
-
-    screen.shortcut_event();
-
-    if(shortcut_settings.down(shortcut_settings_t::dmg_palette_settings)){
-        dmg_palette.open();
-    }
-    if(shortcut_settings.down(shortcut_settings_t::boot_settings)){
-        boot_settings.open();
-    }
-    if(shortcut_settings.down(shortcut_settings_t::rewind_settings)){
-        rewind_settings.open();
-    }
-    if(shortcut_settings.down(shortcut_settings_t::input_settings)){
-        input_settings.open();
-    }
-    if(shortcut_settings.down(shortcut_settings_t::shortcut_settings)){
-        shortcut_settings.open();
-    }
-
     if(SDL_GetWindowFlags(window) & SDL_WINDOW_MOUSE_FOCUS){
         cursor.update();
     }
-}
-
-
-void nanoboy_t::gb_run(){
-    if(!gb->cartridge_inserted) return;
-
-    gb_execute_frame(gb);
-
-    screen.update_screen();
 }
 
 
@@ -666,7 +710,9 @@ void nanoboy_t::render_main_menu_bar(){
     if(SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN_DESKTOP) return;
     
     if(!ImGui::BeginMainMenuBar()) return;
-        
+    
+    bool cartridge_inserted = console != nullptr && console->cartridge_inserted();
+
     if(ImGui::BeginMenu("File")){
         
         if(ImGui::MenuItem("Open File",shortcut_settings.str_keyboard(shortcut_settings_t::open_file))){
@@ -688,7 +734,7 @@ void nanoboy_t::render_main_menu_bar(){
 
         ImGui::Separator();
 
-        if(ImGui::MenuItem("Take Screenshot",shortcut_settings.str_keyboard(shortcut_settings_t::take_screenshot),nullptr,gb->cartridge_inserted)){
+        if(ImGui::MenuItem("Take Screenshot",shortcut_settings.str_keyboard(shortcut_settings_t::take_screenshot),nullptr,cartridge_inserted)){
             take_screenshot();
         }
 
@@ -707,31 +753,23 @@ void nanoboy_t::render_main_menu_bar(){
 
     if(ImGui::BeginMenu("Game")){
         
-        if(ImGui::MenuItem("Pause",shortcut_settings.str_keyboard(shortcut_settings_t::pause),nullptr,gb->cartridge_inserted)){
+        if(ImGui::MenuItem("Pause",shortcut_settings.str_keyboard(shortcut_settings_t::pause),nullptr,cartridge_inserted)){
             pause();
         }
 
-        if(ImGui::MenuItem("Reset",shortcut_settings.str_keyboard(shortcut_settings_t::reset),nullptr,gb->cartridge_inserted)){
+        if(ImGui::MenuItem("Reset",shortcut_settings.str_keyboard(shortcut_settings_t::reset),nullptr,cartridge_inserted)){
             reset();
         }
 
-        if(ImGui::MenuItem("Increase Speed",shortcut_settings.str_keyboard(shortcut_settings_t::increase_speed),nullptr,gb->cartridge_inserted)){
-            set_speed(gb->speed + gb_speed_step);
-        }
-        
-        if(ImGui::MenuItem("Decrease Speed",shortcut_settings.str_keyboard(shortcut_settings_t::decrease_speed),nullptr,gb->cartridge_inserted)){
-            set_speed(gb->speed - gb_speed_step);
+        if(ImGui::MenuItem("Increase Speed",shortcut_settings.str_keyboard(shortcut_settings_t::increase_speed),nullptr,cartridge_inserted)){
+            increase_speed();
         }
 
-        if(ImGui::MenuItem("Cheats",shortcut_settings.str_keyboard(shortcut_settings_t::cheats),nullptr,gb->cartridge_inserted)){
-            cheats.set_open(true);
+        if(ImGui::MenuItem("Decrease Speed",shortcut_settings.str_keyboard(shortcut_settings_t::decrease_speed),nullptr,cartridge_inserted)){
+            decrease_speed();
         }
 
-        if(ImGui::MenuItem("Printer",shortcut_settings.str_keyboard(shortcut_settings_t::printer),nullptr,gb->cartridge_inserted)){
-            printer.set_open(true);
-        }
-
-        if(ImGui::MenuItem("Power Off",shortcut_settings.str_keyboard(shortcut_settings_t::power_off),nullptr,gb->cartridge_inserted)){
+        if(ImGui::MenuItem("Power Off",shortcut_settings.str_keyboard(shortcut_settings_t::power_off),nullptr,cartridge_inserted)){
             remove_cartridge();
         }
         
@@ -743,12 +781,14 @@ void nanoboy_t::render_main_menu_bar(){
         screen.render_menu_bar();
 
         if(ImGui::BeginMenu("Model")){
-            
-            if(ImGui::MenuItem("Game Boy (DMG)",nullptr,!gb->is_cgb_pending) && gb->is_cgb_pending){
-                gb->is_cgb_pending = false;
+
+            if(ImGui::MenuItem("Game Boy (DMG)",nullptr,!is_cgb)){
+                is_cgb = false;
+                update_gb_model();
             }
-            if(ImGui::MenuItem("Game Boy Color (CGB)",nullptr,gb->is_cgb_pending) && !gb->is_cgb_pending){
-                gb->is_cgb_pending = true;
+            if(ImGui::MenuItem("Game Boy Color (CGB)",nullptr,is_cgb)){
+                is_cgb = true;
+                update_gb_model();
             }
 
             ImGui::EndMenu();
@@ -778,33 +818,49 @@ void nanoboy_t::render_main_menu_bar(){
     }
 
     if(ImGui::BeginMenu("Debug")){
-        if(ImGui::MenuItem("Debugger",shortcut_settings.str_keyboard(shortcut_settings_t::debugger),nullptr,gb->cartridge_inserted)){
-            debugger.set_open(true);
+
+        if(ImGui::MenuItem("Debugger",shortcut_settings.str_keyboard(shortcut_settings_t::debugger),nullptr,cartridge_inserted)){
+            console->open_debugger();
         }
-        if(ImGui::MenuItem("Register Viewer",shortcut_settings.str_keyboard(shortcut_settings_t::register_viewer),nullptr,gb->cartridge_inserted)){
-            register_viewer.set_open(true);
+        if(ImGui::MenuItem("Register Viewer",shortcut_settings.str_keyboard(shortcut_settings_t::register_viewer),nullptr,cartridge_inserted)){
+            console->open_register_viewer();
         }
-        if(ImGui::MenuItem("Event Viewer",shortcut_settings.str_keyboard(shortcut_settings_t::event_viewer),nullptr,gb->cartridge_inserted)){
-            event_viewer.set_open(true);
+        if(ImGui::MenuItem("Event Viewer",shortcut_settings.str_keyboard(shortcut_settings_t::event_viewer),nullptr,cartridge_inserted)){
+            console->open_event_viewer();
         }
-        if(ImGui::MenuItem("Memory Viewer",shortcut_settings.str_keyboard(shortcut_settings_t::memory_viewer),nullptr,gb->cartridge_inserted)){
-            memory_viewer.set_open(true);
+        if(ImGui::MenuItem("Memory Viewer",shortcut_settings.str_keyboard(shortcut_settings_t::memory_viewer),nullptr,cartridge_inserted)){
+            console->open_memory_viewer();
         }
-        if(ImGui::MenuItem("Tilemap Viewer",shortcut_settings.str_keyboard(shortcut_settings_t::tilemap_viewer),nullptr,gb->cartridge_inserted)){
-            tilemap_viewer.set_open(true);
+        if(ImGui::MenuItem("Tilemap Viewer",shortcut_settings.str_keyboard(shortcut_settings_t::tilemap_viewer),nullptr,cartridge_inserted)){
+            console->open_tilemap_viewer();
         }
-        if(ImGui::MenuItem("Tile Viewer",shortcut_settings.str_keyboard(shortcut_settings_t::tile_viewer),nullptr,gb->cartridge_inserted)){
-            tile_viewer.set_open(true);
+        if(ImGui::MenuItem("Tile Viewer",shortcut_settings.str_keyboard(shortcut_settings_t::tile_viewer),nullptr,cartridge_inserted)){
+            console->open_tile_viewer();
         }
-        if(ImGui::MenuItem("Object Viewer",shortcut_settings.str_keyboard(shortcut_settings_t::object_viewer),nullptr,gb->cartridge_inserted)){
-            object_viewer.set_open(true);
+        if(ImGui::MenuItem("Object Viewer",shortcut_settings.str_keyboard(shortcut_settings_t::object_viewer),nullptr,cartridge_inserted)){
+            console->open_object_viewer();
         }
-        if(ImGui::MenuItem("Palette Viewer",shortcut_settings.str_keyboard(shortcut_settings_t::palette_viewer),nullptr,gb->cartridge_inserted)){
-            palette_viewer.set_open(true);
+        if(ImGui::MenuItem("Palette Viewer",shortcut_settings.str_keyboard(shortcut_settings_t::palette_viewer),nullptr,cartridge_inserted)){
+            console->open_palette_viewer();
         }
-        if(ImGui::MenuItem("Wave Form",shortcut_settings.str_keyboard(shortcut_settings_t::wave_form),nullptr,gb->cartridge_inserted)){
-            wave_form.set_open(true,false);
+        if(ImGui::MenuItem("Wave Form",shortcut_settings.str_keyboard(shortcut_settings_t::wave_form),nullptr,cartridge_inserted)){
+            console->open_wave_form();
         }
+
+        ImGui::EndMenu();
+    }
+
+    if(ImGui::BeginMenu("Tools")){
+
+        if(ImGui::MenuItem("Cheats",shortcut_settings.str_keyboard(shortcut_settings_t::cheats),nullptr,cartridge_inserted)){
+            console->open_cheats();
+        }
+
+        if(ImGui::MenuItem("Printer",shortcut_settings.str_keyboard(shortcut_settings_t::printer),nullptr,cartridge_inserted && console->type() == console_gb)){
+            gb_console_t* gb_console = (gb_console_t*)console;
+            gb_console->open_printer();
+        }
+
         ImGui::EndMenu();
     }
 
@@ -838,18 +894,9 @@ void nanoboy_t::imgui_render(){
     
     screen.render_floating();
 
-    cheats.render();
-    printer.render();
-    
-    debugger.render();
-    register_viewer.render();
-    event_viewer.render();
-    memory_viewer.render();
-    tilemap_viewer.render();
-    tile_viewer.render();
-    object_viewer.render();
-    palette_viewer.render();
-    wave_form.render();
+    if(console != nullptr){
+        console->render_imgui_windows();
+    }
 
     ImGui::Render();
 }
@@ -866,10 +913,10 @@ void nanoboy_t::sdl_render(){
 
     SDL_RenderPresent(renderer);
 
-    if(gb->cartridge_inserted){
+    if(console != nullptr && console->cartridge_inserted()){
         static char buffer[256] = {0};
 
-        snprintf(buffer,sizeof(buffer),"NanoBoy - %s (%.1f fps)",rom_name.c_str(),gb->frame_timer.fps);
+        snprintf(buffer,sizeof(buffer),"NanoBoy - %s (%.1f fps)",rom_name.c_str(),console->fps());
 
         SDL_SetWindowTitle(window,buffer);
     }
@@ -882,7 +929,16 @@ void nanoboy_t::run(){
 
         event();
 
-        gb_run();
+        file_shortcut_event();
+        game_shortcut_event();
+        settings_shortcut_event();
+        debug_shortcut_event();
+        tools_shortcut_event();
+
+        if(console != nullptr && console->cartridge_inserted()){
+            console->execute_frame();
+            console->update_screen_texture();
+        }
 
         imgui_render();
 

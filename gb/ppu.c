@@ -588,7 +588,7 @@ void gb_ppu_clock(gb_ppu_t* ppu,int cycles){
 }
 
 
-const uint8_t* gb_ppu_get_render_buffer(gb_t* gb){
+const uint8_t* gb_ppu_get_screen_buffer(gb_t* gb){
     gb_ppu_t* ppu = &gb->ppu;
     return ppu->state.screen[!ppu->state.screen_index];
 }

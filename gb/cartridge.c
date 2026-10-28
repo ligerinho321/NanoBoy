@@ -24,43 +24,25 @@ void gb_cartridge_init(gb_cartridge_t* cartridge,gb_t* gb){
 }
 
 
-bool gb_cartridge_load(gb_cartridge_t* cartridge,const char* path){
+bool gb_cartridge_load(gb_cartridge_t* cartridge,uint8_t* rom,size_t length){
 
-    FILE* file = fopen(path,"rb");
-    if(!file){
-        gb_printf_errno(fopen);
-        goto fail;
-    }
-
-    fseek(file,0,SEEK_END);
-    size_t size = ftell(file);
-    fseek(file,0,SEEK_SET);
-
-    if((size < gb_cartridge_rom_min_size) || (size > gb_cartridge_rom_max_size)){
+    if((length < gb_cartridge_rom_min_length) || (length > gb_cartridge_rom_max_length)){
         gb_printf_error("invalid rom");
         goto fail;
     }
 
-    cartridge->rom = (uint8_t*)malloc(size);
-    if(!cartridge->rom){
-        gb_printf_errno(malloc);
-        goto fail;
-    }
-
-    fread(cartridge->rom,1,size,file);
-
-    uint8_t* multicard_header = cartridge->rom + (size - 0x8000) + 0x100;
+    uint8_t* multicard_header = rom + (length - 0x8000) + 0x100;
 
     uint8_t mapper = multicard_header[0x47];
 
-    if(mapper >= 0x0B && mapper <= 0x0D && gb_cartridge_verify_nintendo_logo(multicard_header) && gb_cartridge_verify_header_checksum(multicard_header)){
+    if(mapper >= 0x0B && mapper <= 0x0D && gb_cartridge_verify_header_nintendo_logo(multicard_header) && gb_cartridge_verify_header_checksum(multicard_header)){
         
         cartridge->header = multicard_header;
     }
     else{
-        uint8_t* singlecard_header = cartridge->rom + 0x100;
+        uint8_t* singlecard_header = rom + 0x100;
 
-        if(gb_cartridge_verify_nintendo_logo(singlecard_header) && gb_cartridge_verify_header_checksum(singlecard_header)){
+        if(gb_cartridge_verify_header_nintendo_logo(singlecard_header) && gb_cartridge_verify_header_checksum(singlecard_header)){
             
             cartridge->header = singlecard_header;
         }
@@ -70,8 +52,9 @@ bool gb_cartridge_load(gb_cartridge_t* cartridge,const char* path){
         }
     }
 
-    cartridge->rom_length = size;        
-    cartridge->rom_banks = size / 0x4000;
+    cartridge->rom = rom;
+    cartridge->rom_length = length;    
+    cartridge->rom_banks = length / 0x4000;
 
     if(!gb_cartridge_init_mapper(cartridge)){
         gb_printf_error("invalid rom mapper");
@@ -79,20 +62,16 @@ bool gb_cartridge_load(gb_cartridge_t* cartridge,const char* path){
     }
 
     cartridge->rom_crc32 = gb_crc32(cartridge->rom,cartridge->rom_length);
-
-    fclose(file);
     
     return true;
 
     fail:
-    gb_cartridge_remove(cartridge);
-
-    if(file != NULL) fclose(file);
+    gb_cartridge_unload(cartridge);
     
     return false;
 }
 
-void gb_cartridge_remove(gb_cartridge_t* cartridge){
+void gb_cartridge_unload(gb_cartridge_t* cartridge){
     
     if(cartridge->rom != NULL){
         free(cartridge->rom);
@@ -182,7 +161,30 @@ void gb_cartridge_load_ram(gb_t* gb,const char* path){
 }
 
 
-bool gb_cartridge_verify_nintendo_logo(uint8_t* header){
+bool gb_cartridge_rom_is_valid(uint8_t* rom,size_t length){
+
+    if(length < gb_cartridge_rom_min_length || length > gb_cartridge_rom_max_length) return false;
+
+    uint8_t* multicard_header = rom + (length - 0x8000) + 0x100;
+
+    uint8_t mapper = multicard_header[0x47];
+
+    if(mapper >= 0x0B && mapper <= 0x0D && gb_cartridge_verify_header_nintendo_logo(multicard_header) && gb_cartridge_verify_header_checksum(multicard_header)){
+        return true;
+    }
+    else{
+        uint8_t* singlecard_header = rom + 0x100;
+
+        if(gb_cartridge_verify_header_nintendo_logo(singlecard_header) && gb_cartridge_verify_header_checksum(singlecard_header)){
+            return true;
+        }
+        else{
+            return false;
+        }
+    }
+}
+
+bool gb_cartridge_verify_header_nintendo_logo(uint8_t* header){
     
     static const uint8_t nintendo_logo[0x30] = {
         0xCE,0xED,0x66,0x66,0xCC,0x0D,0x00,0x0B,0x03,0x73,0x00,0x83,0x00,0x0C,0x00,0x0D,

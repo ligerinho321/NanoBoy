@@ -2,6 +2,33 @@
 
 #include "../third_party/cJSON/cJSON.h"
 
+
+typedef struct _gba_cpu_state_t {
+    uint32_t r[16];
+    uint32_t r_fiq[7];
+    uint32_t r_svc[2];
+    uint32_t r_abt[2];
+    uint32_t r_irq[2];
+    uint32_t r_und[2];
+    uint32_t cpsr;
+    uint32_t spsr[5];
+    uint32_t pipeline[2];
+} gba_cpu_state_t;
+
+typedef struct _gba_cpu_transaction_t {
+    uint32_t type;
+    uint32_t size;
+    uint32_t address;
+    uint32_t data;
+    uint32_t access;
+} gba_cpu_transaction_t;
+
+typedef struct _gba_cpu_transactions_t {
+    gba_cpu_transaction_t* data;
+    uint32_t length;
+} gba_cpu_transactions_t;
+
+
 void gba_cpu_load_state(gba_cpu_state_t* state,cJSON* object){
     int index = 0;
     cJSON* item = NULL;
@@ -116,7 +143,7 @@ void gba_cpu_load_transactions(gba_cpu_transactions_t* transactions,cJSON* objec
     }
 
     transactions->length = cJSON_GetArraySize(object);
-    transactions->data = malloc(sizeof(gba_cpu_transactions_t) * transactions->length);
+    transactions->data = malloc(sizeof(gba_cpu_transaction_t) * transactions->length);
 
     cJSON* transaction_object = object->child;
 
@@ -136,6 +163,9 @@ void gba_cpu_load_transactions(gba_cpu_transactions_t* transactions,cJSON* objec
         cJSON* data = cJSON_GetObjectItemCaseSensitive(transaction_object,"data");
         transaction->data = cJSON_GetNumberValue(data);
 
+        cJSON* access = cJSON_GetObjectItemCaseSensitive(transaction_object,"access");
+        transaction->access = cJSON_GetNumberValue(access);
+        
         ++transaction;
 
         transaction_object = transaction_object->next;
@@ -352,62 +382,67 @@ void gba_cpu_execute_teste(gba_t* gba){
     thumb_bl_suffix.json
     */
 
-    /*
-    FILE* file = fopen("/home/artur/Downloads/gba_tests/arm_data_proc_register_shift.json","r");
+    FILE* file = fopen("/home/artur/Downloads/gba_tests/arm_data_proc_immediate.json","r");
 
-    if(file){
-        fseek(file,0,SEEK_END);
-        
-        size_t length = ftell(file);
+    if(!file) return;
 
-        fseek(file,0,SEEK_SET);
+    fseek(file,0,SEEK_END);
+    
+    size_t length = ftell(file);
 
-        char* buffer = malloc(length);
+    fseek(file,0,SEEK_SET);
 
-        size_t read = fread(buffer,1,length,file);
+    char* buffer = malloc(length);
 
-        cJSON* json = cJSON_ParseWithLength(buffer,length);
+    size_t read = fread(buffer,1,length,file);
 
-        if(json && cJSON_IsArray(json)){
+    cJSON* json = cJSON_ParseWithLength(buffer,length);
 
-            cJSON* test = json->child;
+    if(json && cJSON_IsArray(json)){
 
-            gba_cpu_t* cpu = &gba->cpu;
-            gba_cpu_state_t initial_state,final_state;
-            gba_cpu_transactions_t transactions = {0};
+        cJSON* test = json->child;
 
-            cpu->transactions = &transactions;
+        gba_cpu_t* cpu = &gba->cpu;
+        gba_cpu_state_t initial_state,final_state;
+        gba_cpu_transactions_t transactions = {0};
 
-            while(test != NULL){
-                
-                cJSON* initial_object = cJSON_GetObjectItemCaseSensitive(test,"initial");
-                
-                cJSON* final_object = cJSON_GetObjectItemCaseSensitive(test,"final");
+        //cpu->transactions = &transactions;
 
-                cJSON* transactions_object = cJSON_GetObjectItemCaseSensitive(test,"transactions");
+        int index = 0;
 
-                gba_cpu_load_state(&initial_state,initial_object);
-                gba_cpu_load_state(&final_state,final_object);
-                gba_cpu_load_transactions(&transactions,transactions_object);
+        while(test != NULL){
+            cJSON* initial_object = cJSON_GetObjectItemCaseSensitive(test,"initial");
+            
+            cJSON* final_object = cJSON_GetObjectItemCaseSensitive(test,"final");
 
-                gba_cpu_apply_state(cpu,&initial_state);
+            cJSON* transactions_object = cJSON_GetObjectItemCaseSensitive(test,"transactions");
 
-                gba_cpu_execute(cpu);
+            gba_cpu_load_state(&initial_state,initial_object);
+            gba_cpu_load_state(&final_state,final_object);
+            gba_cpu_load_transactions(&transactions,transactions_object);
 
-                gba_cpu_compare_state(cpu,&final_state);
+            gba_cpu_apply_state(cpu,&initial_state);
 
-                test = test->next;
-            }
+            //printf("Teste %d\n",index);
+            //printf("Opcode %08X\n",cpu->pipeline.execute);
+
+            gba_cpu_execute(cpu);
+
+            gba_cpu_compare_state(cpu,&final_state);
+
+            test = test->next;
+
+            index++;
         }
-
-        cJSON_Delete(json);
-
-        free(buffer);
-
-        fclose(file);
     }
-    */
+
+    cJSON_Delete(json);
+
+    free(buffer);
+
+    fclose(file);
 }
+
 
 void generate_conditional_table(){
 
@@ -468,30 +503,6 @@ int main(int n_args,char** args){
 
     gba_insert_cartridge(gba,"/home/artur/Downloads/gba_roms/Doom (USA, Europe).gba");
 
-    printf("\n");
-
-    gba_insert_cartridge(gba,"/home/artur/Downloads/gba_roms/Dragon Ball Z - Buu's Fury (USA).gba");
-
-    printf("\n");
-
-    gba_insert_cartridge(gba,"/home/artur/Downloads/gba_roms/Dragon Ball Z - The Legacy of Goku II (Europe) (En,Fr,De,Es,It).gba");
-
-    printf("\n");
-
-    gba_insert_cartridge(gba,"/home/artur/Downloads/gba_roms/Legend of Zelda, The - The Minish Cap (USA).gba");
-
-    printf("\n");
-
-    gba_insert_cartridge(gba,"/home/artur/Downloads/gba_roms/Pokemon - Emerald Version (USA, Europe).gba");
-
-    printf("\n");
-
-    gba_insert_cartridge(gba,"/home/artur/Downloads/gba_roms/Pokemon - FireRed Version (USA).gba");
-
-    printf("\n");
-
-    gba_insert_cartridge(gba,"/home/artur/Downloads/gba_roms/V-Rally 3 (USA) (En,Fr,Es).gba");
-    
     gba_delete(gba);
 
     return 0;

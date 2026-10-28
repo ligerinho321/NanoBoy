@@ -1,4 +1,5 @@
 #include <gui/dmg_palette/dmg_palette.hpp>
+#include <gui/nanoboy/nanoboy.hpp>
 
 struct palette_preset_t {
     const char* name;
@@ -97,13 +98,24 @@ static const palette_preset_t palette_presets[] = {
 static const int palette_presets_count = sizeof(palette_presets) / sizeof(palette_presets[0]);
 
 
-void dmg_palette_t::init(gb_t* _gb){
+void dmg_palette_t::init(nanoboy_t* _nanoboy){
+    nanoboy = _nanoboy;
     
-    gb = _gb;
-
     load_default();
-    
+
     update_window_size_constraints();
+}
+
+
+void dmg_palette_t::apply_to_console(){
+    if(!nanoboy->console || nanoboy->console->type() != console_gb) return;
+
+    gb_t* gb = (gb_t*)nanoboy->console->data();
+
+    memcpy(gb->palette.bgp_colors,bgp_colors,sizeof(gb->palette.bgp_colors));
+    memcpy(gb->palette.obp_colors,obp_colors,sizeof(gb->palette.obp_colors));
+
+    gb_palette_update_dmg_colors(gb);
 }
 
 
@@ -132,11 +144,12 @@ void dmg_palette_t::load_default(){
     const palette_preset_t* preset = palette_presets + current_preset;
 
     for(int i = 0; i < gb_palette_colors; ++i){
-        gb->palette.bgp_colors[i] = preset->bgp[i];
-        gb->palette.obp_colors[0][i] = preset->obp0[i];
-        gb->palette.obp_colors[1][i] = preset->obp1[i];
+        bgp_colors[i] = preset->bgp[i];
+        obp_colors[0][i] = preset->obp0[i];
+        obp_colors[1][i] = preset->obp1[i];
     }
 }
+
 
 void dmg_palette_t::save(cJSON* object){
 
@@ -160,23 +173,23 @@ void dmg_palette_t::save(cJSON* object){
         cJSON* bg_color_array = cJSON_CreateArray();
         cJSON_AddItemToArray(bgp_array,bg_color_array);
 
-        cJSON_AddItemToArray(bg_color_array,cJSON_CreateNumber(gb->palette.bgp_colors[i].r));
-        cJSON_AddItemToArray(bg_color_array,cJSON_CreateNumber(gb->palette.bgp_colors[i].g));
-        cJSON_AddItemToArray(bg_color_array,cJSON_CreateNumber(gb->palette.bgp_colors[i].b));
+        cJSON_AddItemToArray(bg_color_array,cJSON_CreateNumber(bgp_colors[i].r));
+        cJSON_AddItemToArray(bg_color_array,cJSON_CreateNumber(bgp_colors[i].g));
+        cJSON_AddItemToArray(bg_color_array,cJSON_CreateNumber(bgp_colors[i].b));
 
         cJSON* obj0_color_array = cJSON_CreateArray();
         cJSON_AddItemToArray(obj0_array,obj0_color_array);
 
-        cJSON_AddItemToArray(obj0_color_array,cJSON_CreateNumber(gb->palette.obp_colors[0][i].r));
-        cJSON_AddItemToArray(obj0_color_array,cJSON_CreateNumber(gb->palette.obp_colors[0][i].g));
-        cJSON_AddItemToArray(obj0_color_array,cJSON_CreateNumber(gb->palette.obp_colors[0][i].b));
+        cJSON_AddItemToArray(obj0_color_array,cJSON_CreateNumber(obp_colors[0][i].r));
+        cJSON_AddItemToArray(obj0_color_array,cJSON_CreateNumber(obp_colors[0][i].g));
+        cJSON_AddItemToArray(obj0_color_array,cJSON_CreateNumber(obp_colors[0][i].b));
 
         cJSON* obj1_color_array = cJSON_CreateArray();
         cJSON_AddItemToArray(obj1_array,obj1_color_array);
 
-        cJSON_AddItemToArray(obj1_color_array,cJSON_CreateNumber(gb->palette.obp_colors[1][i].r));
-        cJSON_AddItemToArray(obj1_color_array,cJSON_CreateNumber(gb->palette.obp_colors[1][i].g));
-        cJSON_AddItemToArray(obj1_color_array,cJSON_CreateNumber(gb->palette.obp_colors[1][i].b));
+        cJSON_AddItemToArray(obj1_color_array,cJSON_CreateNumber(obp_colors[1][i].r));
+        cJSON_AddItemToArray(obj1_color_array,cJSON_CreateNumber(obp_colors[1][i].g));
+        cJSON_AddItemToArray(obj1_color_array,cJSON_CreateNumber(obp_colors[1][i].b));
     }
 }
 
@@ -209,19 +222,19 @@ void dmg_palette_t::load(cJSON* object){
             cJSON* r_number = cJSON_GetArrayItem(bg_color_array,0);
             
             if(cJSON_IsNumber(r_number)){
-                gb->palette.bgp_colors[i].r = cJSON_GetNumberValue(r_number);
+                bgp_colors[i].r = cJSON_GetNumberValue(r_number);
             }
 
             cJSON* g_number = cJSON_GetArrayItem(bg_color_array,1);
 
             if(cJSON_IsNumber(g_number)){
-                gb->palette.bgp_colors[i].g = cJSON_GetNumberValue(g_number);
+                bgp_colors[i].g = cJSON_GetNumberValue(g_number);
             }
 
             cJSON* b_number = cJSON_GetArrayItem(bg_color_array,2);
 
             if(cJSON_IsNumber(b_number)){
-                gb->palette.bgp_colors[i].b = cJSON_GetNumberValue(b_number);
+                bgp_colors[i].b = cJSON_GetNumberValue(b_number);
             }
         }
     }
@@ -239,19 +252,19 @@ void dmg_palette_t::load(cJSON* object){
             cJSON* r_number = cJSON_GetArrayItem(obj0_color_array,0);
             
             if(cJSON_IsNumber(r_number)){
-                gb->palette.obp_colors[0][i].r = cJSON_GetNumberValue(r_number);
+                obp_colors[0][i].r = cJSON_GetNumberValue(r_number);
             }
 
             cJSON* g_number = cJSON_GetArrayItem(obj0_color_array,1);
 
             if(cJSON_IsNumber(g_number)){
-                gb->palette.obp_colors[0][i].g = cJSON_GetNumberValue(g_number);
+                obp_colors[0][i].g = cJSON_GetNumberValue(g_number);
             }
 
             cJSON* b_number = cJSON_GetArrayItem(obj0_color_array,2);
 
             if(cJSON_IsNumber(b_number)){
-                gb->palette.obp_colors[0][i].b = cJSON_GetNumberValue(b_number);
+                obp_colors[0][i].b = cJSON_GetNumberValue(b_number);
             }
         }
     }
@@ -269,19 +282,19 @@ void dmg_palette_t::load(cJSON* object){
             cJSON* r_number = cJSON_GetArrayItem(obj1_color_array,0);
             
             if(cJSON_IsNumber(r_number)){
-                gb->palette.obp_colors[1][i].r = cJSON_GetNumberValue(r_number);
+                obp_colors[1][i].r = cJSON_GetNumberValue(r_number);
             }
 
             cJSON* g_number = cJSON_GetArrayItem(obj1_color_array,1);
 
             if(cJSON_IsNumber(g_number)){
-                gb->palette.obp_colors[1][i].g = cJSON_GetNumberValue(g_number);
+                obp_colors[1][i].g = cJSON_GetNumberValue(g_number);
             }
 
             cJSON* b_number = cJSON_GetArrayItem(obj1_color_array,2);
 
             if(cJSON_IsNumber(b_number)){
-                gb->palette.obp_colors[1][i].b = cJSON_GetNumberValue(b_number);
+                obp_colors[1][i].b = cJSON_GetNumberValue(b_number);
             }
         }
     }
@@ -323,9 +336,9 @@ void dmg_palette_t::render(){
 
                         for(int i = 0; i < gb_palette_colors; ++i){
 
-                            temp_bgp[i] = rgb_to_vec4(preset->bgp[i]);
-                            temp_obp[0][i] = rgb_to_vec4(preset->obp0[i]);
-                            temp_obp[1][i] = rgb_to_vec4(preset->obp1[i]);
+                            temp_bgp_colors[i] = rgb_to_vec4(preset->bgp[i]);
+                            temp_obp_colors[0][i] = rgb_to_vec4(preset->obp0[i]);
+                            temp_obp_colors[1][i] = rgb_to_vec4(preset->obp1[i]);
                         }
                     }
                 }
@@ -343,7 +356,7 @@ void dmg_palette_t::render(){
 
             for(int i = 0; i < gb_palette_colors; ++i){
                 ImGui::PushID(i);
-                ImGui::ColorEdit3("##BackgroundColor",(float*)(temp_bgp + i),ImGuiColorEditFlags_NoInputs);
+                ImGui::ColorEdit3("##BackgroundColor",(float*)(temp_bgp_colors + i),ImGuiColorEditFlags_NoInputs);
                 ImGui::SameLine(0.0f,style.ItemInnerSpacing.x);
                 ImGui::PopID();
             }
@@ -358,7 +371,7 @@ void dmg_palette_t::render(){
 
             for(int i = 0; i < gb_palette_colors; ++i){
                 ImGui::PushID(i);
-                ImGui::ColorEdit3("##Object0Color",(float*)(temp_obp[0] + i),ImGuiColorEditFlags_NoInputs);
+                ImGui::ColorEdit3("##Object0Color",(float*)(temp_obp_colors[0] + i),ImGuiColorEditFlags_NoInputs);
                 ImGui::SameLine(0.0f,style.ItemInnerSpacing.x);
                 ImGui::PopID();
             }
@@ -373,7 +386,7 @@ void dmg_palette_t::render(){
 
             for(int i = 0; i < gb_palette_colors; ++i){
                 ImGui::PushID(i);
-                ImGui::ColorEdit3("##Object1Color",(float*)(temp_obp[1] + i),ImGuiColorEditFlags_NoInputs);
+                ImGui::ColorEdit3("##Object1Color",(float*)(temp_obp_colors[1] + i),ImGuiColorEditFlags_NoInputs);
                 ImGui::SameLine(0.0f,style.ItemInnerSpacing.x);
                 ImGui::PopID();
             }
@@ -407,11 +420,11 @@ void dmg_palette_t::open() noexcept {
 
     for(int i = 0; i < gb_palette_colors; ++i){
 
-        temp_bgp[i] = rgb_to_vec4(gb->palette.bgp_colors[i]);
+        temp_bgp_colors[i] = rgb_to_vec4(bgp_colors[i]);
         
         for(int j = 0; j < gb_dmg_obj_palettes; ++j){
 
-            temp_obp[j][i] = rgb_to_vec4(gb->palette.obp_colors[j][i]);
+            temp_obp_colors[j][i] = rgb_to_vec4(obp_colors[j][i]);
         }
     }
 }
@@ -424,14 +437,14 @@ void dmg_palette_t::close(bool discard_changes) noexcept {
     if(!discard_changes){
         for(int i = 0; i < gb_palette_colors; ++i){
 
-            gb->palette.bgp_colors[i] = vec4_to_rgb(temp_bgp[i]);
+            bgp_colors[i] = vec4_to_rgb(temp_bgp_colors[i]);
             
             for(int j = 0; j < gb_dmg_obj_palettes; ++j){
 
-                gb->palette.obp_colors[j][i] = vec4_to_rgb(temp_obp[j][i]);
+                obp_colors[j][i] = vec4_to_rgb(temp_obp_colors[j][i]);
             }
         }
 
-        gb_palette_update_dmg_colors(gb);
+        apply_to_console();
     }
 }

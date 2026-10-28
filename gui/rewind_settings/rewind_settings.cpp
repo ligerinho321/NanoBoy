@@ -1,11 +1,22 @@
 #include <gui/rewind_settings/rewind_settings.hpp>
+#include <gui/nanoboy/nanoboy.hpp>
 
-void rewind_settings_t::init(gb_t* _gb){
-    gb = _gb;
+void rewind_settings_t::init(nanoboy_t* _nanoboy){
+    nanoboy = _nanoboy;
 
     load_default();
 
     update_window_size_constraints();
+}
+
+
+void rewind_settings_t::apply_to_console(){
+    if(!nanoboy->console) return;
+
+    nanoboy->console->set_rewind_enabled(enabled);
+    nanoboy->console->set_rewind_capacity(buffer_frames);
+    nanoboy->console->set_rewind_recording_interval(recording_interval);
+    nanoboy->console->set_rewind_frame_time(1.0f / (float)speed);
 }
 
 
@@ -29,27 +40,27 @@ void rewind_settings_t::update_window_size_constraints(){
 
 
 void rewind_settings_t::load_default(){
-    gb_rewind_set_enabled(gb,true);
-    gb_rewind_set_capacity(gb,1800);
-    gb_rewind_set_recording_interval(gb,1);
-    gb_rewind_set_frame_time(gb,1.0f / 60.0f);
+    enabled = true;
+    buffer_frames = 1800;
+    recording_interval = 1;
+    speed = 60;
 }
 
 void rewind_settings_t::save(cJSON* object){
     cJSON* rewind_settings_object = cJSON_CreateObject();
     cJSON_AddItemToObjectCS(object,"Rewind Settings",rewind_settings_object);
 
-    cJSON* enabled_bool = cJSON_CreateBool(gb_rewind_get_enabled(gb));
+    cJSON* enabled_bool = cJSON_CreateBool(enabled);
     cJSON_AddItemToObjectCS(rewind_settings_object,"Enabled",enabled_bool);
 
-    cJSON* capacity_number = cJSON_CreateNumber(gb_rewind_get_capacity(gb));
-    cJSON_AddItemToObjectCS(rewind_settings_object,"Capacity",capacity_number);
+    cJSON* buffer_frames_number = cJSON_CreateNumber(buffer_frames);
+    cJSON_AddItemToObjectCS(rewind_settings_object,"Buffer Frames",buffer_frames_number);
 
-    cJSON* recording_interval_number = cJSON_CreateNumber(gb_rewind_get_recording_interval(gb));
+    cJSON* recording_interval_number = cJSON_CreateNumber(recording_interval);
     cJSON_AddItemToObjectCS(rewind_settings_object,"Recording Interval",recording_interval_number);
 
-    cJSON* frame_time_number = cJSON_CreateNumber(gb_rewind_get_frame_time(gb));
-    cJSON_AddItemToObjectCS(rewind_settings_object,"Frame Time",frame_time_number);
+    cJSON* speed_number = cJSON_CreateNumber(speed);
+    cJSON_AddItemToObjectCS(rewind_settings_object,"Speed",speed_number);
 }
 
 void rewind_settings_t::load(cJSON* object){
@@ -60,25 +71,25 @@ void rewind_settings_t::load(cJSON* object){
     cJSON* enabled_bool = cJSON_GetObjectItemCaseSensitive(rewind_settings_object,"Enabled");
 
     if(cJSON_IsBool(enabled_bool)){
-        gb_rewind_set_enabled(gb,cJSON_IsTrue(enabled_bool));
+        enabled = cJSON_IsTrue(enabled_bool);
     }
 
-    cJSON* capacity_number = cJSON_GetObjectItemCaseSensitive(rewind_settings_object,"Capacity");
+    cJSON* buffer_frames_number = cJSON_GetObjectItemCaseSensitive(rewind_settings_object,"Buffer Frames");
 
-    if(cJSON_IsNumber(capacity_number)){
-        gb_rewind_set_capacity(gb,cJSON_GetNumberValue(capacity_number));
+    if(cJSON_IsNumber(buffer_frames_number)){
+        buffer_frames = cJSON_GetNumberValue(buffer_frames_number);
     }
 
     cJSON* recording_interval_number = cJSON_GetObjectItemCaseSensitive(rewind_settings_object,"Recording Interval");
 
     if(cJSON_IsNumber(recording_interval_number)){
-        gb_rewind_set_recording_interval(gb,cJSON_GetNumberValue(recording_interval_number));
+        recording_interval = cJSON_GetNumberValue(recording_interval_number);
     }
 
-    cJSON* frame_time_number = cJSON_GetObjectItemCaseSensitive(rewind_settings_object,"Frame Time");
+    cJSON* speed_number = cJSON_GetObjectItemCaseSensitive(rewind_settings_object,"Speed");
 
-    if(cJSON_IsNumber(frame_time_number)){
-        gb_rewind_set_frame_time(gb,cJSON_GetNumberValue(frame_time_number));
+    if(cJSON_IsNumber(speed_number)){
+        speed = cJSON_GetNumberValue(speed_number);
     }
 }
 
@@ -162,10 +173,10 @@ void rewind_settings_t::open() noexcept {
 
     _open = true;
 
-    temp_enabled = gb_rewind_get_enabled(gb);
-    temp_buffer_frames = gb_rewind_get_capacity(gb);
-    temp_recording_interval = gb_rewind_get_recording_interval(gb);
-    temp_speed = ceilf(1.0f / gb_rewind_get_frame_time(gb));
+    temp_enabled = enabled;
+    temp_buffer_frames = buffer_frames;
+    temp_recording_interval = recording_interval;
+    temp_speed = speed;
 }
 
 void rewind_settings_t::close(bool discard_changes) noexcept {
@@ -174,9 +185,11 @@ void rewind_settings_t::close(bool discard_changes) noexcept {
     _open = false;
 
     if(!discard_changes){
-        gb_rewind_set_enabled(gb,temp_enabled);
-        gb_rewind_set_capacity(gb,temp_buffer_frames);
-        gb_rewind_set_recording_interval(gb,temp_recording_interval);
-        gb_rewind_set_frame_time(gb,1.0f / temp_speed);
+        enabled = temp_enabled;
+        buffer_frames = temp_buffer_frames;
+        recording_interval = temp_recording_interval;
+        speed = temp_speed;
+
+        apply_to_console();
     }
 }

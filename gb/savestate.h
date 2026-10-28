@@ -28,10 +28,8 @@ typedef struct _gb_snapshot_header_t {
 } gb_snapshot_header_t;
 
 typedef struct _gb_savestate_info_t {
-    uint32_t rom_crc32;
     uint64_t timestamp;
     const uint8_t* screenshot;
-    size_t screenshot_length;
 } gb_savestate_info_t;
 
 

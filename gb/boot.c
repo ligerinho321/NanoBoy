@@ -18,6 +18,29 @@ void gb_boot_init(gb_boot_t* boot,gb_t* gb){
 }
 
 
+void gb_boot_set_dmg_path_reference(gb_t* gb,const char* path){
+    gb->boot.dmg_rom_path = path;
+}
+
+void gb_boot_remove_dmg_path_reference(gb_t* gb){
+    gb->boot.dmg_rom_path = NULL;
+}
+
+
+void gb_boot_set_cgb_path_reference(gb_t* gb,const char* path){
+    gb->boot.cgb_rom_path = path;
+}
+
+void gb_boot_remove_cgb_path_reference(gb_t* gb){
+    gb->boot.cgb_rom_path = NULL;
+}
+
+
+void gb_boot_enable_skip(gb_t* gb,bool enabled){
+    gb->boot.skip_enabled = enabled;
+}
+
+
 static void gb_boot_dmg_update_rom(gb_boot_t* boot){
     
     boot->dmg_rom_inserted = false;

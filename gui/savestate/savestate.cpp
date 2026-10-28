@@ -12,7 +12,6 @@ void savestate_t::init(nanoboy_t* _nanoboy){
     
     for(int i = 0; i < savestate_t::number_of_slots; ++i){
         slots[i].name = "Slot #" + std::to_string(i + 1);
-        slots[i].screenshot = SDL_CreateTexture(nanoboy->renderer,SDL_PIXELFORMAT_RGB24,SDL_TEXTUREACCESS_STREAMING,gb_screen_width,gb_screen_height);
     }
 
     ImGuiStyle& style = ImGui::GetStyle();
@@ -36,6 +35,23 @@ void savestate_t::init(nanoboy_t* _nanoboy){
 }
 
 
+void savestate_t::update_console(){
+    if(!nanoboy->console) return;
+
+    int width = nanoboy->console->screen_width();
+    int height = nanoboy->console->screen_height();
+
+    for(slot_t& slot : slots){
+
+        if(slot.screenshot != nullptr){
+            SDL_DestroyTexture(slot.screenshot);
+        }
+
+        slot.screenshot = SDL_CreateTexture(nanoboy->renderer,SDL_PIXELFORMAT_RGB24,SDL_TEXTUREACCESS_STREAMING,width,height);
+    }
+}
+
+
 void savestate_t::load(std::filesystem::path path,std::string rom_name){
     
     for(int i = 0; i < savestate_t::number_of_slots; ++i){
@@ -51,13 +67,13 @@ void savestate_t::unload(){
         slot.exists = false;
         slot.last_write_time = (time_t)-1;
         slot.timestamp = 0;
-        clear_texture(slot.screenshot,gb_screen_height);
+        clear_texture(slot.screenshot,nanoboy->console->screen_height());
     }
 }
 
 
 void savestate_t::save_slot(int index){    
-    if(gb_savestate_serialize(nanoboy->gb,slots[index].path.u8string().c_str())){
+    if(nanoboy->console->savestate_serialize(slots[index].path.u8string().c_str())){
 
         nanoboy->notification_manager.push_notification("State #%d Saved",index);
     }
@@ -71,7 +87,7 @@ void savestate_t::save_slot(int index){
 void savestate_t::load_slot(int index){
     SDL_LockAudioDevice(nanoboy->audio_device);
 
-    if(gb_savestate_deserialize(nanoboy->gb,slots[index].path.u8string().c_str())){
+    if(nanoboy->console->savestate_deserialize(slots[index].path.u8string().c_str())){
 
         nanoboy->notification_manager.push_notification("State #%d Loaded",index);
     }
@@ -108,7 +124,7 @@ void savestate_t::update_slots(){
         if(slot.exists && !exists){
             slot.last_write_time = (size_t)-1;
             slot.timestamp = 0;
-            clear_texture(slot.screenshot,gb_screen_height);
+            clear_texture(slot.screenshot,nanoboy->console->screen_height());
         }
 
         slot.exists = exists;
@@ -121,9 +137,10 @@ void savestate_t::update_slots(){
 
         slot.last_write_time = last_write_time;
 
-        gb_savestate_info_t info{};
 
-        if(!gb_savestate_get_info(slot.path.u8string().c_str(),&info)) continue;
+        console_savestate_info_t info{};
+
+        if(!nanoboy->console->savestate_get_info(slot.path.u8string().c_str(),&info)) continue;
 
         slot.timestamp = info.timestamp;
 
@@ -135,7 +152,7 @@ void savestate_t::update_slots(){
             continue;
         }
 
-        memcpy(pixels,info.screenshot,info.screenshot_length);
+        memcpy(pixels,info.screenshot,nanoboy->console->screen_length());
 
         SDL_UnlockTexture(slot.screenshot);
     }
@@ -147,7 +164,7 @@ void savestate_t::update_slots(){
 
 void savestate_t::shortcut_event(){
 
-    if(!nanoboy->gb->cartridge_inserted) return;
+    if(!nanoboy->console || !nanoboy->console->cartridge_inserted()) return;
 
     std::chrono::nanoseconds elapsed = std::chrono::steady_clock::now() - last_update_time;
 
@@ -173,8 +190,9 @@ void savestate_t::shortcut_event(){
 void savestate_t::render_menu_bar(){
 
     shortcut_settings_t& shortcut = nanoboy->shortcut_settings;
+    bool cartridge_inserted = nanoboy->console != nullptr && nanoboy->console->cartridge_inserted();
 
-    if(ImGui::BeginMenu("Save State",nanoboy->gb->cartridge_inserted)){
+    if(ImGui::BeginMenu("Save State",cartridge_inserted)){
 
         for(int i = 0; i < savestate_t::number_of_slots; ++i){
 
@@ -192,7 +210,7 @@ void savestate_t::render_menu_bar(){
         ImGui::EndMenu();
     }
 
-    if(ImGui::BeginMenu("Load State",nanoboy->gb->cartridge_inserted)){
+    if(ImGui::BeginMenu("Load State",cartridge_inserted)){
 
         for(int i = 0; i < savestate_t::number_of_slots; ++i){
 
@@ -210,7 +228,7 @@ void savestate_t::render_menu_bar(){
         ImGui::EndMenu();
     }
 
-    if(ImGui::MenuItem("Save State Menu",shortcut.str_keyboard(shortcut_settings_t::savestate_menu),nullptr,nanoboy->gb->cartridge_inserted)){
+    if(ImGui::MenuItem("Save State Menu",shortcut.str_keyboard(shortcut_settings_t::savestate_menu),nullptr,cartridge_inserted)){
         open = true;
     }
 }
@@ -219,7 +237,7 @@ void savestate_t::render(){
 
     if(!open) return;
 
-    if(!nanoboy->gb->cartridge_inserted){
+    if(!nanoboy->console || !nanoboy->console->cartridge_inserted()){
         open = false;
         return;
     }

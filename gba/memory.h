@@ -3,8 +3,8 @@
 #include "utils.h"
 
 typedef enum _gba_memory_access_t {
-    gba_memory_nonsequential_access = 0x00,
-    gba_memory_sequential_access    = 0x01,
+    gba_nonsequential_access = 0x00,
+    gba_sequential_access    = 0x01,
 
     gba_memory_byte_access          = 0x00,
     gba_memory_halfword_access      = 0x01,
@@ -44,7 +44,6 @@ typedef struct _gba_memory_t {
     uint8_t iwram[gba_iwram_length];
 
     gba_waitstate_control_t waitstate_control;
-    
     uint8_t waitstate_table[8][2];
 
     gba_memory_control_t control;
@@ -59,6 +58,9 @@ extern "C" {
 #endif
 
 void gba_memory_init(gba_memory_t* memory,gba_t* gba);
+
+void gba_memory_write(gba_memory_t* memory,uint32_t value,uint32_t address,uint8_t size,uint8_t access);
+uint32_t gba_memory_read(gba_memory_t* memory,uint32_t address,uint8_t size,uint8_t access);
 
 gba_word_t gba_memory_read_unused(gba_memory_t* memory,uint32_t address,uint8_t size);
 

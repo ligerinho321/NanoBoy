@@ -21,11 +21,11 @@ typedef struct _gba_ppu_lcd_control_t {
 typedef struct _gba_ppu_lcd_status_t {
     bool vblank_flag : 1;
     bool hblank_flag : 1;
-    bool vcounter_flag : 1;
+    bool lyc_flag : 1;
     bool vblank_irq_enabled : 1;
     bool hblank_irq_enabled : 1;
-    bool vcounter_irq_enabled : 1;
-    uint8_t vcounter_setting : 8;
+    bool lyc_irq_enabled : 1;
+    uint8_t lyc : 8;
 } gba_ppu_lcd_status_t;
 
 typedef struct _gba_ppu_bg_control_t {
@@ -106,7 +106,8 @@ typedef struct _gba_ppu_t {
     
     gba_ppu_lcd_status_t lcd_status;
     
-    uint8_t vcounter;
+    uint8_t scanline;
+    uint16_t cycle;
     
     gba_ppu_bg_control_t bg_control[4];
     
@@ -131,6 +132,11 @@ typedef struct _gba_ppu_t {
     uint8_t cram[gba_cram_length];
     uint8_t vram[gba_vram_length];
     uint8_t oam[gba_oam_length];
+
+    uint64_t frame_count;
+    
+    uint64_t last_schedule_event;
+    uint64_t next_schedule_event;
 } gba_ppu_t;
 
 #ifdef __cplusplus
@@ -138,6 +144,10 @@ extern "C" {
 #endif
 
 void gba_ppu_init(gba_ppu_t* ppu,gba_t* gb);
+
+void gba_ppu_schedule_next_event(gba_ppu_t* ppu);
+
+void gba_ppu_update(gba_ppu_t* ppu);
 
 void gba_ppu_write_register_raw(gba_ppu_t* ppu,uint8_t value,uint32_t address);
 uint8_t gba_ppu_read_register_raw(gba_ppu_t* ppu,uint32_t address);

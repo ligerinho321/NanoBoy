@@ -5,7 +5,7 @@
 typedef enum _gba_interrupt_flag_t {
     gba_interrupt_lcd_vblank_flag = 0x0001,
     gba_interrupt_lcd_hblank_flag = 0x0002,
-    gba_interrupt_lcd_vcount_flag = 0x0004,
+    gba_interrupt_lcd_lyc_flag    = 0x0004,
     gba_interrupt_timer0_flag     = 0x0008,
     gba_interrupt_timer1_flag     = 0x0010,
     gba_interrupt_timer2_flag     = 0x0020,

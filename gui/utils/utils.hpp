@@ -1,6 +1,7 @@
 #pragma once
 
 #include <gb/gb.h>
+#include <gba/gba.h>
 
 #include <third_party/cJSON/cJSON.h>
 #include <third_party/stb_image_write/stb_image_write.h>
@@ -22,6 +23,16 @@
 #include <string>
 #include <regex>
 #include <cinttypes>
+
+class nanoboy_t;
+
+enum console_type_t {
+    console_gb,
+    console_gba,
+    console_count
+};
+
+extern const char* console_names[console_count];
 
 enum{
     kilobytes = 1024,

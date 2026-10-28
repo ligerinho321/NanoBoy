@@ -89,6 +89,27 @@ target_sources(
     NanoBoy
     PRIVATE
 
+    gba/apu.c
+    gba/arm.c
+    gba/boot.c
+    gba/cartridge.c
+    gba/cpu.c
+    gba/dma.c
+    gba/gba.c
+    gba/interrupt.c
+    gba/keypad.c
+    gba/memory.c
+    gba/ppu.c
+    gba/serial.c
+    gba/thumb.c
+    gba/timer.c
+    gba/utils.c
+)
+
+target_sources(
+    NanoBoy
+    PRIVATE
+
     third_party/cJSON/cJSON.c
 
     third_party/stb_image_write/stb_image_write.c
@@ -110,13 +131,23 @@ target_sources(
     
     gui/boot_settings/boot_settings.cpp
     
-    gui/cheats/cheats.cpp
+    gui/console/console.cpp
+    gui/console/gb.cpp
+    gui/console/gba.cpp
     
-    gui/debugger/debugger.cpp
+    gui/debug/gb/debugger.cpp
+    gui/debug/gb/event_viewer.cpp
+    gui/debug/gb/memory_viewer.cpp
+    gui/debug/gb/object_viewer.cpp
+    gui/debug/gb/palette_viewer.cpp
+    gui/debug/gb/register_viewer.cpp
+    gui/debug/gb/tile_viewer.cpp
+    gui/debug/gb/tilemap_viewer.cpp
+    gui/debug/gb/wave_form.cpp
+
+    gui/debug/gba/palette_viewer.cpp
 
     gui/dmg_palette/dmg_palette.cpp
-    
-    gui/event_viewer/event_viewer.cpp
     
     gui/file_dialog/file_base_dialog.cpp
     gui/file_dialog/file_save_dialog.cpp
@@ -124,19 +155,9 @@ target_sources(
 
     gui/input_settings/input_settings.cpp
 
-    gui/memory_viewer/memory_viewer.cpp
-
     gui/nanoboy/nanoboy.cpp
 
     gui/notification_manager/notification_manager.cpp
-
-    gui/object_viewer/object_viewer.cpp
-    
-    gui/palette_viewer/palette_viewer.cpp
-    
-    gui/printer/printer.cpp
-    
-    gui/register_viewer/register_viewer.cpp
     
     gui/rewind_settings/rewind_settings.cpp
     
@@ -145,14 +166,11 @@ target_sources(
     gui/screen/screen.cpp
     
     gui/shortcut_settings/shortcut_settings.cpp
-    
-    gui/tile_viewer/tile_viewer.cpp
-    
-    gui/tilemap_viewer/tilemap_viewer.cpp
+
+    gui/tools/gb/cheats.cpp
+    gui/tools/gb/printer.cpp
     
     gui/utils/utils.cpp
-
-    gui/wave_form/wave_form.cpp
 )
 
 target_sources(

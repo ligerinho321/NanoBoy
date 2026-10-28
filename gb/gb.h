@@ -98,6 +98,7 @@ gb_t* gb_new();
 uint32_t gb_get_clock_rate(gb_t* gb);
 
 bool gb_insert_cartridge(gb_t* gb,const char* path);
+bool gb_insert_cartridge_from_memory(gb_t* gb,uint8_t* rom,size_t length);
 void gb_remove_cartridge(gb_t* gb);
 
 void gb_set_speed(gb_t* gb,float new_speed);

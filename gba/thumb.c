@@ -1,5 +1,6 @@
 #include "thumb.h"
 #include "cpu.h"
+#include "gba.h"
 
 gba_cpu_thumb_instruction_callback_t thumb_table[512] = {NULL};
 
@@ -158,6 +159,7 @@ void gba_cpu_thumb_move_shifted_register(gba_cpu_t* cpu,uint16_t opcode){
 
     cpu->r[rd] = result;
 
+    cpu->pipeline.access = gba_sequential_access;
     cpu->r[15] += 2;
 }
 
@@ -186,6 +188,7 @@ void gba_cpu_thumb_add_subtract(gba_cpu_t* cpu,uint16_t opcode){
             break;
     }
 
+    cpu->pipeline.access = gba_sequential_access;
     cpu->r[15] += 2;
 }
 
@@ -214,6 +217,7 @@ void gba_cpu_thumb_mov_cmp_add_sub_immediate(gba_cpu_t* cpu,uint16_t opcode){
             break;
     }
 
+    cpu->pipeline.access = gba_sequential_access;
     cpu->r[15] += 2;
 }
 
@@ -246,7 +250,7 @@ void gba_cpu_thumb_alu_operations(gba_cpu_t* cpu,uint16_t opcode){
             
             gba_cpu_set_logical_flag(result,carry);
 
-            // TODO: I-cycle
+            gba_cpu_idle_cycle(cpu);
 
             cpu->r[rd] = result;
             break;
@@ -258,7 +262,7 @@ void gba_cpu_thumb_alu_operations(gba_cpu_t* cpu,uint16_t opcode){
             
             gba_cpu_set_logical_flag(result,carry);
 
-            // TODO: I-cycle
+            gba_cpu_idle_cycle(cpu);
 
             cpu->r[rd] = result;
             break;
@@ -270,7 +274,7 @@ void gba_cpu_thumb_alu_operations(gba_cpu_t* cpu,uint16_t opcode){
             
             gba_cpu_set_logical_flag(result,carry);
 
-            // TODO: I-cycle
+            gba_cpu_idle_cycle(cpu);
 
             cpu->r[rd] = result;
             break;
@@ -290,7 +294,7 @@ void gba_cpu_thumb_alu_operations(gba_cpu_t* cpu,uint16_t opcode){
             
             gba_cpu_set_logical_flag(result,carry);
             
-            // TODO: I-cycle
+            gba_cpu_idle_cycle(cpu);
 
             cpu->r[rd] = result;
             break;
@@ -324,7 +328,7 @@ void gba_cpu_thumb_alu_operations(gba_cpu_t* cpu,uint16_t opcode){
         case gba_cpu_mul_operation:{
             uint32_t result = cpu->r[rd] * cpu->r[rs];
             
-            gba_cpu_multiply_clock(cpu->r[rd],true);
+            gba_cpu_multiply_clock(cpu,cpu->r[rd],true);
 
             gba_cpu_set_nz_flag(result);
             // TODO: The C flag is set to a meaningless value, but how is that value calculated?
@@ -350,6 +354,7 @@ void gba_cpu_thumb_alu_operations(gba_cpu_t* cpu,uint16_t opcode){
         }
     }
 
+    cpu->pipeline.access = gba_sequential_access;
     cpu->r[15] += 2;
 }
 
@@ -371,6 +376,7 @@ void gba_cpu_thumb_hi_register_and_branch_exchange(gba_cpu_t* cpu,uint16_t opcod
                 gba_cpu_reload_pipeline(cpu);
             }
             else{
+                cpu->pipeline.access = gba_sequential_access;
                 cpu->r[15] += 2;
             }
             break;
@@ -379,6 +385,7 @@ void gba_cpu_thumb_hi_register_and_branch_exchange(gba_cpu_t* cpu,uint16_t opcod
         case 1:{
             gba_cpu_alu_arithmetic(cpu,cpu->r[rd],~cpu->r[rs],1,true);
 
+            cpu->pipeline.access = gba_sequential_access;
             cpu->r[15] += 2;
             break;
         }
@@ -390,6 +397,7 @@ void gba_cpu_thumb_hi_register_and_branch_exchange(gba_cpu_t* cpu,uint16_t opcod
                 gba_cpu_reload_pipeline(cpu);
             }
             else{
+                cpu->pipeline.access = gba_sequential_access;
                 cpu->r[15] += 2;
             }
             break;
@@ -417,10 +425,12 @@ void gba_cpu_thumb_pc_relative_load(gba_cpu_t* cpu,uint16_t opcode){
     // 1 of the PC is forced to 0 to ensure it is word aligned.
     uint32_t address = (cpu->r[15] & ~2) + offset;
 
-    cpu->r[rd] = gba_cpu_read_word(cpu,address);
+    // LDR Rd, [PC,#Imm]
+    cpu->r[rd] = gba_cpu_read_word(cpu,address,gba_nonsequential_access);
 
-    // TODO: I-cycle
+    gba_cpu_idle_cycle(cpu);
 
+    cpu->pipeline.access = gba_sequential_access;
     cpu->r[15] += 2;
 }
 
@@ -435,26 +445,25 @@ void gba_cpu_thumb_load_store_with_register_offset(gba_cpu_t* cpu,uint16_t opcod
     switch(operation){
         // STR Rd, [Rb, Ro]
         case 0:
-            gba_cpu_write_word(cpu,cpu->r[rd],address);
+            gba_cpu_write_word(cpu,cpu->r[rd],address,gba_nonsequential_access);
             break;
         // STRB Rd, [Rb, Ro]
         case 1:
-            gba_cpu_write_byte(cpu,cpu->r[rd],address);
+            gba_cpu_write_byte(cpu,cpu->r[rd],address,gba_nonsequential_access);
             break;
         // LDR Rd, [Rb, Ro]
         case 2:
-            cpu->r[rd] = gba_cpu_read_word_rotate(cpu,address);
-
-            // TODO: I-cycle
+            cpu->r[rd] = gba_cpu_read_word_rotate(cpu,address,gba_nonsequential_access);
+            gba_cpu_idle_cycle(cpu);
             break;
         // LDRB Rd, [Rb, Ro]
         case 3:
-            cpu->r[rd] = gba_cpu_read_byte(cpu,address);
-
-            // TODO: I-cycle
+            cpu->r[rd] = gba_cpu_read_byte(cpu,address,gba_nonsequential_access);
+            gba_cpu_idle_cycle(cpu);
             break;
     }
 
+    cpu->pipeline.access = (operation > 1) ? gba_sequential_access : gba_nonsequential_access;
     cpu->r[15] += 2;
 }
 
@@ -469,25 +478,26 @@ void gba_cpu_thumb_load_store_sign_extended_byte_halfword(gba_cpu_t* cpu,uint16_
     switch(operation){
         // STRH Rd, [Rb, Ro]
         case 0:
-            gba_cpu_write_halfword(cpu,cpu->r[rd],address);
+            gba_cpu_write_halfword(cpu,cpu->r[rd],address,gba_nonsequential_access);
             break;
         // LDSB Rd, [Rb, Ro]
         case 1:
-            cpu->r[rd] = gba_cpu_read_signed_byte(cpu,address);
-            // TODO: I-cycle
+            cpu->r[rd] = gba_cpu_read_signed_byte(cpu,address,gba_nonsequential_access);
+            gba_cpu_idle_cycle(cpu);
             break;
         // LDRH Rd, [Rb, Ro]
         case 2:
-            cpu->r[rd] = gba_cpu_read_halfword_rotate(cpu,address);
-            // TODO: I-cycle
+            cpu->r[rd] = gba_cpu_read_halfword_rotate(cpu,address,gba_nonsequential_access);
+            gba_cpu_idle_cycle(cpu);
             break;
         // LDSH Rd, [Rb, Ro]
         case 3:
-            cpu->r[rd] = gba_cpu_read_signed_halfword(cpu,address);
-            // TODO: I-cycle
+            cpu->r[rd] = gba_cpu_read_signed_halfword(cpu,address,gba_nonsequential_access);
+            gba_cpu_idle_cycle(cpu);
             break;
     }
 
+    cpu->pipeline.access = (operation > 0) ? gba_sequential_access : gba_nonsequential_access;
     cpu->r[15] += 2;
 }
 
@@ -500,26 +510,25 @@ void gba_cpu_thumb_load_store_with_immediate_offset(gba_cpu_t* cpu,uint16_t opco
     switch(operation){
         // STR Rd, [Rb, #Imm]
         case 0:
-            gba_cpu_write_word(cpu,cpu->r[rd],cpu->r[rb] + (offset << 2));
+            gba_cpu_write_word(cpu,cpu->r[rd],cpu->r[rb] + (offset << 2),gba_nonsequential_access);
             break;
         // LDR Rd, [Rb, #Imm]
         case 1:
-            cpu->r[rd] = gba_cpu_read_word_rotate(cpu,cpu->r[rb] + (offset << 2));
-
-            // TODO: I-cycle
+            cpu->r[rd] = gba_cpu_read_word_rotate(cpu,cpu->r[rb] + (offset << 2),gba_nonsequential_access);
+            gba_cpu_idle_cycle(cpu);
             break;
         // STRB Rd, [Rb, #Imm]
         case 2:
-            gba_cpu_write_byte(cpu,cpu->r[rd],cpu->r[rb] + offset);
+            gba_cpu_write_byte(cpu,cpu->r[rd],cpu->r[rb] + offset,gba_nonsequential_access);
             break;
         // LDRB Rd, [Rb, #Imm]
         case 3:
-            cpu->r[rd] = gba_cpu_read_byte(cpu,cpu->r[rb] + offset);
-
-            // TODO: I-cycle
+            cpu->r[rd] = gba_cpu_read_byte(cpu,cpu->r[rb] + offset,gba_nonsequential_access);
+            gba_cpu_idle_cycle(cpu);
             break;
     }
 
+    cpu->pipeline.access = (operation & 0x01) ? gba_sequential_access : gba_nonsequential_access;
     cpu->r[15] += 2;
 }
 
@@ -533,15 +542,16 @@ void gba_cpu_thumb_load_store_halfword(gba_cpu_t* cpu,uint16_t opcode){
 
     // LDRH Rd, [Rb, #Imm]
     if(load){
-        cpu->r[rd] = gba_cpu_read_halfword_rotate(cpu,address);
+        cpu->r[rd] = gba_cpu_read_halfword_rotate(cpu,address,gba_nonsequential_access);
 
-        // TODO: I-cycle
+        gba_cpu_idle_cycle(cpu);
     }
     // STRH Rd, [Rb, #Imm] 
     else{
-        gba_cpu_write_halfword(cpu,cpu->r[rd],address);
+        gba_cpu_write_halfword(cpu,cpu->r[rd],address,gba_nonsequential_access);
     }
 
+    cpu->pipeline.access = load ? gba_sequential_access : gba_nonsequential_access;
     cpu->r[15] += 2;
 }
 
@@ -554,15 +564,16 @@ void gba_cpu_thumb_sp_relative_load_store(gba_cpu_t* cpu,uint16_t opcode){
 
     // LDR Rd, [SP, #Imm]
     if(load){
-        cpu->r[rd] = gba_cpu_read_word_rotate(cpu,address);
+        cpu->r[rd] = gba_cpu_read_word_rotate(cpu,address,gba_nonsequential_access);
         
-        // TODO: I-cycle
+        gba_cpu_idle_cycle(cpu);
     }
     // STR Rd, [SP, #Imm]
     else{
-        gba_cpu_write_word(cpu,cpu->r[rd],address);
+        gba_cpu_write_word(cpu,cpu->r[rd],address,gba_nonsequential_access);
     }
 
+    cpu->pipeline.access = load ? gba_sequential_access : gba_nonsequential_access;
     cpu->r[15] += 2;
 }
 
@@ -583,6 +594,7 @@ void gba_cpu_thumb_load_address(gba_cpu_t* cpu,uint16_t opcode){
         cpu->r[rd] = (cpu->r[15] & ~2) + offset;
     }
 
+    cpu->pipeline.access = gba_sequential_access;
     cpu->r[15] += 2;
 }
 
@@ -599,6 +611,7 @@ void gba_cpu_thumb_add_offset_to_stack_pointer(gba_cpu_t* cpu,uint16_t opcode){
         cpu->r[13] += offset;
     }
 
+    cpu->pipeline.access = gba_sequential_access;
     cpu->r[15] += 2;
 }
 
@@ -610,29 +623,33 @@ void gba_cpu_thumb_push_pop_registers(gba_cpu_t* cpu,uint16_t opcode){
 
     // Whenever R15 is stored to memory the stored value is the address of the STM
     // instruction plus 6.
+
+    cpu->pipeline.access = load ? gba_sequential_access : gba_nonsequential_access;
     cpu->r[15] += 2;
 
     // Empty Rlist: R15 loaded/stored (ARMv4 only), and Rb=Rb+40h (ARMv4-v5).
     if(!list && !r){
         if(load){
-            cpu->r[15] = gba_cpu_read_word(cpu,cpu->r[13]);
+            cpu->r[15] = gba_cpu_read_word(cpu,cpu->r[13],gba_nonsequential_access);
 
             cpu->r[13] += 64;
 
-            // TODO: I-cycle
+            gba_cpu_idle_cycle(cpu);
 
             gba_cpu_reload_pipeline(cpu);
         }
         else{
             cpu->r[13] -= 64;
             
-            gba_cpu_write_word(cpu,cpu->r[15],cpu->r[13]);
+            gba_cpu_write_word(cpu,cpu->r[15],cpu->r[13],gba_nonsequential_access);
         }
 
         return;
     }
 
     uint8_t bytes = (__builtin_popcount(list) + r) * 4;
+
+    uint8_t access = gba_nonsequential_access;
 
     // POP
     if(load){
@@ -644,17 +661,22 @@ void gba_cpu_thumb_push_pop_registers(gba_cpu_t* cpu,uint16_t opcode){
 
             if(!(list & (1 << i))) continue;
 
-            cpu->r[i] = gba_cpu_read_word(cpu,address);
+            cpu->r[i] = gba_cpu_read_word(cpu,address,access);
 
             address += 4;
+
+            access = gba_sequential_access;
         }
 
-        // TODO: I-cycle
-
         if(r){
-            cpu->r[15] = gba_cpu_read_word(cpu,address);
+            cpu->r[15] = gba_cpu_read_word(cpu,address,access);
+
+            gba_cpu_idle_cycle(cpu);
 
             gba_cpu_reload_pipeline(cpu);
+        }
+        else{
+            gba_cpu_idle_cycle(cpu);
         }
     }
     // PUSH
@@ -667,13 +689,15 @@ void gba_cpu_thumb_push_pop_registers(gba_cpu_t* cpu,uint16_t opcode){
 
             if(!(list & (1 << i))) continue;
 
-            gba_cpu_write_word(cpu,cpu->r[i],address);
+            gba_cpu_write_word(cpu,cpu->r[i],address,access);
 
             address += 4;
+
+            access = gba_sequential_access;
         }
 
         if(r){
-            gba_cpu_write_word(cpu,cpu->r[14],address);
+            gba_cpu_write_word(cpu,cpu->r[14],address,access);
         }
     }
 }
@@ -685,19 +709,21 @@ void gba_cpu_thumb_multiple_load_store(gba_cpu_t* cpu,uint16_t opcode){
 
     // Whenever R15 is stored to memory the stored value is the address of the STM
     // instruction plus 6.
+
+    cpu->pipeline.access = load ? gba_sequential_access : gba_nonsequential_access;
     cpu->r[15] += 2;
 
     // Empty Rlist: R15 loaded/stored (ARMv4 only), and Rb=Rb+40h (ARMv4-v5).
     if(!list){
         if(load){
-            cpu->r[15] = gba_cpu_read_word(cpu,cpu->r[rb]);
+            cpu->r[15] = gba_cpu_read_word(cpu,cpu->r[rb],gba_nonsequential_access);
 
-            // TODO: I-cycle
+            gba_cpu_idle_cycle(cpu);
 
             gba_cpu_reload_pipeline(cpu);
         }
         else{
-            gba_cpu_write_word(cpu,cpu->r[15],cpu->r[rb]);
+            gba_cpu_write_word(cpu,cpu->r[15],cpu->r[rb],gba_nonsequential_access);
         }
 
         cpu->r[rb] += 64;
@@ -709,6 +735,8 @@ void gba_cpu_thumb_multiple_load_store(gba_cpu_t* cpu,uint16_t opcode){
 
     uint32_t bytes = __builtin_popcount(list) * 4;
 
+    uint8_t access = gba_nonsequential_access;
+
     if(load){
         // A LDM will always overwrite the updated base if the base is in the list.
         cpu->r[rb] += bytes;
@@ -717,12 +745,14 @@ void gba_cpu_thumb_multiple_load_store(gba_cpu_t* cpu,uint16_t opcode){
 
             if(!(list & (1 << i))) continue;
 
-            cpu->r[i] = gba_cpu_read_word(cpu,address);
+            cpu->r[i] = gba_cpu_read_word(cpu,address,access);
 
             address += 4;
+
+            access = gba_sequential_access;
         }
 
-        // TODO: I-cycle
+        gba_cpu_idle_cycle(cpu);
     }
     else{
         bool first = true;
@@ -731,9 +761,11 @@ void gba_cpu_thumb_multiple_load_store(gba_cpu_t* cpu,uint16_t opcode){
 
             if(!(list & (1 << i))) continue;
 
-            gba_cpu_write_word(cpu,cpu->r[i],address);
+            gba_cpu_write_word(cpu,cpu->r[i],address,access);
 
             address += 4;
+
+            access = gba_sequential_access;
 
             // The base is written back at the end of the second cycle of the instruction
             if(first){
@@ -762,6 +794,7 @@ void gba_cpu_thumb_conditional_branch(gba_cpu_t* cpu,uint16_t opcode){
         gba_cpu_reload_pipeline(cpu);
     }
     else{
+        cpu->pipeline.access = gba_sequential_access;
         cpu->r[15] += 2;
     }
 }
@@ -819,6 +852,7 @@ void gba_cpu_thumb_long_branch_with_link(gba_cpu_t* cpu,uint16_t opcode){
 
         cpu->r[14] = cpu->r[15] + offset;
 
+        cpu->pipeline.access = gba_sequential_access;
         cpu->r[15] += 2;
     }
 }
@@ -827,7 +861,7 @@ void gba_cpu_thumb_long_branch_with_link(gba_cpu_t* cpu,uint16_t opcode){
 void gba_cpu_thumb_undefined(gba_cpu_t* cpu,uint16_t opcode){
     gba_unused(opcode);
 
-    //TODO: I-cycle
+    gba_cpu_idle_cycle(cpu);
 
     cpu->spsr[gba_cpu_undefined_bank] = cpu->cpsr | 0x10;
 

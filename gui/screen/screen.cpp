@@ -2,36 +2,42 @@
 #include <gui/nanoboy/nanoboy.hpp>
 
 void screen_t::init(nanoboy_t* _nanoboy){
-
     nanoboy = _nanoboy;
-    gb = nanoboy->gb;
-
-    create_texture();
-
-    ImGuiStyle& style = ImGui::GetStyle();
-
-    floating_min_size.x = gb_screen_width + style.WindowPadding.x * 2.0f;
-    floating_min_size.y = ImGui::GetFrameHeight() + gb_screen_height + style.WindowPadding.y * 2.0f;
 
     floating_max_size.x = FLT_MAX;
     floating_max_size.y = FLT_MAX;
 }
 
-void screen_t::uninit(){
-    SDL_DestroyTexture(texture);
-}
 
+void screen_t::update_console(){
+    
+    if(!nanoboy->console) return;
 
-void screen_t::create_texture(){
+    ImGuiStyle& style = ImGui::GetStyle();
 
-    if(texture != nullptr){
-        SDL_DestroyTexture(texture);
-        texture = nullptr;
+    base_width = nanoboy->console->screen_width();
+    base_height = nanoboy->console->screen_height();
+
+    floating_min_size.x = base_width + style.WindowPadding.x * 2.0f;
+    floating_min_size.y = ImGui::GetFrameHeight() + base_height + style.WindowPadding.y * 2.0f;
+
+    update_embedded_size();
+
+    set_bilinear_filtering(bilinear_filtering);
+
+    nanoboy->console->enable_interframe_blending(interframe_blending);
+
+    switch(nanoboy->console->type()){
+        case console_gb:{
+            gb_t* gb = (gb_t*)nanoboy->console->data();
+            gb->ppu.background_disabled = gb_layer.background_disabled;
+            gb->ppu.objects_disabled = gb_layer.objects_disabled;
+            break;
+        }
+        case console_gba:{
+            break;
+        }
     }
-
-    texture = SDL_CreateTexture(nanoboy->renderer,SDL_PIXELFORMAT_RGB24,SDL_TEXTUREACCESS_STREAMING,gb_screen_width,gb_screen_height);
-
-    clear();
 }
 
 
@@ -52,14 +58,18 @@ void screen_t::save(cJSON* settings_object){
     cJSON* bilinear_filtering_bool = cJSON_CreateBool(bilinear_filtering);
     cJSON_AddItemToObjectCS(screen_object,"Bilinear Filtering",bilinear_filtering_bool);
 
-    cJSON* interframe_blending_bool = cJSON_CreateBool(gb->ppu.interframe_blending);
+    cJSON* interframe_blending_bool = cJSON_CreateBool(interframe_blending);
     cJSON_AddItemToObjectCS(screen_object,"Interframe Blending",interframe_blending_bool);
 
-    cJSON* disable_background_bool = cJSON_CreateBool(gb->ppu.background_disabled);
-    cJSON_AddItemToObjectCS(screen_object,"Disable Background",disable_background_bool);
 
-    cJSON* disable_objects_bool = cJSON_CreateBool(gb->ppu.objects_disabled);
-    cJSON_AddItemToObjectCS(screen_object,"Disable Objects",disable_objects_bool);
+    cJSON* gb_layer_object = cJSON_CreateObject();
+    cJSON_AddItemToObjectCS(screen_object,"GB Layer",gb_layer_object);
+
+    cJSON* disable_background_bool = cJSON_CreateBool(gb_layer.background_disabled);
+    cJSON_AddItemToObjectCS(gb_layer_object,"Disable Background",disable_background_bool);
+
+    cJSON* disable_objects_bool = cJSON_CreateBool(gb_layer.objects_disabled);
+    cJSON_AddItemToObjectCS(gb_layer_object,"Disable Objects",disable_objects_bool);
 }
 
 void screen_t::load(cJSON* settings_object){
@@ -88,27 +98,32 @@ void screen_t::load(cJSON* settings_object){
     cJSON* bilinear_filtering_bool = cJSON_GetObjectItemCaseSensitive(screen_object,"Bilinear Filtering");
 
     if(cJSON_IsBool(bilinear_filtering_bool)){
-        set_bilinear_filtering(cJSON_IsTrue(bilinear_filtering_bool));
+        bilinear_filtering = cJSON_IsTrue(bilinear_filtering_bool);
     }
 
     cJSON* interframe_blending_bool = cJSON_GetObjectItemCaseSensitive(screen_object,"Interframe Blending");
 
     if(cJSON_IsBool(interframe_blending_bool)){
-        gb->ppu.interframe_blending = cJSON_IsTrue(interframe_blending_bool);
+        interframe_blending = cJSON_IsTrue(interframe_blending_bool);
     }
 
-    cJSON* disable_background_bool = cJSON_GetObjectItemCaseSensitive(screen_object,"Disable Background");
 
-    if(cJSON_IsBool(disable_background_bool)){
-        gb->ppu.background_disabled = cJSON_IsTrue(disable_background_bool);
+    cJSON* gb_layer_object = cJSON_GetObjectItemCaseSensitive(screen_object,"GB Layer");
+
+    if(cJSON_IsObject(gb_layer_object)){
+        cJSON* disable_background_bool = cJSON_GetObjectItemCaseSensitive(gb_layer_object,"Disable Background");
+
+        if(cJSON_IsBool(disable_background_bool)){
+            gb_layer.background_disabled = cJSON_IsTrue(disable_background_bool);
+        }
+
+        cJSON* disable_objects_bool = cJSON_GetObjectItemCaseSensitive(gb_layer_object,"Disable Objects");
+        
+        if(cJSON_IsBool(disable_objects_bool)){
+            gb_layer.objects_disabled = cJSON_IsTrue(disable_objects_bool);
+        }
     }
 
-    cJSON* disable_objects_bool = cJSON_GetObjectItemCaseSensitive(screen_object,"Disable Objects");
-    
-    if(cJSON_IsBool(disable_objects_bool)){
-        gb->ppu.objects_disabled = cJSON_IsTrue(disable_objects_bool);
-    }
-    
     update_embedded_size();
 
     last_evail_size.x = 0.0f;
@@ -135,8 +150,8 @@ void screen_t::set_embedded_scale(int new_scale){
 
     embedded_rect.x = 0;
     embedded_rect.y = main_menu_bar_height;
-    embedded_rect.w = gb_screen_width * new_scale;
-    embedded_rect.h = gb_screen_height * new_scale;
+    embedded_rect.w = base_width * new_scale;
+    embedded_rect.h = base_height * new_scale;
 
     SDL_SetWindowSize(nanoboy->window,embedded_rect.w,embedded_rect.h + main_menu_bar_height);
 }
@@ -159,21 +174,21 @@ void screen_t::update_embedded_size(){
     int height = window_height;
 
     if(aspect_ratio){
-        float ratio_scale_x = (float)width / gb_screen_width;
-        float ratio_scale_y = (float)height / gb_screen_height;
+        float ratio_scale_x = (float)width / base_width;
+        float ratio_scale_y = (float)height / base_height;
 
         float ratio_scale = gb_min(ratio_scale_x,ratio_scale_y);
 
-        width = gb_screen_width * ratio_scale;
-        height = gb_screen_height * ratio_scale;
+        width = base_width * ratio_scale;
+        height = base_height * ratio_scale;
     }
     
     if(interger_scale){
-        int scale_x = width / gb_screen_width;
-        int scale_y = height / gb_screen_height;
+        int scale_x = width / base_width;
+        int scale_y = height / base_height;
 
-        width = gb_screen_width * scale_x;
-        height = gb_screen_height * scale_y;
+        width = base_width * scale_x;
+        height = base_height * scale_y;
     }
 
     embedded_rect.w = width;
@@ -183,14 +198,11 @@ void screen_t::update_embedded_size(){
 }
 
 void screen_t::set_bilinear_filtering(bool new_bilinear_filtering){
-
-    if(new_bilinear_filtering == bilinear_filtering) return;
-
     bilinear_filtering = new_bilinear_filtering;
 
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY,bilinear_filtering ? "1" : "0");
 
-    create_texture();
+    nanoboy->console->create_screen_texture();
 
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY,"0");
 }
@@ -228,31 +240,33 @@ void screen_t::toggle_interger_scale(){
 }
 
 void screen_t::toggle_interframe_blending(){
-    gb->ppu.interframe_blending = !gb->ppu.interframe_blending;
+    interframe_blending = !interframe_blending;
+    if(nanoboy->console != nullptr){
+        nanoboy->console->enable_interframe_blending(interframe_blending);
+    }
 }
 
 void screen_t::toggle_bilinear_filtering(){
     set_bilinear_filtering(!bilinear_filtering);
 }
 
-void screen_t::toggle_disable_background(){
-    gb->ppu.background_disabled = !gb->ppu.background_disabled;
+
+void screen_t::toggle_disable_gb_background(){
+    gb_layer.background_disabled = !gb_layer.background_disabled;
+
+    if(nanoboy->console != nullptr && nanoboy->console->type() == console_gb){
+        gb_t* gb = (gb_t*)nanoboy->console->data();
+        gb->ppu.background_disabled = gb_layer.background_disabled;
+    }
 }
 
-void screen_t::toggle_disable_objects(){
-     gb->ppu.objects_disabled = !gb->ppu.objects_disabled;
-}
+void screen_t::toggle_disable_gb_objects(){
+    gb_layer.objects_disabled = !gb_layer.objects_disabled;
 
-
-void screen_t::update_screen(){
-
-    uint8_t* pixels = nullptr;
-    int pitch = 0;
-    SDL_LockTexture(texture,nullptr,(void**)&pixels,&pitch);
-
-    memcpy(pixels,gb_ppu_get_render_buffer(gb),gb_screen_length);
-
-    SDL_UnlockTexture(texture);
+    if(nanoboy->console != nullptr && nanoboy->console->type() == console_gb){
+        gb_t* gb = (gb_t*)nanoboy->console->data();
+        gb->ppu.objects_disabled = !gb->ppu.objects_disabled;
+    }
 }
 
 
@@ -305,12 +319,6 @@ void screen_t::shortcut_event(){
     if(shortcut.down(shortcut_settings_t::toggle_bilinear_filtering)){
         toggle_bilinear_filtering();
     }
-    if(shortcut.down(shortcut_settings_t::toggle_disable_background)){
-        toggle_disable_background();
-    }
-    if(shortcut.down(shortcut_settings_t::toggle_disable_objects)){
-        toggle_disable_objects();
-    }
 }
 
 
@@ -357,7 +365,7 @@ void screen_t::render_menu_bar(){
         toggle_interger_scale();
     }
 
-    if(ImGui::MenuItem("Interframe Blending",shortcut.str_keyboard(shortcut_settings_t::toggle_interframe_blending),gb->ppu.interframe_blending)){
+    if(ImGui::MenuItem("Interframe Blending",shortcut.str_keyboard(shortcut_settings_t::toggle_interframe_blending),interframe_blending)){
         toggle_interframe_blending();
     }
 
@@ -365,12 +373,25 @@ void screen_t::render_menu_bar(){
         toggle_bilinear_filtering();
     }
 
-    if(ImGui::MenuItem("Disable Background",shortcut.str_keyboard(shortcut_settings_t::toggle_disable_background),gb->ppu.background_disabled)){
-        toggle_disable_background();
-    }
+    if(ImGui::BeginMenu("Layer",nanoboy->console != nullptr)){
 
-    if(ImGui::MenuItem("Disable Objects",shortcut.str_keyboard(shortcut_settings_t::toggle_disable_objects),gb->ppu.objects_disabled)){
-       toggle_disable_objects();
+        switch(nanoboy->console->type()){
+            case console_gb:{
+                if(ImGui::MenuItem("Disable Background",nullptr,gb_layer.background_disabled)){
+                    toggle_disable_gb_background();
+                }
+
+                if(ImGui::MenuItem("Disable Objects",nullptr,gb_layer.objects_disabled)){
+                    toggle_disable_gb_objects();
+                }
+                break;
+            }
+            case console_gba:{
+                break;
+            }
+        }
+
+        ImGui::EndMenu();
     }
 
     ImGui::EndMenu();
@@ -392,21 +413,21 @@ void screen_t::render_floating(){
             floating_size.y = evail_size.y;
 
             if(aspect_ratio){
-                float ratio_scale_x = evail_size.x / gb_screen_width;
-                float ratio_scale_y = evail_size.y / gb_screen_height;
+                float ratio_scale_x = evail_size.x / base_width;
+                float ratio_scale_y = evail_size.y / base_height;
 
                 float ratio_scale = gb_min(ratio_scale_x,ratio_scale_y);
 
-                floating_size.x = gb_screen_width * ratio_scale;
-                floating_size.y = gb_screen_height * ratio_scale;
+                floating_size.x = base_width * ratio_scale;
+                floating_size.y = base_height * ratio_scale;
             }
 
             if(interger_scale){
-                int scale_x = floating_size.x / gb_screen_width;
-                int scale_y = floating_size.y / gb_screen_height;
+                int scale_x = floating_size.x / base_width;
+                int scale_y = floating_size.y / base_height;
 
-                floating_size.x = gb_screen_width * scale_x;
-                floating_size.y = gb_screen_height * scale_y;
+                floating_size.x = base_width * scale_x;
+                floating_size.y = base_height * scale_y;
             }
 
             ImVec2 cursor = ImGui::GetCursorPos();
@@ -419,14 +440,14 @@ void screen_t::render_floating(){
 
         ImGui::SetCursorPos(floating_pos);
 
-        ImGui::Image((ImTextureRef)texture,floating_size);
+        ImGui::Image((ImTextureRef)nanoboy->console->screen_texture,floating_size);
     }
 
     ImGui::End();
 }
 
 void screen_t::render_embedded(){
-    if(_floating) return;
+    if(_floating || !nanoboy->console || !nanoboy->console->screen_texture) return;
 
-    SDL_RenderCopy(nanoboy->renderer,texture,nullptr,&embedded_rect);
+    SDL_RenderCopy(nanoboy->renderer,nanoboy->console->screen_texture,nullptr,&embedded_rect);
 }

@@ -31,6 +31,8 @@ void gb_joypad_set_callback(gb_t* gb,gb_joypad_callback_t callback,void* data){
 void gb_joypad_remove_callback(gb_t* gb){
     gb->joypad.callback = NULL;
     gb->joypad.callback_data = NULL;
+
+    memset(&gb->joypad.state.button_state,0x00,sizeof(gb->joypad.state.button_state));
 }
 
 

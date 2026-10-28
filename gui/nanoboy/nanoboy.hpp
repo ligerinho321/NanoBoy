@@ -6,9 +6,10 @@
 
 #include <gui/notification_manager/notification_manager.hpp>
 
-#include <gui/cheats/cheats.hpp>
+#include <gui/console/gb.hpp>
+#include <gui/console/gba.hpp>
+
 #include <gui/file_dialog/file_selector_dialog.hpp>
-#include <gui/printer/printer.hpp>
 #include <gui/savestate/savestate.hpp>
 #include <gui/screen/screen.hpp>
 
@@ -17,16 +18,6 @@
 #include <gui/rewind_settings/rewind_settings.hpp>
 #include <gui/input_settings/input_settings.hpp>
 #include <gui/shortcut_settings/shortcut_settings.hpp>
-
-#include <gui/debugger/debugger.hpp>
-#include <gui/register_viewer/register_viewer.hpp>
-#include <gui/event_viewer/event_viewer.hpp>
-#include <gui/memory_viewer/memory_viewer.hpp>
-#include <gui/tilemap_viewer/tilemap_viewer.hpp>
-#include <gui/tile_viewer/tile_viewer.hpp>
-#include <gui/object_viewer/object_viewer.hpp>
-#include <gui/palette_viewer/palette_viewer.hpp>
-#include <gui/wave_form/wave_form.hpp>
 
 #include <gui/utils/utils.hpp>
 
@@ -49,9 +40,14 @@ private:
 
     mouse_cursor_t cursor;
 
+    static void audio_callback(void* userdata,uint8_t* data,int len);
+    static void file_selector_callback(void* userdata,std::filesystem::path path);
+
     void init_directories();
     void init_sdl();
     void init_imgui();
+
+    void update_gb_model();
 
     void save_window_settings(cJSON* settings_object);
     void load_window_settings(cJSON* settings_object);
@@ -67,12 +63,16 @@ private:
 
     void take_screenshot();
 
+    void file_shortcut_event();
+    void game_shortcut_event();
+    void settings_shortcut_event();
+    void debug_shortcut_event();
+    void tools_shortcut_event();
+
     void event();
 
-    void gb_run();
-
 public:
-    gb_t* gb = nullptr;
+    console_t* console;
     
     SDL_Window* window = nullptr;
     SDL_Renderer* renderer = nullptr;
@@ -91,20 +91,9 @@ public:
     savestate_t savestate;
 
     screen_t screen;
+
+    bool is_cgb = false;
     
-    cheats_t cheats;
-    printer_t printer;
-
-    debugger_t debugger;
-    register_viewer_t register_viewer;
-    event_viewer_t event_viewer;
-    memory_viewer_t memory_viewer;
-    tilemap_viewer_t tilemap_viewer;
-    tile_viewer_t tile_viewer;
-    object_viewer_t object_viewer;
-    palette_viewer_t palette_viewer;
-    wave_form_t wave_form;
-
     bool running = false;
 
     nanoboy_t();
@@ -112,7 +101,8 @@ public:
 
     void insert_cartridge(std::filesystem::path path);
     void remove_cartridge();
-    void set_speed(float speed);
+    void increase_speed();
+    void decrease_speed();
     void pause();
     void reset();
 
@@ -133,7 +123,7 @@ private:
         return path.u8string();
     }
 
-    std::string get_rom_cheat_path() const {
+    std::string get_rom_cheats_path() const {
         std::filesystem::path path = cheats_path / (rom_name + ".json");
         return path.u8string();
     }

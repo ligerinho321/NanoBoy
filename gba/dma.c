@@ -160,5 +160,5 @@ uint8_t gba_dma_read_register_raw(gba_dma_t* dma,uint32_t address){
 
 
 void gba_dma_reset(gba_dma_t* dma){
-
+    memset(dma->channel,0x00,sizeof(dma->channel));
 }

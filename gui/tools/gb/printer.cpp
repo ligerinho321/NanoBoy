@@ -1,0 +1,223 @@
+#include <gui/tools/gb/printer.hpp>
+
+void gb_printer_window_t::init(gb_t* _gb,SDL_Renderer* _renderer){
+    gb = _gb;
+    renderer = _renderer;
+
+    file_save.init();
+    file_save.set_extensions(image_extensions,image_extensions_count);
+    file_save.set_callback(file_save_callback,this);
+}
+
+void gb_printer_window_t::uninit(){
+    gb_disconnect_printer(gb);
+
+    if(texture != nullptr){
+        SDL_DestroyTexture(texture);
+    }
+}
+
+
+void gb_printer_window_t::gb_printer_callback(void* userdata,const uint8_t* data,int len){
+
+    gb_printer_window_t* printer = (gb_printer_window_t*)userdata;
+
+    size_t size = printer->buffer.size();
+
+    if(size + len > printer->buffer.capacity()){
+
+        size_t new_cap = printer->buffer.capacity() + gb_max(gb_printer_window_t::buffer_expand_size,len);
+
+        printer->buffer.reserve(new_cap);    
+    }
+
+    printer->buffer.resize(size + len,0);
+
+    memcpy(printer->buffer.data() + size,data,len);
+
+
+    printer->texture_height = printer->buffer.size() / gb_printer_image_pitch;
+
+    if(printer->texture_height <= 0) return;
+
+    if(printer->texture_height > printer->texture_max_height){
+        
+        printer->texture_max_height += gb_max(gb_printer_window_t::texture_expand_height,printer->texture_height);
+
+        if(printer->texture != nullptr){
+            SDL_DestroyTexture(printer->texture);
+            printer->texture = nullptr;
+        }
+
+        printer->texture = SDL_CreateTexture(
+            printer->renderer,
+            gb_printer_window_t::texture_format,
+            gb_printer_window_t::texture_access,
+            gb_printer_window_t::texture_width,
+            printer->texture_max_height
+        );
+        
+        if(printer->texture == nullptr){
+            printf("SDL_CreateTexture: %s\n",SDL_GetError());
+            return;
+        }
+    }
+
+    uint8_t* pixels = nullptr;
+    int pitch = 0;
+    SDL_Rect rect{0,0,gb_printer_window_t::texture_width,printer->texture_height};
+
+    if(SDL_LockTexture(printer->texture,&rect,(void**)&pixels,&pitch) >= 0){
+
+        memcpy(pixels,printer->buffer.data(),gb_printer_image_pitch * printer->texture_height);
+
+        SDL_UnlockTexture(printer->texture);   
+    }
+    else{
+        printf("SDL_LockTexture: %s\n",SDL_GetError());
+    }
+}
+
+
+void gb_printer_window_t::file_save_callback(void* userdata,std::filesystem::path path){
+    gb_printer_window_t* printer = (gb_printer_window_t*)userdata;
+
+    SDL_Rect rect{0,0,gb_printer_window_t::texture_width,printer->texture_height};
+    uint8_t* pixels = nullptr;
+    int pitch = 0;
+
+    if(!SDL_LockTexture(printer->texture,&rect,(void**)&pixels,&pitch)){
+
+        std::string extension = path.extension().u8string();
+
+        if(!strcasecmp(extension.c_str(),".png")){
+            if(!stbi_write_png(path.u8string().c_str(),gb_printer_window_t::texture_width,printer->texture_height,gb_printer_window_t::texture_bytes_per_pixel,pixels,pitch)){
+                gb_printf_error("stbi_write_png failed\n");
+            }
+        }
+        else if(!strcasecmp(extension.c_str(),".bmp")){
+            if(!stbi_write_bmp(path.u8string().c_str(),gb_printer_window_t::texture_width,printer->texture_height,gb_printer_window_t::texture_bytes_per_pixel,pixels)){
+                gb_printf_error("stbi_write_bmp failed\n");
+            }
+        }
+        else if(!strcasecmp(extension.c_str(),".tga")){
+            if(!stbi_write_tga(path.u8string().c_str(),gb_printer_window_t::texture_width,printer->texture_height,gb_printer_window_t::texture_bytes_per_pixel,pixels)){
+                gb_printf_error("stbi_write_tga failed\n");
+            }
+        }
+        else if(!strcasecmp(extension.c_str(),".jpg")){
+            if(!stbi_write_jpg(path.u8string().c_str(),gb_printer_window_t::texture_width,printer->texture_height,gb_printer_window_t::texture_bytes_per_pixel,pixels,100)){
+                gb_printf_error("stbi_write_jpg failed\n");
+            }
+        }
+
+        SDL_UnlockTexture(printer->texture);                
+    }
+    else{
+        printf("SDL_LockTexture: %s\n",SDL_GetError());
+    }
+}
+
+
+const char* gb_printer_window_t::get_print_file_name() const noexcept {
+    static char buffer[128] = {0};
+    time_t current_time = time(NULL);
+    struct tm* local_time = localtime(&current_time);
+    strftime(buffer,sizeof(buffer),"NanoBoy_Print_%d%m%Y_%H%M%S",local_time);
+    return buffer;
+}
+
+
+void gb_printer_window_t::render(){
+
+    if(!open) return;
+
+    if(!gb->cartridge_inserted){
+        set_open(false);
+    }
+
+    bool _open = open;
+
+    if(ImGui::Begin("Printer",&_open)){
+
+        ImVec2 child_size(
+            0.0f,
+            ImGui::GetContentRegionAvail().y - ImGui::GetFrameHeightWithSpacing()
+        );
+
+        if(ImGui::BeginChild("PrinterChild",child_size,ImGuiChildFlags_Borders)){
+
+            if(texture != nullptr){
+
+                ImVec2 texture_size(gb_printer_window_t::texture_width,texture_height);
+
+                ImVec2 texture_uv0(0.0f,0.0f);
+
+                ImVec2 texture_uv1(1.0f,(float)texture_height / (float)texture_max_height);
+
+                ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (ImGui::GetContentRegionAvail().x - texture_size.x) * 0.5f);
+                
+                ImGui::Image((ImTextureRef)texture,texture_size,texture_uv0,texture_uv1);
+            }
+        }
+        ImGui::EndChild();
+
+        ImGui::Checkbox("Padding",&gb->printer.padding_enabled);
+
+        ImGui::SameLine();
+
+        ImGui::BeginDisabled(!texture_height);
+
+        if(ImGui::Button("Save")){
+            file_save.copy_to_name_buffer(get_print_file_name());
+            file_save.set_open(true);
+        }
+
+        ImGui::SameLine();
+
+        if(ImGui::Button("Clear")){
+            clear();
+        }
+
+        ImGui::EndDisabled();
+        
+        ImGui::SameLine();
+
+        if(ImGui::Button("Accelerate")){
+            gb->printer.accelerate = true;
+        }
+
+        file_save.render();
+    }
+    ImGui::End();
+
+    set_open(_open);
+}
+
+
+void gb_printer_window_t::clear(){
+    
+    if(texture != nullptr){
+        SDL_DestroyTexture(texture);
+        texture = nullptr;
+    }
+    
+    texture_height = 0;
+    texture_max_height = 0;
+
+    std::vector<uint8_t>().swap(buffer);
+}
+
+
+void gb_printer_window_t::set_open(bool _open) noexcept {
+    if(open == _open) return;
+
+    open = _open;
+
+    if(open){
+        gb_connect_printer(gb,gb_printer_callback,this);
+    }
+    else{
+        gb_disconnect_printer(gb);
+    }
+}

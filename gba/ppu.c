@@ -6,6 +6,75 @@ void gba_ppu_init(gba_ppu_t* ppu,gba_t* gba){
 }
 
 
+void gba_ppu_schedule_next_event(gba_ppu_t* ppu){
+    
+    ppu->last_schedule_event = ppu->gba->cycles;
+
+    ppu->next_schedule_event = ppu->gba->cycles;
+
+    if(ppu->scanline < gba_vblank_start_scanline && ppu->cycle < gba_scanline_hblank_start_cycle){
+        ppu->next_schedule_event += gba_scanline_hblank_start_cycle - ppu->cycle;
+    }
+    else{
+        ppu->next_schedule_event += gba_scanline_cycles - ppu->cycle;
+    }
+}
+
+void gba_ppu_update(gba_ppu_t* ppu){
+    
+    ppu->cycle += ppu->gba->cycles - ppu->last_schedule_event;
+
+    if(ppu->cycle == gba_scanline_hblank_start_cycle){
+
+        ppu->lcd_status.hblank_flag = true;
+
+        if(ppu->lcd_status.hblank_irq_enabled){
+            ppu->gba->interrupt.flag.v |= gba_interrupt_lcd_hblank_flag;
+        }
+    }
+    if(ppu->cycle >= gba_scanline_cycles){
+
+        ppu->cycle = 0;
+        
+        ppu->lcd_status.hblank_flag = false;
+
+        ++ppu->scanline;
+
+        if(ppu->scanline == ppu->lcd_status.lyc){
+
+            ppu->lcd_status.lyc_flag = true;
+
+            if(ppu->lcd_status.lyc_irq_enabled){
+                ppu->gba->interrupt.flag.v |= gba_interrupt_lcd_lyc_flag;
+            }
+        }
+        else{
+            ppu->lcd_status.lyc_flag = false;
+        }
+
+        if(ppu->scanline == gba_vblank_start_scanline){
+
+            ppu->lcd_status.vblank_flag = true;
+
+            if(ppu->lcd_status.vblank_irq_enabled){
+                ppu->gba->interrupt.flag.v |= gba_interrupt_lcd_vblank_flag;
+            }
+
+            ++ppu->frame_count;
+            
+            gba_keypad_update(&ppu->gba->keypad);
+        }
+        else if(ppu->scanline >= gba_scanlines){
+
+            ppu->scanline = 0;
+
+            ppu->lcd_status.vblank_flag = false;
+        }
+    }
+}
+
+
+
 static inline void gba_ppu_write_lcd_control_lsb(gba_ppu_t* ppu,uint8_t value){
     gba_ppu_lcd_control_t* control = &ppu->lcd_control;
     control->bg_mode = value & 0x07;
@@ -58,8 +127,7 @@ static inline void gba_ppu_write_lcd_status_lsb(gba_ppu_t* ppu,uint8_t value){
     gba_ppu_lcd_status_t* status = &ppu->lcd_status;
     status->vblank_irq_enabled = (value & 0x08) != 0x00;
     status->hblank_irq_enabled = (value & 0x10) != 0x00;
-    status->vcounter_irq_enabled = (value & 0x20) != 0x00;
-
+    status->lyc_irq_enabled = (value & 0x20) != 0x00;
 }
 
 static inline uint8_t gba_ppu_read_lcd_status_lsb(gba_ppu_t* ppu){
@@ -67,21 +135,21 @@ static inline uint8_t gba_ppu_read_lcd_status_lsb(gba_ppu_t* ppu){
     return (
         (status->vblank_flag ? 0x01 : 0x00) |
         (status->hblank_flag ? 0x02 : 0x00) |
-        (status->vcounter_flag ? 0x04 : 0x00) |
+        (status->lyc_flag ? 0x04 : 0x00) |
         (status->vblank_irq_enabled ? 0x08 : 0x00) |
         (status->hblank_irq_enabled ? 0x10 : 0x00) |
-        (status->vcounter_irq_enabled ? 0x20 : 0x00)
+        (status->lyc_irq_enabled ? 0x20 : 0x00)
     );
 }
 
 static inline void gba_ppu_write_lcd_status_msb(gba_ppu_t* ppu,uint8_t value){
     gba_ppu_lcd_status_t* status = &ppu->lcd_status;
-    status->vcounter_setting = value;
+    status->lyc = value;
 }
 
 static inline uint8_t gba_ppu_read_lcd_status_msb(gba_ppu_t* ppu){
     gba_ppu_lcd_status_t* status = &ppu->lcd_status;
-    return status->vcounter_setting;
+    return status->lyc;
 }
 
 
@@ -363,7 +431,7 @@ uint8_t gba_ppu_read_register_raw(gba_ppu_t* ppu,uint32_t address){
         case 0x04000004: value = gba_ppu_read_lcd_status_lsb(ppu); break;
         case 0x04000005: value = gba_ppu_read_lcd_status_msb(ppu); break;
         // VCounter
-        case 0x04000006: value = ppu->vcounter; break;
+        case 0x04000006: value = ppu->scanline; break;
         case 0x04000007: value = 0x00; break;
 
         // BG0 Control
@@ -600,15 +668,16 @@ void gba_ppu_write_oam(gba_ppu_t* ppu,gba_word_t value,uint32_t address,uint8_t 
 
     // TODO: Plus 1 cycle if GBA accesses video memory at the same time
 
-    gba_clock(ppu->gba,1);
-
     switch(size){
         case gba_memory_byte_access:{
+            gba_clock(ppu->gba,1);
             // 8-bit writes to OAM are ignored
             break;
         }
         case gba_memory_halfword_access:{
             address &= ~0x01;
+
+            gba_clock(ppu->gba,1);
 
             ppu->oam[address | 0x00] = value.b[0];
             ppu->oam[address | 0x01] = value.b[1];
@@ -616,6 +685,8 @@ void gba_ppu_write_oam(gba_ppu_t* ppu,gba_word_t value,uint32_t address,uint8_t 
         }
         case gba_memory_word_access:{
             address &= ~0x03;
+
+            gba_clock(ppu->gba,1);
 
             ppu->oam[address | 0x00] = value.b[0];
             ppu->oam[address | 0x01] = value.b[1];
@@ -673,4 +744,40 @@ gba_word_t gba_ppu_read_oam(gba_ppu_t* ppu,uint32_t address,uint8_t size){
 
 void gba_ppu_reset(gba_ppu_t* ppu){
 
+    memset(&ppu->lcd_control,0x00,sizeof(ppu->lcd_control));
+
+    ppu->green_swap = false;
+
+    memset(&ppu->lcd_status,0x00,sizeof(ppu->lcd_status));
+
+    ppu->scanline = 0x00;
+    ppu->cycle = 0x00;
+
+    memset(&ppu->bg_control,0x00,sizeof(ppu->bg_control));
+
+    memset(&ppu->bg_scroll,0x00,sizeof(ppu->bg_scroll));
+    
+    memset(&ppu->bg2_affine,0x00,sizeof(ppu->bg2_affine));
+    memset(&ppu->bg3_affine,0x00,sizeof(ppu->bg3_affine));
+    
+    memset(&ppu->win_size,0x00,sizeof(ppu->win_size));
+
+    memset(&ppu->win0_control,0x00,sizeof(ppu->win0_control));
+    memset(&ppu->win1_control,0x00,sizeof(ppu->win1_control));
+    memset(&ppu->obj_win_control,0x00,sizeof(ppu->obj_win_control));
+    memset(&ppu->out_win_control,0x00,sizeof(ppu->out_win_control));
+
+    memset(&ppu->bg_mosaic_size,0x00,sizeof(ppu->bg_mosaic_size));
+    memset(&ppu->obj_mosaic_size,0x00,sizeof(ppu->obj_mosaic_size));
+
+    memset(&ppu->special_effect,0x00,sizeof(ppu->special_effect));
+    memset(&ppu->ev,0x00,sizeof(ppu->ev));
+
+    memset(ppu->cram,0x00,sizeof(ppu->cram));
+    memset(ppu->vram,0x00,sizeof(ppu->vram));
+    memset(ppu->oam,0x00,sizeof(ppu->oam));
+
+    ppu->frame_count = 0;
+
+    gba_ppu_schedule_next_event(ppu);
 }

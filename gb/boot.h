@@ -33,27 +33,19 @@ typedef struct _gb_boot_t {
 } gb_boot_t;
 
 
-#define gb_set_dmg_rom_path_reference(gb,path)\
-    (gb)->boot.dmg_rom_path = path
-
-#define gb_remove_dmg_rom_path_reference(gb)\
-    (gb)->boot.dmg_rom_path = NULL
-
-#define gb_set_cgb_rom_path_reference(gb,path)\
-    (gb)->boot.cgb_rom_path = path
-
-#define gb_remove_cgb_rom_path_reference(gb)\
-    (gb)->boot.dmg_rom_path = NULL
-
-#define gb_enable_skip_boot(gb,enabled)\
-    (gb)->boot.skip_enabled = enabled
-
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 void gb_boot_init(gb_boot_t* boot,gb_t* gb);
+
+void gb_boot_set_dmg_path_reference(gb_t* gb,const char* path);
+void gb_boot_remove_dmg_path_reference(gb_t* gb);
+
+void gb_boot_set_cgb_path_reference(gb_t* gb,const char* path);
+void gb_boot_remove_cgb_path_reference(gb_t* gb);
+
+void gb_boot_enable_skip(gb_t* gb,bool enabled);
 
 void gb_boot_update_roms(gb_boot_t* boot);
 

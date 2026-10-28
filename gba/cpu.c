@@ -1,6 +1,7 @@
 #include "cpu.h"
 #include "arm.h"
 #include "thumb.h"
+#include "gba.h"
 
 const bool gba_cpu_condition_table[256] = {
     0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,
@@ -34,49 +35,21 @@ void gba_cpu_init(gba_cpu_t* cpu,gba_t* gba){
 }
 
 
-void gba_cpu_write_byte(gba_cpu_t* cpu,uint8_t value,uint32_t address){
-    gba_cpu_transactions_t* transactions = cpu->transactions;
-
-    for(int i = 0; i < transactions->length; ++i){
-        
-        gba_cpu_transaction_t* transaction = transactions->data + i;
-        
-        if(
-            transaction->type == 2 &&
-            transaction->size == 1 &&
-            transaction->address == address &&
-            transaction->data == value
-        ){
-            return;
-        }
-    }
-
-    printf("Transaction not found. Type: Write Size: 1 Address: %08X Value: %02X\n",address,value);
+void gba_cpu_idle_cycle(gba_cpu_t* cpu){
+    gba_clock(cpu->gba,1);
 }
 
-uint8_t gba_cpu_read_byte(gba_cpu_t* cpu,uint32_t address){
-    gba_cpu_transactions_t* transactions = cpu->transactions;
 
-    for(int i = 0; i < transactions->length; ++i){
-        
-        gba_cpu_transaction_t* transaction = transactions->data + i;
-        
-        if(
-            transaction->type == 1 &&
-            transaction->size == 1 &&
-            transaction->address == address
-        ){
-            return transaction->data;
-        }
-    }
-    
-    printf("Transaction not found. Type: Read Size: 1 Address: %08X\n",address);
-
-    return address;
+void gba_cpu_write_byte(gba_cpu_t* cpu,uint8_t value,uint32_t address,uint8_t access){
+    gba_memory_write(&cpu->gba->memory,value,address,gba_memory_byte_access,access);
 }
 
-uint32_t gba_cpu_read_signed_byte(gba_cpu_t* cpu,uint32_t address){
-    uint32_t value = gba_cpu_read_byte(cpu,address);
+uint8_t gba_cpu_read_byte(gba_cpu_t* cpu,uint32_t address,uint8_t access){
+    return gba_memory_read(&cpu->gba->memory,address,gba_memory_byte_access,access);
+}
+
+uint32_t gba_cpu_read_signed_byte(gba_cpu_t* cpu,uint32_t address,uint8_t access){
+    uint32_t value = gba_cpu_read_byte(cpu,address,access);
     if(value & 0x00000080){
         value |= 0xFFFFFF00;
     }
@@ -84,57 +57,24 @@ uint32_t gba_cpu_read_signed_byte(gba_cpu_t* cpu,uint32_t address){
 }
 
 
-void gba_cpu_write_halfword(gba_cpu_t* cpu,uint16_t value,uint32_t address){
-    gba_cpu_transactions_t* transactions = cpu->transactions;
-
-    for(int i = 0; i < transactions->length; ++i){
-        
-        gba_cpu_transaction_t* transaction = transactions->data + i;
-        
-        if(
-            transaction->type == 2 &&
-            transaction->size == 2 &&
-            transaction->address == address &&
-            transaction->data == value
-        ){
-            return;
-        }
-    }
-
-    printf("Transaction not found. Type: Write Size: 2 Address: %08X Value: %02X\n",address,value);
+void gba_cpu_write_halfword(gba_cpu_t* cpu,uint16_t value,uint32_t address,uint8_t access){
+    gba_memory_write(&cpu->gba->memory,value,address,gba_memory_halfword_access,access);
 }
 
-uint16_t gba_cpu_read_halfword(gba_cpu_t* cpu,uint32_t address){
-    gba_cpu_transactions_t* transactions = cpu->transactions;
-
-    for(int i = 0; i < transactions->length; ++i){
-        
-        gba_cpu_transaction_t* transaction = transactions->data + i;
-        
-        if(
-            transaction->type == 1 &&
-            transaction->size == 2 &&
-            transaction->address == address
-        ){
-            return transaction->data;
-        }
-    }
-    
-    printf("Transaction not found. Type: Read Size: 2 Address: %08X\n",address);
-
-    return address;
+uint16_t gba_cpu_read_halfword(gba_cpu_t* cpu,uint32_t address,uint8_t access){
+    return gba_memory_read(&cpu->gba->memory,address,gba_memory_halfword_access,access);
 }
 
-uint32_t gba_cpu_read_halfword_rotate(gba_cpu_t* cpu,uint32_t address){
-    uint32_t value = gba_cpu_read_halfword(cpu,address);
+uint32_t gba_cpu_read_halfword_rotate(gba_cpu_t* cpu,uint32_t address,uint8_t access){
+    uint32_t value = gba_cpu_read_halfword(cpu,address,access);
     if(address & 1){
         value = (value >> 8) | (value << 24);
     }
     return value;
 }
 
-uint32_t gba_cpu_read_signed_halfword(gba_cpu_t* cpu,uint32_t address){
-    uint32_t value = gba_cpu_read_halfword(cpu,address);
+uint32_t gba_cpu_read_signed_halfword(gba_cpu_t* cpu,uint32_t address,uint8_t access){
+    uint32_t value = gba_cpu_read_halfword(cpu,address,access);
     if(value & 0x00008000){
         value |= 0xFFFF0000;
     }
@@ -145,98 +85,21 @@ uint32_t gba_cpu_read_signed_halfword(gba_cpu_t* cpu,uint32_t address){
 }
 
 
-void gba_cpu_write_word(gba_cpu_t* cpu,uint32_t value,uint32_t address){
-    gba_cpu_transactions_t* transactions = cpu->transactions;
-
-    for(int i = 0; i < transactions->length; ++i){
-        
-        gba_cpu_transaction_t* transaction = transactions->data + i;
-        
-        if(
-            transaction->type == 2 &&
-            transaction->size == 4 &&
-            transaction->address == address &&
-            transaction->data == value
-        ){
-            return;
-        }
-    }
-
-    printf("Transaction not found. Type: Write Size: 4 Address: %08X Value: %02X\n",address,value);
+void gba_cpu_write_word(gba_cpu_t* cpu,uint32_t value,uint32_t address,uint8_t access){
+    gba_memory_write(&cpu->gba->memory,value,address,gba_memory_word_access,access);
 }
 
-uint32_t gba_cpu_read_word(gba_cpu_t* cpu,uint32_t address){
-    gba_cpu_transactions_t* transactions = cpu->transactions;
-
-    for(int i = 0; i < transactions->length; ++i){
-        
-        gba_cpu_transaction_t* transaction = transactions->data + i;
-        
-        if(
-            transaction->type == 1 &&
-            transaction->size == 4 &&
-            transaction->address == address
-        ){
-            return transaction->data;
-        }
-    }
-    
-    printf("Transaction not found. Type: Read Size: 4 Address: %08X\n",address);
-
-    return address;
+uint32_t gba_cpu_read_word(gba_cpu_t* cpu,uint32_t address,uint8_t access){
+    return gba_memory_read(&cpu->gba->memory,address,gba_memory_word_access,access);
 }
 
-uint32_t gba_cpu_read_word_rotate(gba_cpu_t* cpu,uint32_t address){
-    uint32_t value = gba_cpu_read_word(cpu,address);
+uint32_t gba_cpu_read_word_rotate(gba_cpu_t* cpu,uint32_t address,uint8_t access){
+    uint32_t value = gba_cpu_read_word(cpu,address,access);
     uint8_t shift = (address & 3) << 3;
     if(shift){
         value = (value >> shift) | (value << (32 - shift));
     }
     return value;
-}
-
-
-
-uint16_t gba_cpu_read_code_halfword(gba_cpu_t* cpu,uint32_t address){
-    gba_cpu_transactions_t* transactions = cpu->transactions;
-
-    for(int i = 0; i < transactions->length; ++i){
-        
-        gba_cpu_transaction_t* transaction = transactions->data + i;
-        
-        if(
-            transaction->type == 0 &&
-            transaction->size == 2 &&
-            transaction->address == address
-        ){
-            return transaction->data;
-        }
-    }
-    
-    printf("Transaction not found. Type: Read Code Size: 2 Address: %08X\n",address);
-
-    return address;
-}
-
-uint32_t gba_cpu_read_code_word(gba_cpu_t* cpu,uint32_t address){
-    gba_cpu_transactions_t* transactions = cpu->transactions;
-
-    for(int i = 0; i < transactions->length; ++i){
-        
-        gba_cpu_transaction_t* transaction = transactions->data + i;
-        
-        if(
-            transaction->type == 0 &&
-            transaction->size == 4 &&
-            transaction->address == address
-        ){
-            return transaction->data;
-        }
-    }
-    
-    printf("Transaction not found. Type: Read Code Size: 4 Address: %08X\n",address);
-
-    return address;
 }
 
 
@@ -286,14 +149,20 @@ void gba_cpu_set_mode(gba_cpu_t* cpu,uint8_t new_mode){
 void gba_cpu_reload_pipeline(gba_cpu_t* cpu){
     if(cpu->cpsr & gba_cpu_thumb_flag){
         cpu->r[15] &= ~1;
-        cpu->pipeline.decode = gba_cpu_read_code_halfword(cpu,cpu->r[15] + 0);
-        cpu->pipeline.fetch = gba_cpu_read_code_halfword(cpu,cpu->r[15] + 2);
+
+        cpu->pipeline.decode = gba_cpu_read_halfword(cpu,cpu->r[15] + 0,gba_nonsequential_access);
+        cpu->pipeline.fetch = gba_cpu_read_halfword(cpu,cpu->r[15] + 2,gba_sequential_access);
+
+        cpu->pipeline.access = gba_sequential_access;
         cpu->r[15] += 4;
     }
     else{
         cpu->r[15] &= ~3;
-        cpu->pipeline.decode = gba_cpu_read_code_word(cpu,cpu->r[15] + 0);
-        cpu->pipeline.fetch = gba_cpu_read_code_word(cpu,cpu->r[15] + 4);
+
+        cpu->pipeline.decode = gba_cpu_read_word(cpu,cpu->r[15] + 0,gba_nonsequential_access);
+        cpu->pipeline.fetch = gba_cpu_read_word(cpu,cpu->r[15] + 4,gba_sequential_access);
+
+        cpu->pipeline.access = gba_sequential_access;
         cpu->r[15] += 8;
     }
 }
@@ -378,12 +247,12 @@ uint32_t gba_cpu_rrx(uint32_t value,bool* carry){
 }
 
 
-void gba_cpu_multiply_clock(uint32_t value,bool _signed){
+void gba_cpu_multiply_clock(gba_cpu_t* cpu,uint32_t value,bool _signed){
 
     uint32_t mask = 0xFFFFFF00;
     
     while(true){
-        // TODO: I-cycle
+        gba_cpu_idle_cycle(cpu);
         
         value &= mask;
 
@@ -402,14 +271,14 @@ void gba_cpu_execute(gba_cpu_t* cpu){
     pipeline->decode = pipeline->fetch;
 
     if(cpu->cpsr & gba_cpu_thumb_flag){
-        pipeline->fetch = gba_cpu_read_code_halfword(cpu,cpu->r[15]);
+        pipeline->fetch = gba_cpu_read_halfword(cpu,cpu->r[15],cpu->pipeline.access);
 
         uint32_t i = (pipeline->execute & 0x0000FF80) >> 7;
 
         thumb_table[i](cpu,pipeline->execute);
     }
     else{
-        pipeline->fetch = gba_cpu_read_code_word(cpu,cpu->r[15]);
+        pipeline->fetch = gba_cpu_read_word(cpu,cpu->r[15],cpu->pipeline.access);
 
         if(gba_cpu_condition_table[((pipeline->execute >> 24) & 0xF0) | (cpu->cpsr >> 28)]){
 
@@ -418,7 +287,20 @@ void gba_cpu_execute(gba_cpu_t* cpu){
             arm_table[i](cpu,pipeline->execute);
         }
         else{
+            cpu->pipeline.access = gba_sequential_access;
             cpu->r[15] += 4;
         }
     }
+}
+
+
+void gba_cpu_reset(gba_cpu_t* cpu){
+    memset(cpu->r8_r12,0x00,sizeof(cpu->r8_r12));
+    memset(cpu->r13,0x00,sizeof(cpu->r13));
+    memset(cpu->r14,0x00,sizeof(cpu->r14));
+    memset(cpu->spsr,0x00,sizeof(cpu->spsr));
+    memset(cpu->r,0x00,sizeof(cpu->r));
+    memset(&cpu->pipeline,0x00,sizeof(cpu->pipeline));
+
+    cpu->cpsr = gba_cpu_irq_flag | gba_cpu_fiq_flag | gba_cpu_supervisor_mode;
 }

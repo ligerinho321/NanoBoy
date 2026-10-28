@@ -2,33 +2,6 @@
 
 #include "utils.h"
 
-
-typedef struct _gba_cpu_state_t {
-    uint32_t r[16];
-    uint32_t r_fiq[7];
-    uint32_t r_svc[2];
-    uint32_t r_abt[2];
-    uint32_t r_irq[2];
-    uint32_t r_und[2];
-    uint32_t cpsr;
-    uint32_t spsr[5];
-    uint32_t pipeline[2];
-} gba_cpu_state_t;
-
-typedef struct _gba_cpu_transaction_t {
-    uint32_t type;
-    uint32_t size;
-    uint32_t address;
-    uint32_t data;
-} gba_cpu_transaction_t;
-
-typedef struct _gba_cpu_transactions_t {
-    gba_cpu_transaction_t* data;
-    uint32_t length;
-} gba_cpu_transactions_t;
-
-
-
 typedef enum _gba_cpu_flag_t {
     gba_cpu_mode_flag     = 0x0000001F,
     gba_cpu_thumb_flag    = 0x00000020,
@@ -127,6 +100,7 @@ typedef struct _gba_cpu_pipeline_t {
     uint32_t fetch;
     uint32_t decode;
     uint32_t execute;
+    uint8_t access;
 } gba_cpu_pipeline_t;
 
 typedef struct _gba_cpu_t {
@@ -142,8 +116,6 @@ typedef struct _gba_cpu_t {
     uint32_t r[16];
 
     gba_cpu_pipeline_t pipeline;
-
-    gba_cpu_transactions_t* transactions;
 } gba_cpu_t;
 
 
@@ -170,18 +142,20 @@ extern "C" {
 
 void gba_cpu_init(gba_cpu_t* cpu,gba_t* gba);
 
-void gba_cpu_write_byte(gba_cpu_t* cpu,uint8_t value,uint32_t address);
-uint8_t gba_cpu_read_byte(gba_cpu_t* cpu,uint32_t address);
-uint32_t gba_cpu_read_signed_byte(gba_cpu_t* cpu,uint32_t address);
+void gba_cpu_idle_cycle(gba_cpu_t* cpu);
 
-void gba_cpu_write_halfword(gba_cpu_t* cpu,uint16_t value,uint32_t address);
-uint16_t gba_cpu_read_halfword(gba_cpu_t* cpu,uint32_t address);
-uint32_t gba_cpu_read_halfword_rotate(gba_cpu_t* cpu,uint32_t address);
-uint32_t gba_cpu_read_signed_halfword(gba_cpu_t* cpu,uint32_t address);
+void gba_cpu_write_byte(gba_cpu_t* cpu,uint8_t value,uint32_t address,uint8_t access);
+uint8_t gba_cpu_read_byte(gba_cpu_t* cpu,uint32_t address,uint8_t access);
+uint32_t gba_cpu_read_signed_byte(gba_cpu_t* cpu,uint32_t address,uint8_t access);
 
-void gba_cpu_write_word(gba_cpu_t* cpu,uint32_t value,uint32_t address);
-uint32_t gba_cpu_read_word(gba_cpu_t* cpu,uint32_t address);
-uint32_t gba_cpu_read_word_rotate(gba_cpu_t* cpu,uint32_t address);
+void gba_cpu_write_halfword(gba_cpu_t* cpu,uint16_t value,uint32_t address,uint8_t access);
+uint16_t gba_cpu_read_halfword(gba_cpu_t* cpu,uint32_t address,uint8_t access);
+uint32_t gba_cpu_read_halfword_rotate(gba_cpu_t* cpu,uint32_t address,uint8_t access);
+uint32_t gba_cpu_read_signed_halfword(gba_cpu_t* cpu,uint32_t address,uint8_t access);
+
+void gba_cpu_write_word(gba_cpu_t* cpu,uint32_t value,uint32_t address,uint8_t access);
+uint32_t gba_cpu_read_word(gba_cpu_t* cpu,uint32_t address,uint8_t access);
+uint32_t gba_cpu_read_word_rotate(gba_cpu_t* cpu,uint32_t address,uint8_t access);
 
 
 void gba_cpu_set_cpsr(gba_cpu_t* cpu,uint32_t value);
@@ -201,9 +175,11 @@ uint32_t gba_cpu_asr(uint32_t value,uint8_t shift,bool* carry);
 uint32_t gba_cpu_ror(uint32_t value,uint8_t shift,bool* carry);
 uint32_t gba_cpu_rrx(uint32_t value,bool* carry);
 
-void gba_cpu_multiply_clock(uint32_t value,bool _signed);
+void gba_cpu_multiply_clock(gba_cpu_t* cpu,uint32_t value,bool _signed);
 
 void gba_cpu_execute(gba_cpu_t* cpu);
+
+void gba_cpu_reset(gba_cpu_t* cpu);
 
 #ifdef __cplusplus
 }

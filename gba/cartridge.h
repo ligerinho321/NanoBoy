@@ -3,8 +3,9 @@
 #include "utils.h"
 
 enum {
-    gba_cartridge_rom_max_size = 0x2000000,
-    gba_cartridge_rom_address_mask = 0x1FFFFFF
+    gba_cartridge_rom_min_length   = 0x000000C0,
+    gba_cartridge_rom_max_length   = 0x02000000,
+    gba_cartridge_rom_address_mask = 0x01FFFFFF
 };
 
 typedef enum _gba_cartridge_backup_t {
@@ -26,10 +27,10 @@ typedef struct _gba_cartridge_t {
     gba_t* gba;
 
     uint8_t* rom;
-    size_t rom_size;
+    size_t rom_length;
 
     uint8_t* sram;
-    size_t sram_size;
+    size_t sram_length;
 
     gba_cartridge_io_t io;
 } gba_cartridge_t;
@@ -40,14 +41,18 @@ extern "C" {
 
 void gba_cartridge_init(gba_cartridge_t* cartridge,gba_t* gba);
 
-bool gba_cartridge_load(gba_cartridge_t* cartridge,const char* path);
+bool gba_cartridge_load(gba_cartridge_t* cartridge,uint8_t* rom,size_t length);
 void gba_cartridge_unload(gba_cartridge_t* cartridge);
 
-void gba_cartridge_write_rom(gba_cartridge_t* cartridge,gba_word_t value,uint32_t address,uint8_t size,bool sequential);
-gba_word_t gba_cartridge_read_rom(gba_cartridge_t* cartridge,uint32_t address,uint8_t size,bool sequential);
+bool gba_cartridge_rom_is_valid(const uint8_t* rom,size_t length);
+bool gba_cartridge_verify_header_nintendo_logo(const uint8_t* rom);
+bool gba_cartridge_verify_header_checksum(const uint8_t* rom);
 
-void gba_cartridge_write_sram(gba_cartridge_t* cartridge,gba_word_t value,uint32_t address,uint8_t size,bool sequential);
-gba_word_t gba_cartridge_read_sram(gba_cartridge_t* cartridge,uint32_t address,uint8_t size,bool sequential);
+void gba_cartridge_write_rom(gba_cartridge_t* cartridge,gba_word_t value,uint32_t address,uint8_t size,uint8_t access);
+gba_word_t gba_cartridge_read_rom(gba_cartridge_t* cartridge,uint32_t address,uint8_t size,uint8_t access);
+
+void gba_cartridge_write_sram(gba_cartridge_t* cartridge,gba_word_t value,uint32_t address,uint8_t size,uint8_t access);
+gba_word_t gba_cartridge_read_sram(gba_cartridge_t* cartridge,uint32_t address,uint8_t size,uint8_t access);
 
 void gba_cartridge_reset(gba_cartridge_t* cartridge);
 

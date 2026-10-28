@@ -1,5 +1,67 @@
 #include "utils.h"
 
+bool gba_save_file(const char* filename,void* data,size_t len){
+    FILE* file = fopen(filename,"wb");
+    if(!file){
+        gba_printf_errno(fopen);
+        return false;
+    }
+
+    fwrite(data,1,len,file);
+
+    fclose(file);
+    return true;
+}
+
+bool gba_load_file(const char* filename,void** data,size_t* len){
+
+    *data = NULL;
+    *len = 0;
+
+    size_t read_bytes;
+
+    FILE* file = fopen(filename,"rb");
+
+    if(!file){
+        gba_printf_errno(fopen);
+        goto fail;
+    }
+
+    fseek(file,0,SEEK_END);
+    *len = ftell(file);
+    fseek(file,0,SEEK_SET);
+
+    if(!*len) goto fail;
+
+    *data = malloc(*len);
+    if(!*data){
+        gba_printf_errno(malloc);
+        goto fail;
+    }
+
+    read_bytes = fread(*data,1,*len,file);
+    if(read_bytes != *len){
+        gba_printf_error("fread failed");
+        goto fail;
+    }
+    
+    fclose(file);
+    return true;
+
+    fail:
+    if(file != NULL) fclose(file);
+    
+    if(*data != NULL){
+        free(*data);
+        *data = NULL;
+    }
+    
+    *len = 0;
+
+    return false;
+}
+
+
 uint32_t gba_crc32(const uint8_t* buffer,size_t len){
 
     static const uint32_t crc_table[256] = {

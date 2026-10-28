@@ -6,54 +6,55 @@ void gba_memory_init(gba_memory_t* memory,gba_t* gba){
 }
 
 
-void gba_memory_write(gba_memory_t* memory,gba_word_t value,uint32_t address,uint8_t size,bool sequential){
-    
+void gba_memory_write(gba_memory_t* memory,uint32_t value,uint32_t address,uint8_t size,uint8_t access){
+    gba_word_t _value = {.v = value};
+
     switch(address >> 24){
         // BIOS
         case 0x00:
             break;
         // EWRAM
         case 0x02:
-            gba_memory_write_ewram(memory,value,address,size);
+            gba_memory_write_ewram(memory,_value,address,size);
             break;
         // IWRAM
         case 0x03:
-            gba_memory_write_iwram(memory,value,address,size);
+            gba_memory_write_iwram(memory,_value,address,size);
             break;
         // I/O
         case 0x04:
-            gba_memory_write_register(memory,value,address,size);
+            gba_memory_write_register(memory,_value,address,size);
             break;
         // CRAM
         case 0x05:
-            gba_ppu_write_cram(&memory->gba->ppu,value,address,size);
+            gba_ppu_write_cram(&memory->gba->ppu,_value,address,size);
             break;
         // VRAM
         case 0x06:
-            gba_ppu_write_vram(&memory->gba->ppu,value,address,size);
+            gba_ppu_write_vram(&memory->gba->ppu,_value,address,size);
             break;
         // OAM
         case 0x07:
-            gba_ppu_write_oam(&memory->gba->ppu,value,address,size);
+            gba_ppu_write_oam(&memory->gba->ppu,_value,address,size);
             break;
         // ROM
         case 0x08: case 0x09: case 0x0A: case 0x0B: case 0x0C: case 0x0D:
-            gba_cartridge_write_rom(&memory->gba->cartridge,value,address,size,sequential);
+            gba_cartridge_write_rom(&memory->gba->cartridge,_value,address,size,access);
             break;
         // SRAM
         case 0x0E: case 0x0F:
-            gba_cartridge_write_sram(&memory->gba->cartridge,value,address,size,sequential);
+            gba_cartridge_write_sram(&memory->gba->cartridge,_value,address,size,access);
             break;
     }
 }
 
-gba_word_t gba_memory_read(gba_memory_t* memory,uint32_t address,uint8_t size,bool sequential){
+uint32_t gba_memory_read(gba_memory_t* memory,uint32_t address,uint8_t size,uint8_t access){
     
     switch(address >> 24){
         // BIOS
         case 0x00:
-            if(memory->gba->bios.inserted && address < gba_bios_length){
-                memory->bus = gba_bios_read(&memory->gba->bios,address,size);
+            if(memory->gba->boot.inserted && address < gba_boot_length){
+                memory->bus = gba_boot_read(&memory->gba->boot,address,size);
             }
             else{
                 memory->bus = gba_memory_read_unused(memory,address,size);
@@ -85,18 +86,18 @@ gba_word_t gba_memory_read(gba_memory_t* memory,uint32_t address,uint8_t size,bo
             break;
         // ROM
         case 0x08: case 0x09: case 0x0A: case 0x0B: case 0x0C: case 0x0D:
-            memory->bus = gba_cartridge_read_rom(&memory->gba->cartridge,address,size,sequential);
+            memory->bus = gba_cartridge_read_rom(&memory->gba->cartridge,address,size,access);
             break;
         // SRAM
         case 0x0E: case 0x0F:
-            memory->bus = gba_cartridge_read_sram(&memory->gba->cartridge,address,size,sequential);
+            memory->bus = gba_cartridge_read_sram(&memory->gba->cartridge,address,size,access);
             break;
         default:
             memory->bus = gba_memory_read_unused(memory,address,size);
             break;
     }
 
-    return memory->bus;
+    return memory->bus.v;
 }
 
 
@@ -617,5 +618,21 @@ gba_word_t gba_memory_read_iwram(gba_memory_t* memory,uint32_t address,uint8_t s
 
 
 void gba_memory_reset(gba_memory_t* memory){
+    memset(memory->ewram,0x00,sizeof(memory->ewram));
+    memset(memory->iwram,0x00,sizeof(memory->iwram));
+
+    memset(&memory->waitstate_control,0x00,sizeof(memory->waitstate_control));
     gba_memory_update_waitstate_table(memory);
+    
+    gba_memory_control_t* control = &memory->control;
+    control->wram_disabled = false;
+    control->unknown0 = 0x00;
+    control->cgb_bootrom_disabled = false;
+    control->ewram_enabled = true;
+    control->wram_waitstate = 0x0D;
+    control->unknown1 = 0x00;
+
+    memset(memory->prefetch_buffer,0x00,sizeof(memory->prefetch_buffer));
+
+    memory->bus.v = 0x00;
 }

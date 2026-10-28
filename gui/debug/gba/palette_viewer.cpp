@@ -1,0 +1,1 @@
+#include <gui/debug/gba/palette_viewer.hpp>

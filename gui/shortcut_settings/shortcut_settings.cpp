@@ -36,8 +36,6 @@ static const char* shortcut_names[] = {
     "Increase Speed",
     "Decrease Speed",
     "Rewind (Held)",
-    "Cheats",
-    "Printer",
     "Power Off",
 
     "Set Scale 1x",
@@ -56,8 +54,6 @@ static const char* shortcut_names[] = {
     "Toggle Interger Scale",
     "Toggle Interframe Blending",
     "Toggle Bilinear Filtering",
-    "Toggle Disable Background",
-    "Toggle Disable Objects",
 
     "DMG Palette Settings",
     "Boot Settings",
@@ -73,8 +69,12 @@ static const char* shortcut_names[] = {
     "Tile Viewer",
     "Object Viewer",
     "Palette Viewer",
-    "Wave Form"
+    "Wave Form",
+
+    "Cheats",
+    "Printer",
 };
+
 
 void shortcut_settings_t::init(){
     load_default();

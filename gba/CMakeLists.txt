@@ -16,7 +16,7 @@ add_executable(
     keypad.c
     serial.c
     cartridge.c
-    bios.c
+    boot.c
     gba.c
     utils.c
     main.c

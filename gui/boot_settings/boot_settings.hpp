@@ -8,17 +8,14 @@ private:
     enum{
         buffer_length = 256
     };
-
-    gb_t* gb = nullptr;
+    
+    nanoboy_t* nanoboy = nullptr;
 
     file_selector_t file_selector;
 
-    char dmg_path[boot_settings_t::buffer_length] = {0};
-    char cgb_path[boot_settings_t::buffer_length] = {0};
-    bool skip_enabled = false;
-
     char temp_dmg_path[boot_settings_t::buffer_length] = {0};
     char temp_cgb_path[boot_settings_t::buffer_length] = {0};
+    char temp_gba_path[boot_settings_t::buffer_length] = {0};
     bool temp_skip_enabled = false;
 
     ImVec2 window_min_size;
@@ -30,10 +27,17 @@ private:
 
     static void file_selector_dmg_callback(void* userdata,std::filesystem::path path);
     static void file_selector_cgb_callback(void* userdata,std::filesystem::path path);
-
+    static void file_selector_gba_callback(void* userdata,std::filesystem::path path);
+    
 public:
-    void init(gb_t* _gb);
-    void uninit();
+    char dmg_path[boot_settings_t::buffer_length] = {0};
+    char cgb_path[boot_settings_t::buffer_length] = {0};
+    char gba_path[boot_settings_t::buffer_length] = {0};
+    bool skip_enabled = false;
+
+    void init(nanoboy_t* _nanoboy);
+
+    void apply_to_console();
 
     void save(cJSON* object);
     void load(cJSON* object);
