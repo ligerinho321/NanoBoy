@@ -24,9 +24,7 @@ private:
 
     ImVec2 texture_size;
 
-    const float min_scale = 1.0f;
-    const float max_scale = 10.0f;
-    float scale = min_scale;
+    float scale = image_min_scale;
 
     std::string event_infos[gb_event_type_count];
 

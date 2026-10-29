@@ -87,29 +87,8 @@ void gb_printer_window_t::file_save_callback(void* userdata,std::filesystem::pat
     int pitch = 0;
 
     if(!SDL_LockTexture(printer->texture,&rect,(void**)&pixels,&pitch)){
-
-        std::string extension = path.extension().u8string();
-
-        if(!strcasecmp(extension.c_str(),".png")){
-            if(!stbi_write_png(path.u8string().c_str(),gb_printer_window_t::texture_width,printer->texture_height,gb_printer_window_t::texture_bytes_per_pixel,pixels,pitch)){
-                gb_printf_error("stbi_write_png failed\n");
-            }
-        }
-        else if(!strcasecmp(extension.c_str(),".bmp")){
-            if(!stbi_write_bmp(path.u8string().c_str(),gb_printer_window_t::texture_width,printer->texture_height,gb_printer_window_t::texture_bytes_per_pixel,pixels)){
-                gb_printf_error("stbi_write_bmp failed\n");
-            }
-        }
-        else if(!strcasecmp(extension.c_str(),".tga")){
-            if(!stbi_write_tga(path.u8string().c_str(),gb_printer_window_t::texture_width,printer->texture_height,gb_printer_window_t::texture_bytes_per_pixel,pixels)){
-                gb_printf_error("stbi_write_tga failed\n");
-            }
-        }
-        else if(!strcasecmp(extension.c_str(),".jpg")){
-            if(!stbi_write_jpg(path.u8string().c_str(),gb_printer_window_t::texture_width,printer->texture_height,gb_printer_window_t::texture_bytes_per_pixel,pixels,100)){
-                gb_printf_error("stbi_write_jpg failed\n");
-            }
-        }
+        
+        save_image(path,pixels,gb_printer_window_t::texture_width,printer->texture_height,gb_printer_window_t::texture_bytes_per_pixel);
 
         SDL_UnlockTexture(printer->texture);                
     }

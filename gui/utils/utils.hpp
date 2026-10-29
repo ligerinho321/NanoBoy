@@ -41,7 +41,10 @@ enum{
 
     kilohertz = 1000,
     megahertz = 1000 * kilohertz,
-    gigahertz = 1000 * megahertz
+    gigahertz = 1000 * megahertz,
+
+    image_min_scale = 1,
+    image_max_scale = 10
 };
 
 
@@ -284,5 +287,25 @@ const char* get_time_formated(time_t time);
 void clear_texture(SDL_Texture* texture,int height);
 
 
+inline SDL_Color unpack_rgb555(uint16_t color){
+    return (SDL_Color){
+        .r = (uint8_t)((color >> 0x00) & 0x1F),
+        .g = (uint8_t)((color >> 0x05) & 0x1F),
+        .b = (uint8_t)((color >> 0x0A) & 0x1F),
+        .a = 0
+    };
+}
+
+inline SDL_Color rgb555_to_rgb888(SDL_Color rgb555){
+    return (SDL_Color){
+        .r = (uint8_t)((rgb555.r << 0x03) | (rgb555.r >> 0x02)),
+        .g = (uint8_t)((rgb555.g << 0x03) | (rgb555.g >> 0x02)),
+        .b = (uint8_t)((rgb555.b << 0x03) | (rgb555.b >> 0x02)),
+        .a = 0
+    };
+}
+
 extern const char* image_extensions[];
 extern const int image_extensions_count;
+
+void save_image(std::filesystem::path path,const void* data,int width,int height,int bytes_per_pixel);

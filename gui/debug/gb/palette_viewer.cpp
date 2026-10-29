@@ -18,12 +18,13 @@ void gb_palette_viewer_t::uninit(){
     bg_palette.uninit();
     obj_palette.uninit();
 
-    gb_ppu_remove_handler(gb,&callback_handler);
+    gb_ppu_remove_handler(gb,&ppu_handler);
 }
 
 
-void gb_palette_viewer_t::callback(void* data){
-    gb_palette_viewer_t* palette_viewer = (gb_palette_viewer_t*)data;
+void gb_palette_viewer_t::ppu_callback(void* userdata){
+    gb_palette_viewer_t* palette_viewer = (gb_palette_viewer_t*)userdata;
+
     gb_t* gb = palette_viewer->gb;
 
     palette_viewer->cgb_mode = gb->state.cgb_mode;
@@ -180,16 +181,16 @@ void gb_palette_viewer_t::render(){
         }
 
         ImGui::SetNextItemWidth(input_scalar_width);
-        if(ImGui::InputScalar("Refresh On Scanline",ImGuiDataType_U8,&callback_handler.scanline,&input_scalar_step,&input_scalar_step_fast)){
-            if(callback_handler.scanline >= gb_scanlines){
-                callback_handler.scanline = gb_scanlines - 1;
+        if(ImGui::InputScalar("Refresh On Scanline",ImGuiDataType_U8,&ppu_handler.scanline,&input_scalar_step,&input_scalar_step_fast)){
+            if(ppu_handler.scanline >= gb_scanlines){
+                ppu_handler.scanline = gb_scanlines - 1;
             }
         }
 
         ImGui::SetNextItemWidth(input_scalar_width);
-        if(ImGui::InputScalar("Refresh On Cycle",ImGuiDataType_U16,&callback_handler.cycle,&input_scalar_step,&input_scalar_step_fast)){
-            if(callback_handler.cycle >= gb_scanline_cycles){
-                callback_handler.cycle = gb_scanline_cycles - 1;
+        if(ImGui::InputScalar("Refresh On Cycle",ImGuiDataType_U16,&ppu_handler.cycle,&input_scalar_step,&input_scalar_step_fast)){
+            if(ppu_handler.cycle >= gb_scanline_cycles){
+                ppu_handler.cycle = gb_scanline_cycles - 1;
             }
         }
     }
@@ -212,9 +213,9 @@ void gb_palette_viewer_t::set_open(bool _open) noexcept {
     open = _open;
 
     if(open){
-        gb_ppu_add_handler(gb,&callback_handler);
+        gb_ppu_add_handler(gb,&ppu_handler);
     }
     else{
-        gb_ppu_remove_handler(gb,&callback_handler);
+        gb_ppu_remove_handler(gb,&ppu_handler);
     }
 }

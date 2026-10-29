@@ -34,9 +34,7 @@ private:
     bool show_tile_grid = false;
     bool show_scroll_overlay = false;
 
-    const float tilemap_min_scale = 1.0f;
-    const float tilemap_max_scale = 10.0f;
-    float tilemap_scale = tilemap_min_scale;
+    float tilemap_scale = image_min_scale;
 
     ImVec2 tilemap_size{0.0f,0.0f};
 

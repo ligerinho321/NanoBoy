@@ -137,6 +137,8 @@ typedef struct _gba_ppu_t {
     
     uint64_t last_schedule_event;
     uint64_t next_schedule_event;
+
+    gba_ppu_handler_t* handlers;
 } gba_ppu_t;
 
 #ifdef __cplusplus
@@ -144,6 +146,9 @@ extern "C" {
 #endif
 
 void gba_ppu_init(gba_ppu_t* ppu,gba_t* gb);
+
+void gba_ppu_add_handler(gba_t* gba,gba_ppu_handler_t* handler);
+void gba_ppu_remove_handler(gba_t* gba,gba_ppu_handler_t* handler);
 
 void gba_ppu_schedule_next_event(gba_ppu_t* ppu);
 

@@ -22,11 +22,17 @@ private:
     uint32_t border_color = 0;
     uint32_t border_hovered_color = 0;
 
-    gb_ppu_handler_t callback_handler = {callback,this,gb_vblank_scanline,0,nullptr};
+    gb_ppu_handler_t ppu_handler = {
+        .callback = ppu_callback,
+        .userdata = this,
+        .scanline = gb_vblank_scanline,
+        .cycle = 0,
+        .next = nullptr
+    };
 
     bool open = false;
 
-    static void callback(void* data);
+    static void ppu_callback(void* userdata);
 
     void render_tooltip_color(palette_t& palette,uint8_t col,uint8_t row);
 

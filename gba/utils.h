@@ -13,8 +13,40 @@
 
 #define gba_unused(x) ((void)x)
 
-typedef struct _gba_t gba_t;
 
+#define gba_list_add_element(list,element,type)\
+    type* current = list;\
+    if(current == element) return;\
+    if(current != NULL){\
+        while(current->next != NULL){\
+            current = current->next;\
+            if(current == element) return;\
+        }\
+        current->next = element;\
+    }\
+    else{\
+        list = element;\
+    }\
+    element->next = NULL;
+
+#define gba_list_remove_element(list,element,type)\
+    type* prev = NULL;\
+    type* current = list;\
+    while(current != NULL){\
+        if(current == element){\
+            if(prev != NULL){\
+                prev->next = current->next;\
+            }\
+            else{\
+                list = current->next;\
+            }\
+            break;\
+        }\
+        prev = current;\
+        current = current->next;\
+    }
+
+    
 enum {
     gba_clock_rate = 0x1000000,
 
@@ -54,6 +86,8 @@ enum {
     gba_frame_cycles = gba_scanlines * gba_scanline_cycles
 };
 
+typedef struct _gba_t gba_t;
+
 typedef union _gba_halfword_t {
     uint8_t b[2];
     uint16_t v;
@@ -63,6 +97,14 @@ typedef union _gba_register32_t {
     uint8_t b[4];
     uint32_t v;
 } gba_word_t;
+
+typedef struct _gba_ppu_handler_t {
+    void (*callback)(void*);
+    void* userdata;
+    uint8_t scanline;
+    uint16_t cycle;
+    struct _gba_ppu_handler_t* next;
+} gba_ppu_handler_t;
 
 #ifdef __cplusplus
 extern "C" {

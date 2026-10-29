@@ -434,22 +434,22 @@ void gb_event_viewer_t::update_event_list_scroll(){
 void gb_event_viewer_t::event(){
     if(!ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows)) return;
 
-    if(ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Equal) && scale < max_scale){
+    if(ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Equal) && scale < image_max_scale){
         ++scale;
         update_texture_size();
     }
-    else if(ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Minus) && scale > min_scale){
+    else if(ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Minus) && scale > image_min_scale){
         --scale;
         update_texture_size();
     }
 
     ImGuiIO& io = ImGui::GetIO();
     if(io.KeyCtrl){
-        if(io.MouseWheel > 0.0f && scale < max_scale){
+        if(io.MouseWheel > 0.0f && scale < image_max_scale){
             ++scale;
             update_texture_size();
         }
-        else if(io.MouseWheel < 0.0f && scale > min_scale){
+        else if(io.MouseWheel < 0.0f && scale > image_min_scale){
             --scale;
             update_texture_size();
         }

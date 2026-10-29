@@ -88,37 +88,14 @@ void gb_tile_viewer_t::file_save_callback(void* userdata,std::filesystem::path p
 
     if(!SDL_LockTexture(tile_viewer->texture,&rect,(void**)&pixels,&pitch)){
 
-        std::string extension = path.extension().u8string();
+        size_t image_pitch = rect.w * gb_tile_viewer_t::texture_bytes_per_pixel;
+        std::vector<uint8_t> image(rect.h * image_pitch);
 
-        if(!strcasecmp(extension.c_str(),".png")){
-            if(!stbi_write_png(path.u8string().c_str(),rect.w,rect.h,gb_tile_viewer_t::texture_bytes_per_pixel,pixels,pitch)){
-                gb_printf_error("stbi_write_png failed\n");
-            }
+        for(int y = 0; y < rect.h; ++y){
+            memcpy(image.data() + y * image_pitch,pixels + y * pitch,image_pitch);
         }
-        else{
-            size_t image_pitch = rect.w * gb_tile_viewer_t::texture_bytes_per_pixel;
-            std::vector<uint8_t> image(rect.h * image_pitch);
 
-            for(int y = 0; y < rect.h; ++y){
-                memcpy(image.data() + y * image_pitch,pixels + y * pitch,image_pitch);
-            }
-
-            if(!strcasecmp(extension.c_str(),".bmp")){
-                if(!stbi_write_bmp(path.u8string().c_str(),rect.w,rect.h,gb_tile_viewer_t::texture_bytes_per_pixel,image.data())){
-                    gb_printf_error("stbi_write_bmp failed\n");
-                }
-            }
-            else if(!strcasecmp(extension.c_str(),".tga")){
-                if(!stbi_write_tga(path.u8string().c_str(),rect.w,rect.h,gb_tile_viewer_t::texture_bytes_per_pixel,image.data())){
-                    gb_printf_error("stbi_write_tga failed\n");
-                }
-            }
-            else if(!strcasecmp(extension.c_str(),".jpg")){
-                if(!stbi_write_jpg(path.u8string().c_str(),rect.w,rect.h,gb_tile_viewer_t::texture_bytes_per_pixel,image.data(),100)){
-                    gb_printf_error("stbi_write_jpg failed\n");
-                }
-            }
-        }
+        save_image(path,image.data(),rect.w,rect.h,gb_tile_viewer_t::texture_bytes_per_pixel);
 
         SDL_UnlockTexture(tile_viewer->texture);                
     }
@@ -295,22 +272,22 @@ void gb_tile_viewer_t::update_address_offset() noexcept {
 void gb_tile_viewer_t::event(){
     if(!ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows)) return;
 
-    if(ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Equal) && scale < max_scale){
+    if(ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Equal) && scale < image_max_scale){
         ++scale;
         update_texture_size();
     }
-    else if(ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Minus) && scale > min_scale){
+    else if(ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Minus) && scale > image_min_scale){
         --scale;
         update_texture_size();
     }
 
     ImGuiIO& io = ImGui::GetIO();
     if(io.KeyCtrl){
-        if(io.MouseWheel > 0.0f && scale < max_scale){
+        if(io.MouseWheel > 0.0f && scale < image_max_scale){
             ++scale;
             update_texture_size();
         }
-        else if(io.MouseWheel < 0.0f && scale > min_scale){
+        else if(io.MouseWheel < 0.0f && scale > image_min_scale){
             --scale;
             update_texture_size();
         }
@@ -537,8 +514,8 @@ void gb_tile_viewer_t::render(){
 
         if(ImGui::BeginTable("TileViewerTable",2)){
 
-            ImGui::TableSetupColumn("Left",ImGuiTableColumnFlags_WidthStretch);
-            ImGui::TableSetupColumn("Right",ImGuiTableColumnFlags_WidthFixed);
+            ImGui::TableSetupColumn(nullptr,ImGuiTableColumnFlags_WidthStretch);
+            ImGui::TableSetupColumn(nullptr,ImGuiTableColumnFlags_WidthFixed);
 
             ImGui::TableNextRow();
 

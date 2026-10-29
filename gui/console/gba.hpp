@@ -94,7 +94,7 @@ public:
     }
 
     void open_palette_viewer() override {
-
+        palette_viewer.set_open(true);
     }
 
     void open_wave_form() override {

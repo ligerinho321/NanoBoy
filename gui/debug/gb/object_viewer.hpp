@@ -71,9 +71,7 @@ private:
 
     SDL_Texture* bg_texture = nullptr;
 
-    float min_scale = 1.0f;
-    float max_scale = 10.0f;
-    float scale = min_scale;
+    float scale = image_min_scale;
 
     bool show_offscreen = true;
     bool show_outline = true;

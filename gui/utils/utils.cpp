@@ -337,3 +337,29 @@ const char* image_extensions[] = {
 };
 
 const int image_extensions_count = sizeof(image_extensions) / sizeof(image_extensions[0]);
+
+void save_image(std::filesystem::path path,const void* data,int width,int height,int bytes_per_pixel){
+
+    std::string extension = path.extension().u8string();
+
+    if(!strcasecmp(extension.c_str(),".png")){
+        if(!stbi_write_png(path.u8string().c_str(),width,height,bytes_per_pixel,data,width * bytes_per_pixel)){
+            gb_printf_error("stbi_write_png failed\n");
+        }
+    }
+    else if(!strcasecmp(extension.c_str(),".bmp")){
+        if(!stbi_write_bmp(path.u8string().c_str(),width,height,bytes_per_pixel,data)){
+            gb_printf_error("stbi_write_bmp failed\n");
+        }
+    }
+    else if(!strcasecmp(extension.c_str(),".tga")){
+        if(!stbi_write_tga(path.u8string().c_str(),width,height,bytes_per_pixel,data)){
+            gb_printf_error("stbi_write_tga failed\n");
+        }
+    }
+    else if(!strcasecmp(extension.c_str(),".jpg")){
+        if(!stbi_write_jpg(path.u8string().c_str(),width,height,bytes_per_pixel,data,100)){
+            gb_printf_error("stbi_write_jpg failed\n");
+        }
+    }
+}

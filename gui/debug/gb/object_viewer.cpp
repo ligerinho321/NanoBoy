@@ -218,22 +218,22 @@ void gb_object_viewer_t::update_objects(){
 void gb_object_viewer_t::event(){
     if(ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows)){
 
-        if(ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Equal) && scale < max_scale){
+        if(ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Equal) && scale < image_max_scale){
             ++scale;
             update_bg_metrics();
         }
-        else if(ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Minus) && scale > min_scale){
+        else if(ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Minus) && scale > image_min_scale){
             --scale;
             update_bg_metrics();
         }
 
         ImGuiIO& io = ImGui::GetIO();
         if(io.KeyCtrl){
-            if(io.MouseWheel > 0.0f && scale < max_scale){
+            if(io.MouseWheel > 0.0f && scale < image_max_scale){
                 ++scale;
                 update_bg_metrics();
             }
-            else if(io.MouseWheel < 0.0f && scale > min_scale){
+            else if(io.MouseWheel < 0.0f && scale > image_min_scale){
                 --scale;
                 update_bg_metrics();
             }
@@ -503,8 +503,8 @@ void gb_object_viewer_t::render(){
 
         if(ImGui::BeginTable("ObjectViewerTable",2)){
 
-            ImGui::TableSetupColumn("Left",ImGuiTableColumnFlags_WidthStretch);
-            ImGui::TableSetupColumn("Right",ImGuiTableColumnFlags_WidthFixed);
+            ImGui::TableSetupColumn(nullptr,ImGuiTableColumnFlags_WidthStretch);
+            ImGui::TableSetupColumn(nullptr,ImGuiTableColumnFlags_WidthFixed);
 
             ImGui::TableNextRow();
 

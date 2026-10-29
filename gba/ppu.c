@@ -6,6 +6,15 @@ void gba_ppu_init(gba_ppu_t* ppu,gba_t* gba){
 }
 
 
+void gba_ppu_add_handler(gba_t* gba,gba_ppu_handler_t* handler){
+    gba_list_add_element(gba->ppu.handlers,handler,gba_ppu_handler_t);
+}
+
+void gba_ppu_remove_handler(gba_t* gba,gba_ppu_handler_t* handler){
+    gba_list_remove_element(gba->ppu.handlers,handler,gba_ppu_handler_t);
+}
+
+
 void gba_ppu_schedule_next_event(gba_ppu_t* ppu){
     
     ppu->last_schedule_event = ppu->gba->cycles;
@@ -21,54 +30,68 @@ void gba_ppu_schedule_next_event(gba_ppu_t* ppu){
 }
 
 void gba_ppu_update(gba_ppu_t* ppu){
-    
-    ppu->cycle += ppu->gba->cycles - ppu->last_schedule_event;
+    uint64_t cycles = ppu->gba->cycles - ppu->last_schedule_event;
 
-    if(ppu->cycle == gba_scanline_hblank_start_cycle){
+    while(cycles--){
 
-        ppu->lcd_status.hblank_flag = true;
+        ++ppu->cycle;
 
-        if(ppu->lcd_status.hblank_irq_enabled){
-            ppu->gba->interrupt.flag.v |= gba_interrupt_lcd_hblank_flag;
-        }
-    }
-    if(ppu->cycle >= gba_scanline_cycles){
+        if(ppu->cycle == gba_scanline_hblank_start_cycle){
 
-        ppu->cycle = 0;
-        
-        ppu->lcd_status.hblank_flag = false;
+            ppu->lcd_status.hblank_flag = true;
 
-        ++ppu->scanline;
-
-        if(ppu->scanline == ppu->lcd_status.lyc){
-
-            ppu->lcd_status.lyc_flag = true;
-
-            if(ppu->lcd_status.lyc_irq_enabled){
-                ppu->gba->interrupt.flag.v |= gba_interrupt_lcd_lyc_flag;
+            if(ppu->lcd_status.hblank_irq_enabled){
+                ppu->gba->interrupt.flag.v |= gba_interrupt_lcd_hblank_flag;
             }
         }
-        else{
-            ppu->lcd_status.lyc_flag = false;
-        }
+        if(ppu->cycle >= gba_scanline_cycles){
 
-        if(ppu->scanline == gba_vblank_start_scanline){
-
-            ppu->lcd_status.vblank_flag = true;
-
-            if(ppu->lcd_status.vblank_irq_enabled){
-                ppu->gba->interrupt.flag.v |= gba_interrupt_lcd_vblank_flag;
-            }
-
-            ++ppu->frame_count;
+            ppu->cycle = 0;
             
-            gba_keypad_update(&ppu->gba->keypad);
+            ppu->lcd_status.hblank_flag = false;
+
+            ++ppu->scanline;
+
+            if(ppu->scanline == ppu->lcd_status.lyc){
+
+                ppu->lcd_status.lyc_flag = true;
+
+                if(ppu->lcd_status.lyc_irq_enabled){
+                    ppu->gba->interrupt.flag.v |= gba_interrupt_lcd_lyc_flag;
+                }
+            }
+            else{
+                ppu->lcd_status.lyc_flag = false;
+            }
+
+            if(ppu->scanline == gba_vblank_start_scanline){
+
+                ppu->lcd_status.vblank_flag = true;
+
+                if(ppu->lcd_status.vblank_irq_enabled){
+                    ppu->gba->interrupt.flag.v |= gba_interrupt_lcd_vblank_flag;
+                }
+
+                ++ppu->frame_count;
+                
+                gba_keypad_update(&ppu->gba->keypad);
+            }
+            else if(ppu->scanline >= gba_scanlines){
+
+                ppu->scanline = 0;
+
+                ppu->lcd_status.vblank_flag = false;
+            }
         }
-        else if(ppu->scanline >= gba_scanlines){
 
-            ppu->scanline = 0;
-
-            ppu->lcd_status.vblank_flag = false;
+        if(ppu->handlers != NULL){
+            gba_ppu_handler_t* handler = ppu->handlers;
+            do{
+                if(handler->scanline == ppu->scanline && handler->cycle == ppu->cycle){
+                    handler->callback(handler->userdata);
+                }
+                handler = handler->next;
+            }while(handler != NULL);
         }
     }
 }
@@ -750,8 +773,8 @@ void gba_ppu_reset(gba_ppu_t* ppu){
 
     memset(&ppu->lcd_status,0x00,sizeof(ppu->lcd_status));
 
-    ppu->scanline = 0x00;
-    ppu->cycle = 0x00;
+    ppu->scanline = gba_scanlines - 1;
+    ppu->cycle = gba_scanline_cycles - 1;
 
     memset(&ppu->bg_control,0x00,sizeof(ppu->bg_control));
 

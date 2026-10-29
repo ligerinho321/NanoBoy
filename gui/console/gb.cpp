@@ -204,7 +204,7 @@ void gb_console_t::execute_frame(){
     gb_execute_frame(gb);
 }
 
-void gb_console_t::render_imgui_windows(){    
+void gb_console_t::render_imgui_windows(){
     debugger.render();
     register_viewer.render();
     event_viewer.render();

@@ -51,9 +51,7 @@ private:
 
     float input_scalar_width = 0.0f;
 
-    const float min_scale = 1.0f;
-    const float max_scale = 10.0f;
-    float scale = min_scale;
+    float scale = image_min_scale;
 
     int columns = gb_tile_viewer_t::min_size;
     int rows = gb_tile_viewer_t::min_size;

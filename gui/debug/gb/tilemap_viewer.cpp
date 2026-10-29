@@ -78,28 +78,7 @@ void gb_tilemap_viewer_t::file_save_callback(void* userdata,std::filesystem::pat
 
     if(!SDL_LockTexture(tilemap_viewer->tilemap_texture[tilemap_viewer->current_tilemap_index],nullptr,(void**)&pixels,&pitch)){
 
-        std::string extension = path.extension().u8string();
-
-        if(!strcasecmp(extension.c_str(),".png")){
-            if(!stbi_write_png(path.u8string().c_str(),gb_tilemap_viewer_t::texture_width,gb_tilemap_viewer_t::texture_height,gb_tilemap_viewer_t::texture_bytes_per_pixel,pixels,pitch)){
-                gb_printf_error("stbi_write_png failed\n");
-            }
-        }
-        else if(!strcasecmp(extension.c_str(),".bmp")){
-            if(!stbi_write_bmp(path.u8string().c_str(),gb_tilemap_viewer_t::texture_width,gb_tilemap_viewer_t::texture_height,gb_tilemap_viewer_t::texture_bytes_per_pixel,pixels)){
-                gb_printf_error("stbi_write_bmp failed\n");
-            }
-        }
-        else if(!strcasecmp(extension.c_str(),".tga")){
-            if(!stbi_write_tga(path.u8string().c_str(),gb_tilemap_viewer_t::texture_width,gb_tilemap_viewer_t::texture_height,gb_tilemap_viewer_t::texture_bytes_per_pixel,pixels)){
-                gb_printf_error("stbi_write_tga failed\n");
-            }
-        }
-        else if(!strcasecmp(extension.c_str(),".jpg")){
-            if(!stbi_write_jpg(path.u8string().c_str(),gb_tilemap_viewer_t::texture_width,gb_tilemap_viewer_t::texture_height,gb_tilemap_viewer_t::texture_bytes_per_pixel,pixels,100)){
-                gb_printf_error("stbi_write_jpg failed\n");
-            }
-        }
+        save_image(path,pixels,gb_tilemap_viewer_t::texture_width,gb_tilemap_viewer_t::texture_height,gb_tilemap_viewer_t::texture_bytes_per_pixel);
 
         SDL_UnlockTexture(tilemap_viewer->tilemap_texture[tilemap_viewer->current_tilemap_index]);                
     }
@@ -170,22 +149,22 @@ void gb_tilemap_viewer_t::update_tilemap_texture(uint8_t map_index){
 void gb_tilemap_viewer_t::event(){
     if(!ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows)) return;
 
-    if(ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Equal) && tilemap_scale < tilemap_max_scale){
+    if(ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Equal) && tilemap_scale < image_max_scale){
         ++tilemap_scale;
         update_tilemap_size();
     }
-    else if(ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Minus) && tilemap_scale > tilemap_min_scale){
+    else if(ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Minus) && tilemap_scale > image_min_scale){
         --tilemap_scale;
         update_tilemap_size();
     }
 
     ImGuiIO& io = ImGui::GetIO();
     if(io.KeyCtrl){
-        if(io.MouseWheel > 0.0f && tilemap_scale < tilemap_max_scale){
+        if(io.MouseWheel > 0.0f && tilemap_scale < image_max_scale){
             ++tilemap_scale;
             update_tilemap_size();
         }
-        else if(io.MouseWheel < 0.0f && tilemap_scale > tilemap_min_scale){
+        else if(io.MouseWheel < 0.0f && tilemap_scale > image_min_scale){
             --tilemap_scale;
             update_tilemap_size();
         }
@@ -535,8 +514,8 @@ void gb_tilemap_viewer_t::render(){
 
         if(ImGui::BeginTable("TilemapViewerTable",2)){
 
-            ImGui::TableSetupColumn("Left",ImGuiTableColumnFlags_WidthStretch);
-            ImGui::TableSetupColumn("Right",ImGuiTableColumnFlags_WidthFixed);
+            ImGui::TableSetupColumn(nullptr,ImGuiTableColumnFlags_WidthStretch);
+            ImGui::TableSetupColumn(nullptr,ImGuiTableColumnFlags_WidthFixed);
 
             ImGui::TableNextRow();
             
