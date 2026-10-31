@@ -2,12 +2,14 @@
 
 #include <gui/console/console.hpp>
 
+#include <gui/debug/gba/memory_viewer.hpp>
 #include <gui/debug/gba/palette_viewer.hpp>
 
 class gba_console_t : public console_t {
 private:
     gba_t* gba = nullptr;
 
+    gba_memory_viewer_t memory_viewer;
     gba_palette_viewer_t palette_viewer;
     
     static void keypad_callback(void* data,uint8_t* status);
@@ -78,7 +80,7 @@ public:
     }
 
     void open_memory_viewer() override {
-
+        memory_viewer.set_open(true);
     }
 
     void open_tilemap_viewer() override {

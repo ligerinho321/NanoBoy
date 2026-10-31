@@ -107,6 +107,7 @@ bool gba_cartridge_verify_header_checksum(const uint8_t* rom){
 }
 
 
+
 static void gba_cartridge_write_rom_raw(gba_cartridge_t* cartridge,uint8_t value,uint32_t address){
 
     if(address >= 0x08000064 && address <= 0x08000069){
@@ -149,91 +150,101 @@ static uint8_t gba_cartridge_read_rom_raw(gba_cartridge_t* cartridge,uint32_t ad
 }
 
 
-void gba_cartridge_write_rom(gba_cartridge_t* cartridge,gba_word_t value,uint32_t address,uint8_t size,uint8_t access){
-
+void gba_cartridge_write_rom_byte(gba_cartridge_t* cartridge,uint8_t value,uint32_t address,uint8_t access){
     uint8_t (*table)[2] = cartridge->gba->memory.waitstate_table;
     uint8_t page = (address >> 24) & 0x07;
 
-    switch(size){
-        case gba_memory_byte_access:{
-            gba_clock(cartridge->gba,table[page][access]);
+    gba_clock(cartridge->gba,table[page][access]);
 
-            gba_cartridge_write_rom_raw(cartridge,value.b[0],address);
-            break;
-        }
-        case gba_memory_halfword_access:{
-            address &= ~0x01;
-
-            gba_clock(cartridge->gba,table[page][access]);
-
-            gba_cartridge_write_rom_raw(cartridge,value.b[0],address | 0x00);
-            gba_cartridge_write_rom_raw(cartridge,value.b[1],address | 0x01);
-            break;
-        }
-        case gba_memory_word_access:{
-            address &= ~0x03;
-
-            gba_clock(cartridge->gba,table[page][access]);
-
-            gba_cartridge_write_rom_raw(cartridge,value.b[0],address | 0x00);
-            gba_cartridge_write_rom_raw(cartridge,value.b[1],address | 0x01);
-
-            gba_clock(cartridge->gba,table[page][gba_sequential_access]);
-
-            gba_cartridge_write_rom_raw(cartridge,value.b[2],address | 0x02);
-            gba_cartridge_write_rom_raw(cartridge,value.b[3],address | 0x03);
-            break;
-        }
-    }
-
+    gba_cartridge_write_rom_raw(cartridge,value,address);
 }
 
-gba_word_t gba_cartridge_read_rom(gba_cartridge_t* cartridge,uint32_t address,uint8_t size,uint8_t access){
-
+gba_word_t gba_cartridge_read_rom_byte(gba_cartridge_t* cartridge,uint32_t address,uint8_t access){
     uint8_t (*table)[2] = cartridge->gba->memory.waitstate_table;
     uint8_t page = (address >> 24) & 0x07;
+
+    gba_clock(cartridge->gba,table[page][access]);
 
     gba_word_t value = {0};
 
-    switch(size){
-        case gba_memory_byte_access:{
-            gba_clock(cartridge->gba,table[page][access]);
-
-            value.b[0] = gba_cartridge_read_rom_raw(cartridge,address);
-            value.b[1] = value.b[0];
-            value.b[2] = value.b[0];
-            value.b[3] = value.b[0];
-            break;
-        }
-        case gba_memory_halfword_access:{
-            address &= ~0x01;
-
-            gba_clock(cartridge->gba,table[page][access]);
-
-            value.b[0] = gba_cartridge_read_rom_raw(cartridge,address | 0x00);
-            value.b[1] = gba_cartridge_read_rom_raw(cartridge,address | 0x01);
-            value.b[2] = value.b[0];
-            value.b[3] = value.b[1];
-            break;
-        }
-        case gba_memory_word_access:{
-            address &= ~0x03;
-
-            gba_clock(cartridge->gba,table[page][access]);
-
-            value.b[0] = gba_cartridge_read_rom_raw(cartridge,address | 0x00);
-            value.b[1] = gba_cartridge_read_rom_raw(cartridge,address | 0x01);
-
-            gba_clock(cartridge->gba,table[page][gba_sequential_access]);
-
-            value.b[2] = gba_cartridge_read_rom_raw(cartridge,address | 0x02);
-            value.b[3] = gba_cartridge_read_rom_raw(cartridge,address | 0x03);
-            break;
-        }
-    }
+    value.b[0] = gba_cartridge_read_rom_raw(cartridge,address);
+    value.b[1] = value.b[0];
+    value.b[2] = value.b[0];
+    value.b[3] = value.b[0];
 
     return value;
 }
+
+
+void gba_cartridge_write_rom_halfword(gba_cartridge_t* cartridge,gba_halfword_t value,uint32_t address,uint8_t access){
+    uint8_t (*table)[2] = cartridge->gba->memory.waitstate_table;
+    uint8_t page = (address >> 24) & 0x07;
+
+    address &= ~0x01;
+
+    gba_clock(cartridge->gba,table[page][access]);
+
+    gba_cartridge_write_rom_raw(cartridge,value.b[0],address | 0x00);
+    gba_cartridge_write_rom_raw(cartridge,value.b[1],address | 0x01);
+}
+
+gba_word_t gba_cartridge_read_rom_halfword(gba_cartridge_t* cartridge,uint32_t address,uint8_t access){
+    uint8_t (*table)[2] = cartridge->gba->memory.waitstate_table;
+    uint8_t page = (address >> 24) & 0x07;
+
+    address &= ~0x01;
+
+    gba_clock(cartridge->gba,table[page][access]);
+
+    gba_word_t value = {0};
+
+    value.b[0] = gba_cartridge_read_rom_raw(cartridge,address | 0x00);
+    value.b[1] = gba_cartridge_read_rom_raw(cartridge,address | 0x01);
+    value.b[2] = value.b[0];
+    value.b[3] = value.b[1];
+
+    return value;
+}
+
+
+void gba_cartridge_write_rom_word(gba_cartridge_t* cartridge,gba_word_t value,uint32_t address,uint8_t access){
+    uint8_t (*table)[2] = cartridge->gba->memory.waitstate_table;
+    uint8_t page = (address >> 24) & 0x07;
+
+    address &= ~0x03;
+
+    gba_clock(cartridge->gba,table[page][access]);
+
+    gba_cartridge_write_rom_raw(cartridge,value.b[0],address | 0x00);
+    gba_cartridge_write_rom_raw(cartridge,value.b[1],address | 0x01);
+
+    gba_clock(cartridge->gba,table[page][gba_sequential_access]);
+
+    gba_cartridge_write_rom_raw(cartridge,value.b[2],address | 0x02);
+    gba_cartridge_write_rom_raw(cartridge,value.b[3],address | 0x03);
+}
+
+gba_word_t gba_cartridge_read_rom_word(gba_cartridge_t* cartridge,uint32_t address,uint8_t access){
+    uint8_t (*table)[2] = cartridge->gba->memory.waitstate_table;
+    uint8_t page = (address >> 24) & 0x07;
+
+    address &= ~0x03;
+
+    gba_word_t value = {0};
+
+    gba_clock(cartridge->gba,table[page][access]);
+
+    value.b[0] = gba_cartridge_read_rom_raw(cartridge,address | 0x00);
+    value.b[1] = gba_cartridge_read_rom_raw(cartridge,address | 0x01);
+
+    gba_clock(cartridge->gba,table[page][gba_sequential_access]);
+
+    value.b[2] = gba_cartridge_read_rom_raw(cartridge,address | 0x02);
+    value.b[3] = gba_cartridge_read_rom_raw(cartridge,address | 0x03);
+
+    return value;
+}
+
 
 
 static void gba_cartridge_write_sram_raw(gba_cartridge_t* cartridge,uint8_t value,uint32_t address){
@@ -249,56 +260,51 @@ static uint8_t gba_cartridge_read_sram_raw(gba_cartridge_t* cartridge,uint32_t a
 }
 
 
-void gba_cartridge_write_sram(gba_cartridge_t* cartridge,gba_word_t value,uint32_t address,uint8_t size,uint8_t access){
-    
+void gba_cartridge_write_sram_byte(gba_cartridge_t* cartridge,uint8_t value,uint32_t address,uint8_t access){
     uint8_t (*table)[2] = cartridge->gba->memory.waitstate_table;
     uint8_t page = (address >> 24) & 0x07;
 
-    switch(size){
-        case gba_memory_byte_access:{
-            gba_clock(cartridge->gba,table[page][access]);
+    gba_clock(cartridge->gba,table[page][access]);
 
-            gba_cartridge_write_sram_raw(cartridge,value.b[0],address);
-            break;
-        }
-        case gba_memory_halfword_access:{
-            gba_clock(cartridge->gba,table[page][access]);
-
-            gba_cartridge_write_sram_raw(cartridge,value.b[address & 0x01],address);
-            break;
-        }
-        case gba_memory_word_access:{
-            gba_clock(cartridge->gba,table[page][access]);
-
-            gba_cartridge_write_sram_raw(cartridge,value.b[address & 0x03],address);
-            break;
-        }
-    }
+    gba_cartridge_write_sram_raw(cartridge,value,address);
 }
 
-gba_word_t gba_cartridge_read_sram(gba_cartridge_t* cartridge,uint32_t address,uint8_t size,uint8_t access){
-
+gba_word_t gba_cartridge_read_sram_byte(gba_cartridge_t* cartridge,uint32_t address,uint8_t access){
     uint8_t (*table)[2] = cartridge->gba->memory.waitstate_table;
     uint8_t page = (address >> 24) & 0x07;
+
+    gba_clock(cartridge->gba,table[page][access]);
 
     gba_word_t value = {0};
 
-    switch(size){
-        case gba_memory_byte_access:
-        case gba_memory_halfword_access:
-        case gba_memory_word_access:{
-            gba_clock(cartridge->gba,table[page][access]);
-
-            value.b[0] = gba_cartridge_read_sram_raw(cartridge,address);
-            value.b[1] = value.b[0];
-            value.b[2] = value.b[0];
-            value.b[3] = value.b[0];
-            break;
-        }
-    }
+    value.b[0] = gba_cartridge_read_sram_raw(cartridge,address);
+    value.b[1] = value.b[0];
+    value.b[2] = value.b[0];
+    value.b[3] = value.b[0];
 
     return value;
 }
+
+
+void gba_cartridge_write_sram_halfword(gba_cartridge_t* cartridge,gba_halfword_t value,uint32_t address,uint8_t access){
+    uint8_t (*table)[2] = cartridge->gba->memory.waitstate_table;
+    uint8_t page = (address >> 24) & 0x07;
+
+    gba_clock(cartridge->gba,table[page][access]);
+
+    gba_cartridge_write_sram_raw(cartridge,value.b[address & 0x01],address);
+}
+
+
+void gba_cartridge_write_sram_word(gba_cartridge_t* cartridge,gba_word_t value,uint32_t address,uint8_t access){
+    uint8_t (*table)[2] = cartridge->gba->memory.waitstate_table;
+    uint8_t page = (address >> 24) & 0x07;
+
+    gba_clock(cartridge->gba,table[page][access]);
+
+    gba_cartridge_write_sram_raw(cartridge,value.b[address & 0x03],address);
+}
+
 
 
 void gba_cartridge_reset(gba_cartridge_t* cartridge){

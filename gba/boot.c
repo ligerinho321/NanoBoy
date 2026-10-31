@@ -30,7 +30,7 @@ void gba_boot_update(gba_boot_t* boot){
 
     if(!file){
         gba_printf_errno(fopen);
-        goto end;
+        return;
     }
 
     fseek(file,0,SEEK_END);
@@ -49,79 +49,75 @@ void gba_boot_update(gba_boot_t* boot){
 }
 
 
-gba_word_t gba_boot_read(gba_boot_t* boot,uint32_t address,uint8_t size){
-
+gba_word_t gba_boot_read_byte(gba_boot_t* boot,uint32_t address){
     address &= gba_boot_address_mask;
+
+    gba_clock(boot->gba,1);
 
     gba_word_t value = {0};
 
     if(boot->gba->cpu.r[15] < gba_boot_length){
-
-        switch(size){
-            case gba_memory_byte_access:{
-                gba_clock(boot->gba,1);
-
-                value.b[0] = boot->data[address];
-                value.b[1] = value.b[0];
-                value.b[2] = value.b[0];
-                value.b[3] = value.b[0];
-                break;
-            }
-            case gba_memory_halfword_access:{
-                address &= ~0x01;
-
-                gba_clock(boot->gba,1);
-
-                value.b[0] = boot->data[address | 0x00];
-                value.b[1] = boot->data[address | 0x01];
-                value.b[2] = value.b[0];
-                value.b[3] = value.b[1];
-                break;
-            }
-            case gba_memory_word_access:{
-                address &= ~0x03;
-
-                gba_clock(boot->gba,1);
-
-                value.b[0] = boot->data[address | 0x00];
-                value.b[1] = boot->data[address | 0x01];
-                value.b[2] = boot->data[address | 0x02];
-                value.b[3] = boot->data[address | 0x03];
-                break;
-            }
-        }
+        value.b[0] = boot->data[address];
+        value.b[1] = value.b[0];
+        value.b[2] = value.b[0];
+        value.b[3] = value.b[0];
 
         boot->bus.v = value.v;
     }
     else{
-        switch(size){
-            case gba_memory_byte_access:{
-                gba_clock(boot->gba,1);
+        value.b[0] = boot->bus.b[address & 0x03];
+        value.b[1] = value.b[0];
+        value.b[2] = value.b[0];
+        value.b[3] = value.b[0];
+    }
 
-                value.b[0] = boot->bus.b[address & 0x03];
-                value.b[1] = value.b[0];
-                value.b[2] = value.b[0];
-                value.b[3] = value.b[0];
-                break;
-            }
-            case gba_memory_halfword_access:{
-                address &= ~0x01;
+    return value;
+}
 
-                gba_clock(boot->gba,1);
+gba_word_t gba_boot_read_halfword(gba_boot_t* boot,uint32_t address){
+    address &= gba_boot_address_mask;
+    address &= ~0x01;
 
-                value.b[0] = boot->bus.b[address | 0x00];
-                value.b[1] = boot->bus.b[address | 0x01];
-                value.b[2] = value.b[0];
-                value.b[3] = value.b[1];
-                break;
-            }
-            case gba_memory_word_access:{
-                gba_clock(boot->gba,1);
+    gba_clock(boot->gba,1);
 
-                value.v = boot->bus.v;
-                break;
-            }
-        }
+    gba_word_t value = {0};
+
+    if(boot->gba->cpu.r[15] < gba_boot_length){
+        value.b[0] = boot->data[address | 0x00];
+        value.b[1] = boot->data[address | 0x01];
+        value.b[2] = value.b[0];
+        value.b[3] = value.b[1];
+
+        boot->bus.v = value.v;
+    }
+    else{
+        value.b[0] = boot->bus.b[address | 0x00];
+        value.b[1] = boot->bus.b[address | 0x01];
+        value.b[2] = value.b[0];
+        value.b[3] = value.b[1];
+    }
+
+    return value;
+}
+
+gba_word_t gba_boot_read_word(gba_boot_t* boot,uint32_t address){
+    address &= gba_boot_address_mask;
+    address &= ~0x03;
+
+    gba_clock(boot->gba,1);
+
+    gba_word_t value = {0};
+
+    if(boot->gba->cpu.r[15] < gba_boot_length){
+        value.b[0] = boot->data[address | 0x00];
+        value.b[1] = boot->data[address | 0x01];
+        value.b[2] = boot->data[address | 0x02];
+        value.b[3] = boot->data[address | 0x03];
+
+        boot->bus.v = value.v;
+    }
+    else{
+        value.v = boot->bus.v;
     }
 
     return value;

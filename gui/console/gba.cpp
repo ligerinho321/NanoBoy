@@ -5,6 +5,7 @@ gba_console_t::gba_console_t(nanoboy_t* _nanoboy):console_t(_nanoboy){
     gba = gba_new();
     gba_keypad_set_callback(gba,keypad_callback,nanoboy);
 
+    memory_viewer.init(gba);
     palette_viewer.init(gba,nanoboy->renderer);
 }
 
@@ -48,6 +49,7 @@ bool gba_console_t::insert_cartridge_from_memory(uint8_t* rom,size_t length){
 
 void gba_console_t::remove_cartridge(){
 
+    memory_viewer.clear();
     palette_viewer.clear();
 
     gba_remove_cartridge(gba);
@@ -157,5 +159,6 @@ void gba_console_t::execute_frame(){
 }
 
 void gba_console_t::render_imgui_windows(){
+    memory_viewer.render();
     palette_viewer.render();
 }

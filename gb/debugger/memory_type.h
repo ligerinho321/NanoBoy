@@ -2,7 +2,7 @@
 
 #include "../utils.h"
 
-typedef enum gb_memory_type_t {
+typedef enum _gb_memory_type_t {
     gb_memory_cpu_type,
     gb_memory_rom_type,
     gb_memory_vram_type,
@@ -31,8 +31,8 @@ uint8_t gb_memory_type_read_byte(gb_t* gb,uint8_t memory_type,size_t address);
 void gb_memory_type_write(gb_t* gb,uint8_t memory_type,size_t address,uint8_t* src,size_t len);
 void gb_memory_type_read(gb_t* gb,uint8_t memory_type,size_t address,uint8_t* dst,size_t len);
 
-void gb_memory_type_import(gb_t* gb,uint8_t memory_type,const char* filename);
-void gb_memory_type_export(gb_t* gb,uint8_t memory_type,const char* filename);
+void gb_memory_type_import(gb_t* gb,uint8_t memory_type,const char* path);
+void gb_memory_type_export(gb_t* gb,uint8_t memory_type,const char* path);
 
 #ifdef __cplusplus
 }

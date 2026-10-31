@@ -89,6 +89,8 @@ target_sources(
     NanoBoy
     PRIVATE
 
+    gba/debugger/memory_type.c
+    
     gba/apu.c
     gba/arm.c
     gba/boot.c
@@ -145,9 +147,12 @@ target_sources(
     gui/debug/gb/tilemap_viewer.cpp
     gui/debug/gb/wave_form.cpp
 
+    gui/debug/gba/memory_viewer.cpp
     gui/debug/gba/palette_panel.cpp
     gui/debug/gba/palette_viewer.cpp
 
+    gui/debug/memory_viewer_base.cpp
+    
     gui/dmg_palette/dmg_palette.cpp
     
     gui/file_dialog/file_base_dialog.cpp

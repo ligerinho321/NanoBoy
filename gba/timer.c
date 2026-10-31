@@ -134,6 +134,8 @@ static inline uint8_t gba_timer_read_counter_lsb(gba_timer_counter_t* counter){
 
 void gba_timer_write_register_raw(gba_timer_t* timer,uint8_t value,uint32_t address){
 
+    gba_timer_update(timer);
+
     switch(address){
         case 0x04000100: timer->counter[0].reload_value.b[0] = value; break;
         case 0x04000101: timer->counter[0].reload_value.b[1] = value; break;
@@ -159,9 +161,13 @@ void gba_timer_write_register_raw(gba_timer_t* timer,uint8_t value,uint32_t addr
         case 0x4000010E: gba_timer_write_counter_lsb(timer->counter + 3,value); break;
         case 0x0400010F: break;
     }
+
+    gba_timer_schedule_next_event(timer);
 }
 
 uint8_t gba_timer_read_register_raw(gba_timer_t* timer,uint32_t address){
+
+    gba_timer_update(timer);
 
     uint8_t value = timer->gba->memory.bus.b[address & 0x03];
 
@@ -191,6 +197,8 @@ uint8_t gba_timer_read_register_raw(gba_timer_t* timer,uint32_t address){
         case 0x0400010F: value = 0x00; break;
     }
 
+    gba_timer_schedule_next_event(timer);
+    
     return value;
 }
 

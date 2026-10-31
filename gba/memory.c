@@ -6,7 +6,193 @@ void gba_memory_init(gba_memory_t* memory,gba_t* gba){
 }
 
 
-void gba_memory_write(gba_memory_t* memory,uint32_t value,uint32_t address,uint8_t size,uint8_t access){
+void gba_memory_write_byte(gba_memory_t* memory,uint8_t value,uint32_t address,uint8_t access){
+    switch(address >> 24){
+        // BIOS
+        case 0x00:
+            break;
+        // EWRAM
+        case 0x02:
+            gba_memory_write_ewram_byte(memory,value,address);
+            break;
+        // IWRAM
+        case 0x03:
+            gba_memory_write_iwram_byte(memory,value,address);
+            break;
+        // I/O
+        case 0x04:
+            gba_memory_write_register_byte(memory,value,address);
+            break;
+        // CRAM
+        case 0x05:
+            gba_ppu_write_cram_byte(&memory->gba->ppu,value,address);
+            break;
+        // VRAM
+        case 0x06:
+            gba_ppu_write_vram_byte(&memory->gba->ppu,value,address);
+            break;
+        // OAM
+        case 0x07:
+            gba_ppu_write_oam_byte(&memory->gba->ppu,value,address);
+            break;
+        // ROM
+        case 0x08: case 0x09: case 0x0A: case 0x0B: case 0x0C: case 0x0D:
+            gba_cartridge_write_rom_byte(&memory->gba->cartridge,value,address,access);
+            break;
+        // SRAM
+        case 0x0E: case 0x0F:
+            gba_cartridge_write_sram_byte(&memory->gba->cartridge,value,address,access);
+            break;
+    }
+}
+
+uint8_t gba_memory_read_byte(gba_memory_t* memory,uint32_t address,uint8_t access){
+    switch(address >> 24){
+        // BIOS
+        case 0x00:
+            if(memory->gba->boot.inserted && address < gba_boot_length){
+                memory->bus = gba_boot_read_byte(&memory->gba->boot,address);
+            }
+            else{
+                memory->bus = gba_memory_read_unused_byte(memory,address);
+            }
+            break;
+        // EWRAM
+        case 0x02:
+            memory->bus = gba_memory_read_ewram_byte(memory,address);
+            break;
+        // IWRAM
+        case 0x03:
+            memory->bus = gba_memory_read_iwram_byte(memory,address);
+            break;
+        // I/O
+        case 0x04:
+            memory->bus = gba_memory_read_register_byte(memory,address);
+            break;
+        // CRAM
+        case 0x05:
+            memory->bus = gba_ppu_read_cram_byte(&memory->gba->ppu,address);
+            break;
+        // VRAM
+        case 0x06:
+            memory->bus = gba_ppu_read_vram_byte(&memory->gba->ppu,address);
+            break;
+        // OAM
+        case 0x07:
+            memory->bus = gba_ppu_read_oam_byte(&memory->gba->ppu,address);
+            break;
+        // ROM
+        case 0x08: case 0x09: case 0x0A: case 0x0B: case 0x0C: case 0x0D:
+            memory->bus = gba_cartridge_read_rom_byte(&memory->gba->cartridge,address,access);
+            break;
+        // SRAM
+        case 0x0E: case 0x0F:
+            memory->bus = gba_cartridge_read_sram_byte(&memory->gba->cartridge,address,access);
+            break;
+        default:
+            memory->bus = gba_memory_read_unused_byte(memory,address);
+            break;
+    }
+
+    return memory->bus.v;
+}
+
+
+void gba_memory_write_halfword(gba_memory_t* memory,uint16_t value,uint32_t address,uint8_t access){
+    gba_halfword_t _value = {.v = value};
+
+    switch(address >> 24){
+        // BIOS
+        case 0x00:
+            break;
+        // EWRAM
+        case 0x02:
+            gba_memory_write_ewram_halfword(memory,_value,address);
+            break;
+        // IWRAM
+        case 0x03:
+            gba_memory_write_iwram_halfword(memory,_value,address);
+            break;
+        // I/O
+        case 0x04:
+            gba_memory_write_register_halfword(memory,_value,address);
+            break;
+        // CRAM
+        case 0x05:
+            gba_ppu_write_cram_halfword(&memory->gba->ppu,_value,address);
+            break;
+        // VRAM
+        case 0x06:
+            gba_ppu_write_vram_halfword(&memory->gba->ppu,_value,address);
+            break;
+        // OAM
+        case 0x07:
+            gba_ppu_write_oam_halfword(&memory->gba->ppu,_value,address);
+            break;
+        // ROM
+        case 0x08: case 0x09: case 0x0A: case 0x0B: case 0x0C: case 0x0D:
+            gba_cartridge_write_rom_halfword(&memory->gba->cartridge,_value,address,access);
+            break;
+        // SRAM
+        case 0x0E: case 0x0F:
+            gba_cartridge_write_sram_halfword(&memory->gba->cartridge,_value,address,access);
+            break;
+    }
+}
+
+uint16_t gba_memory_read_halfword(gba_memory_t* memory,uint32_t address,uint8_t access){
+    switch(address >> 24){
+        // BIOS
+        case 0x00:
+            if(memory->gba->boot.inserted && address < gba_boot_length){
+                memory->bus = gba_boot_read_halfword(&memory->gba->boot,address);
+            }
+            else{
+                memory->bus = gba_memory_read_unused_halfword(memory,address);
+            }
+            break;
+        // EWRAM
+        case 0x02:
+            memory->bus = gba_memory_read_ewram_halfword(memory,address);
+            break;
+        // IWRAM
+        case 0x03:
+            memory->bus = gba_memory_read_iwram_halfword(memory,address);
+            break;
+        // I/O
+        case 0x04:
+            memory->bus = gba_memory_read_register_halfword(memory,address);
+            break;
+        // CRAM
+        case 0x05:
+            memory->bus = gba_ppu_read_cram_halfword(&memory->gba->ppu,address);
+            break;
+        // VRAM
+        case 0x06:
+            memory->bus = gba_ppu_read_vram_halfword(&memory->gba->ppu,address);
+            break;
+        // OAM
+        case 0x07:
+            memory->bus = gba_ppu_read_oam_halfword(&memory->gba->ppu,address);
+            break;
+        // ROM
+        case 0x08: case 0x09: case 0x0A: case 0x0B: case 0x0C: case 0x0D:
+            memory->bus = gba_cartridge_read_rom_halfword(&memory->gba->cartridge,address,access);
+            break;
+        // SRAM
+        case 0x0E: case 0x0F:
+            memory->bus = gba_cartridge_read_sram_byte(&memory->gba->cartridge,address,access);
+            break;
+        default:
+            memory->bus = gba_memory_read_unused_halfword(memory,address);
+            break;
+    }
+
+    return memory->bus.v;
+}
+
+
+void gba_memory_write_word(gba_memory_t* memory,uint32_t value,uint32_t address,uint8_t access){
     gba_word_t _value = {.v = value};
 
     switch(address >> 24){
@@ -15,126 +201,88 @@ void gba_memory_write(gba_memory_t* memory,uint32_t value,uint32_t address,uint8
             break;
         // EWRAM
         case 0x02:
-            gba_memory_write_ewram(memory,_value,address,size);
+            gba_memory_write_ewram_word(memory,_value,address);
             break;
         // IWRAM
         case 0x03:
-            gba_memory_write_iwram(memory,_value,address,size);
+            gba_memory_write_iwram_word(memory,_value,address);
             break;
         // I/O
         case 0x04:
-            gba_memory_write_register(memory,_value,address,size);
+            gba_memory_write_register_word(memory,_value,address);
             break;
         // CRAM
         case 0x05:
-            gba_ppu_write_cram(&memory->gba->ppu,_value,address,size);
+            gba_ppu_write_cram_word(&memory->gba->ppu,_value,address);
             break;
         // VRAM
         case 0x06:
-            gba_ppu_write_vram(&memory->gba->ppu,_value,address,size);
+            gba_ppu_write_vram_word(&memory->gba->ppu,_value,address);
             break;
         // OAM
         case 0x07:
-            gba_ppu_write_oam(&memory->gba->ppu,_value,address,size);
+            gba_ppu_write_oam_word(&memory->gba->ppu,_value,address);
             break;
         // ROM
         case 0x08: case 0x09: case 0x0A: case 0x0B: case 0x0C: case 0x0D:
-            gba_cartridge_write_rom(&memory->gba->cartridge,_value,address,size,access);
+            gba_cartridge_write_rom_word(&memory->gba->cartridge,_value,address,access);
             break;
         // SRAM
         case 0x0E: case 0x0F:
-            gba_cartridge_write_sram(&memory->gba->cartridge,_value,address,size,access);
+            gba_cartridge_write_sram_word(&memory->gba->cartridge,_value,address,access);
             break;
     }
 }
 
-uint32_t gba_memory_read(gba_memory_t* memory,uint32_t address,uint8_t size,uint8_t access){
-    
+uint32_t gba_memory_read_word(gba_memory_t* memory,uint32_t address,uint8_t access){
     switch(address >> 24){
         // BIOS
         case 0x00:
             if(memory->gba->boot.inserted && address < gba_boot_length){
-                memory->bus = gba_boot_read(&memory->gba->boot,address,size);
+                memory->bus = gba_boot_read_word(&memory->gba->boot,address);
             }
             else{
-                memory->bus = gba_memory_read_unused(memory,address,size);
+                memory->bus = gba_memory_read_unused_word(memory,address);
             }
             break;
         // EWRAM
         case 0x02:
-            memory->bus = gba_memory_read_ewram(memory,address,size);
+            memory->bus = gba_memory_read_ewram_word(memory,address);
             break;
         // IWRAM
         case 0x03:
-            memory->bus = gba_memory_read_iwram(memory,address,size);
+            memory->bus = gba_memory_read_iwram_word(memory,address);
             break;
         // I/O
         case 0x04:
-            memory->bus = gba_memory_read_register(memory,address,size);
+            memory->bus = gba_memory_read_register_word(memory,address);
             break;
         // CRAM
         case 0x05:
-            memory->bus = gba_ppu_read_cram(&memory->gba->ppu,address,size);
+            memory->bus = gba_ppu_read_cram_word(&memory->gba->ppu,address);
             break;
         // VRAM
         case 0x06:
-            memory->bus = gba_ppu_read_vram(&memory->gba->ppu,address,size);
+            memory->bus = gba_ppu_read_vram_word(&memory->gba->ppu,address);
             break;
         // OAM
         case 0x07:
-            memory->bus = gba_ppu_read_oam(&memory->gba->ppu,address,size);
+            memory->bus = gba_ppu_read_oam_word(&memory->gba->ppu,address);
             break;
         // ROM
         case 0x08: case 0x09: case 0x0A: case 0x0B: case 0x0C: case 0x0D:
-            memory->bus = gba_cartridge_read_rom(&memory->gba->cartridge,address,size,access);
+            memory->bus = gba_cartridge_read_rom_word(&memory->gba->cartridge,address,access);
             break;
         // SRAM
         case 0x0E: case 0x0F:
-            memory->bus = gba_cartridge_read_sram(&memory->gba->cartridge,address,size,access);
+            memory->bus = gba_cartridge_read_sram_byte(&memory->gba->cartridge,address,access);
             break;
         default:
-            memory->bus = gba_memory_read_unused(memory,address,size);
+            memory->bus = gba_memory_read_unused_word(memory,address);
             break;
     }
 
     return memory->bus.v;
-}
-
-
-gba_word_t gba_memory_read_unused(gba_memory_t* memory,uint32_t address,uint8_t size){
-    
-    gba_word_t value = {0};
-
-    switch(size){
-        case gba_memory_byte_access:{
-            gba_clock(memory->gba,1);
-
-            value.b[0] = memory->bus.b[address & 0x03];
-            value.b[1] = value.b[0];
-            value.b[2] = value.b[0];
-            value.b[3] = value.b[0];
-            break;
-        }
-        case gba_memory_halfword_access:{
-            gba_clock(memory->gba,1);
-
-            address &= ~0x01;
-
-            value.b[0] = memory->bus.b[address | 0x00];
-            value.b[1] = memory->bus.b[address | 0x01];
-            value.b[2] = value.b[0];
-            value.b[3] = value.b[1];
-            break;
-        }
-        case gba_memory_word_access:{
-            gba_clock(memory->gba,1);
-
-            value.v = memory->bus.v;
-            break;
-        }
-    }
-
-    return value;
 }
 
 
@@ -233,6 +381,7 @@ static inline uint8_t gba_memory_read_control_msb(gba_memory_control_t* control)
 }
 
 
+
 static void gba_memory_write_register_raw(gba_memory_t* memory,uint8_t value,uint32_t address){
     // LCD I/O Registers
     if(address < 0x04000060){
@@ -269,8 +418,8 @@ static void gba_memory_write_register_raw(gba_memory_t* memory,uint8_t value,uin
             case 0x04000200: memory->gba->interrupt.enable.b[0] = value; break;
             case 0x04000201: memory->gba->interrupt.enable.b[1] = value & 0x3F; break;
             // Interrupt Flag
-            case 0x04000202: memory->gba->interrupt.flag.b[0] = value; break;
-            case 0x04000203: memory->gba->interrupt.flag.b[1] = value & 0x3F; break;
+            case 0x04000202: memory->gba->interrupt.flag.b[0] &= ~value; break;
+            case 0x04000203: memory->gba->interrupt.flag.b[1] &= ~(value & 0x3F); break;
 
             // WaitState Control
             case 0x04000204: gba_memory_write_waitstate_control_lsb(memory,value); break;
@@ -279,7 +428,7 @@ static void gba_memory_write_register_raw(gba_memory_t* memory,uint8_t value,uin
             case 0x04000207: break;
 
             // Interrupt Master Enable
-            case 0x04000208: memory->gba->interrupt.master_enable = (value & 0x01) != 0x00; break;
+            case 0x04000208: memory->gba->interrupt.master_enabled = (value & 0x01) != 0x00; break;
             case 0x04000209: break;
             case 0x0400020A: break;
             case 0x0400020B: break;
@@ -353,7 +502,7 @@ static uint8_t gba_memory_read_register_raw(gba_memory_t* memory,uint32_t addres
             case 0x04000207: value = 0x00; break;
 
             // Interrupt Master Enable
-            case 0x04000208: value = memory->gba->interrupt.master_enable; break;
+            case 0x04000208: value = memory->gba->interrupt.master_enabled; break;
             case 0x04000209: value = 0x00; break;
             case 0x0400020A: value = 0x00; break;
             case 0x0400020B: value = 0x00; break;
@@ -382,239 +531,286 @@ static uint8_t gba_memory_read_register_raw(gba_memory_t* memory,uint32_t addres
 }
 
 
-void gba_memory_write_register(gba_memory_t* memory,gba_word_t value,uint32_t address,uint8_t size){
-    switch(size){
-        case gba_memory_byte_access:{
-            gba_clock(memory->gba,1);
+void gba_memory_write_register_byte(gba_memory_t* memory,uint8_t value,uint32_t address){
+    gba_clock(memory->gba,1);
 
-            gba_memory_write_register_raw(memory,value.b[0],address);
-            break;
-        }
-        case gba_memory_halfword_access:{
-            address &= ~0x01;
-
-            gba_clock(memory->gba,1);
-
-            gba_memory_write_register_raw(memory,value.b[0],address | 0x00);
-            gba_memory_write_register_raw(memory,value.b[1],address | 0x01);
-            break;
-        }
-        case gba_memory_word_access:{
-            address &= ~0x03;
-
-            gba_clock(memory->gba,1);
-
-            gba_memory_write_register_raw(memory,value.b[0],address | 0x00);
-            gba_memory_write_register_raw(memory,value.b[1],address | 0x01);
-            gba_memory_write_register_raw(memory,value.b[2],address | 0x02);
-            gba_memory_write_register_raw(memory,value.b[3],address | 0x03);
-            break;
-        }
-    }
+    gba_memory_write_register_raw(memory,value,address);
 }
 
-gba_word_t gba_memory_read_register(gba_memory_t* memory,uint32_t address,uint8_t size){
+gba_word_t gba_memory_read_register_byte(gba_memory_t* memory,uint32_t address){
+    gba_clock(memory->gba,1);
 
     gba_word_t value = {0};
 
-    switch(size){
-        case gba_memory_byte_access:{
-            gba_clock(memory->gba,1);
-
-            value.b[0] = gba_memory_read_register_raw(memory,address);
-            value.b[1] = value.b[0];
-            value.b[2] = value.b[0];
-            value.b[3] = value.b[0];
-            break;
-        }
-        case gba_memory_halfword_access:{
-            address &= ~0x01;
-
-            gba_clock(memory->gba,1);
-
-            value.b[0] = gba_memory_read_register_raw(memory,address | 0x00);
-            value.b[1] = gba_memory_read_register_raw(memory,address | 0x01);
-            value.b[2] = value.b[0];
-            value.b[3] = value.b[1];
-            break;
-        }
-        case gba_memory_word_access:{
-            address &= ~0x03;
-
-            gba_clock(memory->gba,1);
-
-            value.b[0] = gba_memory_read_register_raw(memory,address | 0x00);
-            value.b[1] = gba_memory_read_register_raw(memory,address | 0x01);
-            value.b[2] = gba_memory_read_register_raw(memory,address | 0x02);
-            value.b[3] = gba_memory_read_register_raw(memory,address | 0x03);
-            break;
-        }
-    }
+    value.b[0] = gba_memory_read_register_raw(memory,address);
+    value.b[1] = value.b[0];
+    value.b[2] = value.b[0];
+    value.b[3] = value.b[0];
 
     return value;
 }
 
 
-void gba_memory_write_ewram(gba_memory_t* memory,gba_word_t value,uint32_t address,uint8_t size){
+void gba_memory_write_register_halfword(gba_memory_t* memory,gba_halfword_t value,uint32_t address){
+    address &= ~0x01;
 
+    gba_clock(memory->gba,1);
+
+    gba_memory_write_register_raw(memory,value.b[0],address | 0x00);
+    gba_memory_write_register_raw(memory,value.b[1],address | 0x01);
+}
+
+gba_word_t gba_memory_read_register_halfword(gba_memory_t* memory,uint32_t address){
+    address &= ~0x01;
+
+    gba_clock(memory->gba,1);
+
+    gba_word_t value = {0};
+
+    value.b[0] = gba_memory_read_register_raw(memory,address | 0x00);
+    value.b[1] = gba_memory_read_register_raw(memory,address | 0x01);
+    value.b[2] = value.b[0];
+    value.b[3] = value.b[1];
+
+    return value;
+}
+
+
+void gba_memory_write_register_word(gba_memory_t* memory,gba_word_t value,uint32_t address){
+    address &= ~0x03;
+
+    gba_clock(memory->gba,1);
+
+    gba_memory_write_register_raw(memory,value.b[0],address | 0x00);
+    gba_memory_write_register_raw(memory,value.b[1],address | 0x01);
+    gba_memory_write_register_raw(memory,value.b[2],address | 0x02);
+    gba_memory_write_register_raw(memory,value.b[3],address | 0x03);
+}
+
+gba_word_t gba_memory_read_register_word(gba_memory_t* memory,uint32_t address){
+    address &= ~0x03;
+
+    gba_clock(memory->gba,1);
+
+    gba_word_t value = {0};
+
+    value.b[0] = gba_memory_read_register_raw(memory,address | 0x00);
+    value.b[1] = gba_memory_read_register_raw(memory,address | 0x01);
+    value.b[2] = gba_memory_read_register_raw(memory,address | 0x02);
+    value.b[3] = gba_memory_read_register_raw(memory,address | 0x03);
+
+    return value;
+}
+
+
+
+void gba_memory_write_ewram_byte(gba_memory_t* memory,uint8_t value,uint32_t address){
+    address &= gba_ewram_address_mask;
+    
+    gba_clock(memory->gba,3);
+
+    memory->ewram[address] = value;
+}
+
+gba_word_t gba_memory_read_ewram_byte(gba_memory_t* memory,uint32_t address){
     address &= gba_ewram_address_mask;
 
-    switch(size){
-        case gba_memory_byte_access:{
-            gba_clock(memory->gba,3);
+    gba_clock(memory->gba,3);
 
-            memory->ewram[address] = value.b[0];
-            break;
-        }
-        case gba_memory_halfword_access:{
-            address &= ~0x01;
+    gba_word_t value = {0};
 
-            gba_clock(memory->gba,3);
+    value.b[0] = memory->ewram[address];
+    value.b[1] = value.b[0];
+    value.b[2] = value.b[0];
+    value.b[3] = value.b[0];
 
-            memory->ewram[address | 0x00] = value.b[0];
-            memory->ewram[address | 0x01] = value.b[1];
-            break;
-        }
-        case gba_memory_word_access:{
-            address &= ~0x03;
-
-            gba_clock(memory->gba,3);
-
-            memory->ewram[address | 0x00] = value.b[0];
-            memory->ewram[address | 0x01] = value.b[1];
-
-            gba_clock(memory->gba,3);
-
-            memory->ewram[address | 0x02] = value.b[2];
-            memory->ewram[address | 0x03] = value.b[3];
-            break;
-        }
-    }
+    return value;
 }
 
-gba_word_t gba_memory_read_ewram(gba_memory_t* memory,uint32_t address,uint8_t size){
 
+void gba_memory_write_ewram_halfword(gba_memory_t* memory,gba_halfword_t value,uint32_t address){
     address &= gba_ewram_address_mask;
+    address &= ~0x01;
+    
+    gba_clock(memory->gba,3);
+
+    memory->ewram[address | 0x00] = value.b[0];
+    memory->ewram[address | 0x01] = value.b[1];
+}
+
+gba_word_t gba_memory_read_ewram_halfword(gba_memory_t* memory,uint32_t address){
+    address &= gba_ewram_address_mask;
+    address &= ~0x01;
+
+    gba_clock(memory->gba,3);
 
     gba_word_t value = {0};
 
-    switch(size){
-        case gba_memory_byte_access:{
-            gba_clock(memory->gba,3);
-
-            value.b[0] = memory->ewram[address];
-            value.b[1] = value.b[0];
-            value.b[2] = value.b[0];
-            value.b[3] = value.b[0];
-            break;
-        }
-        case gba_memory_halfword_access:{
-            address &= ~0x01;
-
-            gba_clock(memory->gba,3);
-
-            value.b[0] = memory->ewram[address | 0x00];
-            value.b[1] = memory->ewram[address | 0x01];
-            value.b[2] = value.b[0];
-            value.b[3] = value.b[1];
-            break;
-        }
-        case gba_memory_word_access:{
-            address &= ~0x03;
-
-            gba_clock(memory->gba,3);
-
-            value.b[0] = memory->ewram[address | 0x00];
-            value.b[1] = memory->ewram[address | 0x01];
-
-            gba_clock(memory->gba,3);
-
-            value.b[2] = memory->ewram[address | 0x02];
-            value.b[3] = memory->ewram[address | 0x03];
-            break;
-        }
-    }
+    value.b[0] = memory->ewram[address | 0x00];
+    value.b[1] = memory->ewram[address | 0x01];
+    value.b[2] = value.b[0];
+    value.b[3] = value.b[1];
 
     return value;
 }
 
 
-void gba_memory_write_iwram(gba_memory_t* memory,gba_word_t value,uint32_t address,uint8_t size){
+void gba_memory_write_ewram_word(gba_memory_t* memory,gba_word_t value,uint32_t address){
+    address &= gba_ewram_address_mask;
+    address &= ~0x03;
 
-    address &= gba_iwram_address_mask;
+    gba_clock(memory->gba,3);
 
-    switch(size){
-        case gba_memory_byte_access:{
-            gba_clock(memory->gba,1);
+    memory->ewram[address | 0x00] = value.b[0];
+    memory->ewram[address | 0x01] = value.b[1];
 
-            memory->iwram[address] = value.b[0];
-            break;
-        }
-        case gba_memory_halfword_access:{
-            address &= ~0x01;
+    gba_clock(memory->gba,3);
 
-            gba_clock(memory->gba,1);
-
-            memory->iwram[address | 0x00] = value.b[0];
-            memory->iwram[address | 0x01] = value.b[1];
-            break;
-        }
-        case gba_memory_word_access:{
-            address &= ~0x03;
-
-            gba_clock(memory->gba,1);
-
-            memory->iwram[address | 0x00] = value.b[0];
-            memory->iwram[address | 0x01] = value.b[1];
-            memory->iwram[address | 0x02] = value.b[2];
-            memory->iwram[address | 0x03] = value.b[3];
-            break;
-        }
-    }
+    memory->ewram[address | 0x02] = value.b[2];
+    memory->ewram[address | 0x03] = value.b[3];
 }
 
-gba_word_t gba_memory_read_iwram(gba_memory_t* memory,uint32_t address,uint8_t size){
-
-    address &= gba_iwram_address_mask;
+gba_word_t gba_memory_read_ewram_word(gba_memory_t* memory,uint32_t address){
+    address &= gba_ewram_address_mask;
+    address &= ~0x03;
 
     gba_word_t value = {0};
 
-    switch(size){
-        case gba_memory_byte_access:{
-            gba_clock(memory->gba,1);
+    gba_clock(memory->gba,3);
 
-            value.b[0] = memory->iwram[address];
-            value.b[1] = value.b[0];
-            value.b[2] = value.b[0];
-            value.b[3] = value.b[0];
-            break;
-        }
-        case gba_memory_halfword_access:{
-            address &= ~0x01;
+    value.b[0] = memory->ewram[address | 0x00];
+    value.b[1] = memory->ewram[address | 0x01];
 
-            gba_clock(memory->gba,1);
+    gba_clock(memory->gba,3);
 
-            value.b[0] = memory->iwram[address | 0x00];
-            value.b[1] = memory->iwram[address | 0x01];
-            value.b[2] = value.b[0];
-            value.b[3] = value.b[1];
-            break;
-        }
-        case gba_memory_word_access:{
-            address &= ~0x03;
-
-            gba_clock(memory->gba,1);
-
-            value.b[0] = memory->iwram[address | 0x00];
-            value.b[1] = memory->iwram[address | 0x01];
-            value.b[2] = memory->iwram[address | 0x02];
-            value.b[3] = memory->iwram[address | 0x03];
-            break;
-        }
-    }
+    value.b[2] = memory->ewram[address | 0x02];
+    value.b[3] = memory->ewram[address | 0x03];
 
     return value;
 }
+
+
+
+void gba_memory_write_iwram_byte(gba_memory_t* memory,uint8_t value,uint32_t address){
+    address &= gba_iwram_address_mask;
+
+    gba_clock(memory->gba,1);
+
+    memory->iwram[address] = value;
+}
+
+gba_word_t gba_memory_read_iwram_byte(gba_memory_t* memory,uint32_t address){
+    address &= gba_iwram_address_mask;
+
+    gba_clock(memory->gba,1);
+
+    gba_word_t value = {0};
+
+    value.b[0] = memory->iwram[address];
+    value.b[1] = value.b[0];
+    value.b[2] = value.b[0];
+    value.b[3] = value.b[0];
+
+    return value;
+}
+
+
+void gba_memory_write_iwram_halfword(gba_memory_t* memory,gba_halfword_t value,uint32_t address){
+    address &= gba_iwram_address_mask;
+    address &= ~0x01;
+
+    gba_clock(memory->gba,1);
+
+    memory->iwram[address | 0x00] = value.b[0];
+    memory->iwram[address | 0x01] = value.b[1];
+}
+
+gba_word_t gba_memory_read_iwram_halfword(gba_memory_t* memory,uint32_t address){
+    address &= gba_iwram_address_mask;
+    address &= ~0x01;
+
+    gba_clock(memory->gba,1);
+
+    gba_word_t value = {0};
+
+    value.b[0] = memory->iwram[address | 0x00];
+    value.b[1] = memory->iwram[address | 0x01];
+    value.b[2] = value.b[0];
+    value.b[3] = value.b[1];
+
+    return value;
+}
+
+
+void gba_memory_write_iwram_word(gba_memory_t* memory,gba_word_t value,uint32_t address){
+    address &= gba_iwram_address_mask;
+    address &= ~0x03;
+
+    gba_clock(memory->gba,1);
+
+    memory->iwram[address | 0x00] = value.b[0];
+    memory->iwram[address | 0x01] = value.b[1];
+    memory->iwram[address | 0x02] = value.b[2];
+    memory->iwram[address | 0x03] = value.b[3];
+}
+
+gba_word_t gba_memory_read_iwram_word(gba_memory_t* memory,uint32_t address){
+    address &= gba_iwram_address_mask;
+    address &= ~0x03;
+
+    gba_clock(memory->gba,1);
+
+    gba_word_t value = {0};
+
+    value.b[0] = memory->iwram[address | 0x00];
+    value.b[1] = memory->iwram[address | 0x01];
+    value.b[2] = memory->iwram[address | 0x02];
+    value.b[3] = memory->iwram[address | 0x03];
+
+    return value;
+}
+
+
+
+gba_word_t gba_memory_read_unused_byte(gba_memory_t* memory,uint32_t address){
+    address &= 0x03;
+
+    gba_clock(memory->gba,1);
+
+    gba_word_t value = {0};
+
+    value.b[0] = memory->bus.b[address];
+    value.b[1] = value.b[0];
+    value.b[2] = value.b[0];
+    value.b[3] = value.b[0];
+
+    return value;
+}
+
+gba_word_t gba_memory_read_unused_halfword(gba_memory_t* memory,uint32_t address){
+    address &= 0x03;
+    address &= ~0x01;
+
+    gba_clock(memory->gba,1);
+
+    gba_word_t value = {0};
+
+    value.b[0] = memory->bus.b[address | 0x00];
+    value.b[1] = memory->bus.b[address | 0x01];
+    value.b[2] = value.b[0];
+    value.b[3] = value.b[1];
+
+    return value;
+}
+
+gba_word_t gba_memory_read_unused_word(gba_memory_t* memory,uint32_t address){
+    gba_unused(address);
+
+    gba_clock(memory->gba,1);
+
+    return memory->bus;
+}
+
 
 
 void gba_memory_reset(gba_memory_t* memory){

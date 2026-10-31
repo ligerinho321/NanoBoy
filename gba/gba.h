@@ -13,6 +13,8 @@
 #include "cartridge.h"
 #include "boot.h"
 
+#include "debugger/memory_type.h"
+
 typedef struct _gba_t {
 
     bool cartridge_inserted;

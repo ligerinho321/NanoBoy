@@ -41,15 +41,15 @@ void gba_cpu_idle_cycle(gba_cpu_t* cpu){
 
 
 void gba_cpu_write_byte(gba_cpu_t* cpu,uint8_t value,uint32_t address,uint8_t access){
-    gba_memory_write(&cpu->gba->memory,value,address,gba_memory_byte_access,access);
+    gba_memory_write_byte(&cpu->gba->memory,value,address,access);
 }
 
 uint8_t gba_cpu_read_byte(gba_cpu_t* cpu,uint32_t address,uint8_t access){
-    return gba_memory_read(&cpu->gba->memory,address,gba_memory_byte_access,access);
+    return gba_memory_read_byte(&cpu->gba->memory,address,access);
 }
 
 uint32_t gba_cpu_read_signed_byte(gba_cpu_t* cpu,uint32_t address,uint8_t access){
-    uint32_t value = gba_cpu_read_byte(cpu,address,access);
+    uint32_t value = gba_memory_read_byte(&cpu->gba->memory,address,access);
     if(value & 0x00000080){
         value |= 0xFFFFFF00;
     }
@@ -58,15 +58,15 @@ uint32_t gba_cpu_read_signed_byte(gba_cpu_t* cpu,uint32_t address,uint8_t access
 
 
 void gba_cpu_write_halfword(gba_cpu_t* cpu,uint16_t value,uint32_t address,uint8_t access){
-    gba_memory_write(&cpu->gba->memory,value,address,gba_memory_halfword_access,access);
+    gba_memory_write_halfword(&cpu->gba->memory,value,address,access);
 }
 
 uint16_t gba_cpu_read_halfword(gba_cpu_t* cpu,uint32_t address,uint8_t access){
-    return gba_memory_read(&cpu->gba->memory,address,gba_memory_halfword_access,access);
+    return gba_memory_read_halfword(&cpu->gba->memory,address,access);
 }
 
 uint32_t gba_cpu_read_halfword_rotate(gba_cpu_t* cpu,uint32_t address,uint8_t access){
-    uint32_t value = gba_cpu_read_halfword(cpu,address,access);
+    uint32_t value = gba_memory_read_halfword(&cpu->gba->memory,address,access);
     if(address & 1){
         value = (value >> 8) | (value << 24);
     }
@@ -74,7 +74,7 @@ uint32_t gba_cpu_read_halfword_rotate(gba_cpu_t* cpu,uint32_t address,uint8_t ac
 }
 
 uint32_t gba_cpu_read_signed_halfword(gba_cpu_t* cpu,uint32_t address,uint8_t access){
-    uint32_t value = gba_cpu_read_halfword(cpu,address,access);
+    uint32_t value = gba_memory_read_halfword(&cpu->gba->memory,address,access);
     if(value & 0x00008000){
         value |= 0xFFFF0000;
     }
@@ -86,15 +86,15 @@ uint32_t gba_cpu_read_signed_halfword(gba_cpu_t* cpu,uint32_t address,uint8_t ac
 
 
 void gba_cpu_write_word(gba_cpu_t* cpu,uint32_t value,uint32_t address,uint8_t access){
-    gba_memory_write(&cpu->gba->memory,value,address,gba_memory_word_access,access);
+    gba_memory_write_word(&cpu->gba->memory,value,address,access);
 }
 
 uint32_t gba_cpu_read_word(gba_cpu_t* cpu,uint32_t address,uint8_t access){
-    return gba_memory_read(&cpu->gba->memory,address,gba_memory_word_access,access);
+    return gba_memory_read_word(&cpu->gba->memory,address,access);
 }
 
 uint32_t gba_cpu_read_word_rotate(gba_cpu_t* cpu,uint32_t address,uint8_t access){
-    uint32_t value = gba_cpu_read_word(cpu,address,access);
+    uint32_t value = gba_memory_read_word(&cpu->gba->memory,address,access);
     uint8_t shift = (address & 3) << 3;
     if(shift){
         value = (value >> shift) | (value << (32 - shift));
@@ -263,6 +263,31 @@ void gba_cpu_multiply_clock(gba_cpu_t* cpu,uint32_t value,bool _signed){
 }
 
 
+void gba_cpu_irq(gba_cpu_t* cpu){
+    gba_interrupt_t* interrupt = &cpu->gba->interrupt;
+
+    if(interrupt->master_enabled && (interrupt->enable.v & interrupt->flag.v) && !(cpu->cpsr & gba_cpu_irq_flag)){
+
+        cpu->spsr[gba_cpu_irq_bank] = cpu->cpsr | 0x10;
+
+        gba_cpu_set_mode(cpu,gba_cpu_irq_mode);
+
+        cpu->r[14] = cpu->r[15];
+
+        if(!(cpu->cpsr & gba_cpu_thumb_flag)){
+            cpu->r[14] -= 4;
+        }
+
+        cpu->cpsr &= ~gba_cpu_thumb_flag;
+        cpu->cpsr |= gba_cpu_irq_flag;
+
+        cpu->r[15] = gba_cpu_irq_vector;
+
+        gba_cpu_reload_pipeline(cpu);
+    }
+}
+
+
 void gba_cpu_execute(gba_cpu_t* cpu){
     gba_cpu_pipeline_t* pipeline = &cpu->pipeline;
 
@@ -291,6 +316,8 @@ void gba_cpu_execute(gba_cpu_t* cpu){
             cpu->r[15] += 4;
         }
     }
+    
+    gba_cpu_irq(cpu);
 }
 
 

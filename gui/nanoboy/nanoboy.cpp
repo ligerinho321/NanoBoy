@@ -1,12 +1,14 @@
 #include <gui/nanoboy/nanoboy.hpp>
 
 static const char* file_extensions[] = {
-    "All files\0",
+    "All supported files\0.gb;.gbc;.gba",
     "GB ROM files\0.gb;.gbc",
-    "GBA ROM files\0.gba"
+    "GBA ROM files\0.gba",
+    "All files\0",
 };
 
 static const int file_extensions_count = sizeof(file_extensions) / sizeof(file_extensions[0]);
+
 
 nanoboy_t::nanoboy_t(){
     
@@ -33,7 +35,6 @@ nanoboy_t::nanoboy_t(){
 
     file_selector.init();
     file_selector.set_extensions(file_extensions,file_extensions_count);
-    file_selector.set_current_extension(1);
     file_selector.set_callback(file_selector_callback,this);
 
     savestate.init(this);

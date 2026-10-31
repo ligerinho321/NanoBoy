@@ -154,17 +154,40 @@ void gba_ppu_schedule_next_event(gba_ppu_t* ppu);
 
 void gba_ppu_update(gba_ppu_t* ppu);
 
+
 void gba_ppu_write_register_raw(gba_ppu_t* ppu,uint8_t value,uint32_t address);
 uint8_t gba_ppu_read_register_raw(gba_ppu_t* ppu,uint32_t address);
 
-void gba_ppu_write_cram(gba_ppu_t* ppu,gba_word_t value,uint32_t address,uint8_t size);
-gba_word_t gba_ppu_read_cram(gba_ppu_t* ppu,uint32_t address,uint8_t size);
 
-void gba_ppu_write_vram(gba_ppu_t* ppu,gba_word_t value,uint32_t address,uint8_t size);
-gba_word_t gba_ppu_read_vram(gba_ppu_t* ppu,uint32_t address,uint8_t size);
+void gba_ppu_write_cram_byte(gba_ppu_t* ppu,uint8_t value,uint32_t address);
+gba_word_t gba_ppu_read_cram_byte(gba_ppu_t* ppu,uint32_t address);
 
-void gba_ppu_write_oam(gba_ppu_t* ppu,gba_word_t value,uint32_t address,uint8_t size);
-gba_word_t gba_ppu_read_oam(gba_ppu_t* ppu,uint32_t address,uint8_t size);
+void gba_ppu_write_cram_halfword(gba_ppu_t* ppu,gba_halfword_t value,uint32_t address);
+gba_word_t gba_ppu_read_cram_halfword(gba_ppu_t* ppu,uint32_t address);
+
+void gba_ppu_write_cram_word(gba_ppu_t* ppu,gba_word_t value,uint32_t address);
+gba_word_t gba_ppu_read_cram_word(gba_ppu_t* ppu,uint32_t address);
+
+
+void gba_ppu_write_vram_byte(gba_ppu_t* ppu,uint8_t value,uint32_t address);
+gba_word_t gba_ppu_read_vram_byte(gba_ppu_t* ppu,uint32_t address);
+
+void gba_ppu_write_vram_halfword(gba_ppu_t* ppu,gba_halfword_t value,uint32_t address);
+gba_word_t gba_ppu_read_vram_halfword(gba_ppu_t* ppu,uint32_t address);
+
+void gba_ppu_write_vram_word(gba_ppu_t* ppu,gba_word_t value,uint32_t address);
+gba_word_t gba_ppu_read_vram_word(gba_ppu_t* ppu,uint32_t address);
+
+
+void gba_ppu_write_oam_byte(gba_ppu_t* ppu,uint8_t value,uint32_t address);
+gba_word_t gba_ppu_read_oam_byte(gba_ppu_t* ppu,uint32_t address);
+
+void gba_ppu_write_oam_halfword(gba_ppu_t* ppu,gba_halfword_t value,uint32_t address);
+gba_word_t gba_ppu_read_oam_halfword(gba_ppu_t* ppu,uint32_t address);
+
+void gba_ppu_write_oam_word(gba_ppu_t* ppu,gba_word_t value,uint32_t address);
+gba_word_t gba_ppu_read_oam_word(gba_ppu_t* ppu,uint32_t address);
+
 
 void gba_ppu_reset(gba_ppu_t* ppu);
 

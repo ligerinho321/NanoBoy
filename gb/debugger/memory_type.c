@@ -285,23 +285,23 @@ void gb_memory_type_read(gb_t* gb,uint8_t memory_type,size_t address,uint8_t* ds
 }
 
 
-void gb_memory_type_import(gb_t* gb,uint8_t memory_type,const char* filename){
+void gb_memory_type_import(gb_t* gb,uint8_t memory_type,const char* path){
     uint8_t* data = NULL;
     size_t len = 0;
 
-    if(!gb_load_file(filename,(void**)&data,&len)) return;
+    if(!gb_load_file(path,(void**)&data,&len)) return;
 
     gb_memory_type_write(gb,memory_type,0,data,len);
 
     free(data);
 }
 
-void gb_memory_type_export(gb_t* gb,uint8_t memory_type,const char* filename){
+void gb_memory_type_export(gb_t* gb,uint8_t memory_type,const char* path){
 
     switch(memory_type){
         case gb_memory_cpu_type:{
 
-            FILE* file = fopen(filename,"wb");
+            FILE* file = fopen(path,"wb");
             
             if(!file){
                 gb_printf_errno(fopen);
@@ -334,27 +334,27 @@ void gb_memory_type_export(gb_t* gb,uint8_t memory_type,const char* filename){
             break;
         }
         case gb_memory_rom_type:{
-            gb_save_file(filename,gb->cartridge.rom,gb->cartridge.rom_length);
+            gb_save_file(path,gb->cartridge.rom,gb->cartridge.rom_length);
             break;
         }
         case gb_memory_vram_type:{
-            gb_save_file(filename,gb->ppu.state.vram,gb_vram_length);
+            gb_save_file(path,gb->ppu.state.vram,gb_vram_length);
             break;
         }
         case gb_memory_ram_type:{
-            gb_save_file(filename,gb->cartridge.ram,gb->cartridge.ram_length);
+            gb_save_file(path,gb->cartridge.ram,gb->cartridge.ram_length);
             break;
         }
         case gb_memory_wram_type:{
-            gb_save_file(filename,gb->memory.state.wram,gb_wram_length);
+            gb_save_file(path,gb->memory.state.wram,gb_wram_length);
             break;
         }
         case gb_memory_oam_type:{
-            gb_save_file(filename,gb->ppu.state.oam,gb_oam_length);
+            gb_save_file(path,gb->ppu.state.oam,gb_oam_length);
             break;
         }
         case gb_memory_hram_type:{
-            gb_save_file(filename,gb->memory.state.hram,gb_hram_length);
+            gb_save_file(path,gb->memory.state.hram,gb_hram_length);
             break;
         }
     }

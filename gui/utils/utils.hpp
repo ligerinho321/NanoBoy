@@ -5,7 +5,9 @@
 
 #include <third_party/cJSON/cJSON.h>
 #include <third_party/stb_image_write/stb_image_write.h>
+
 #include <third_party/imgui/imgui.h>
+#include <third_party/imgui/imgui_internal.h>
 #include <third_party/imgui/imgui_impl_sdl2.h>
 #include <third_party/imgui/imgui_impl_sdlrenderer2.h>
 

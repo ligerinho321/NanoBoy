@@ -3,9 +3,10 @@
 #include "utils.h"
 
 enum {
-    gba_cartridge_rom_min_length   = 0x000000C0,
-    gba_cartridge_rom_max_length   = 0x02000000,
-    gba_cartridge_rom_address_mask = 0x01FFFFFF
+    gba_cartridge_rom_min_length    = 0x000000C0,
+    gba_cartridge_rom_max_length    = 0x02000000,
+    gba_cartridge_rom_address_mask  = 0x01FFFFFF,
+    gba_cartridge_sram_address_mask = 0x0000FFFF
 };
 
 typedef enum _gba_cartridge_backup_t {
@@ -48,11 +49,24 @@ bool gba_cartridge_rom_is_valid(const uint8_t* rom,size_t length);
 bool gba_cartridge_verify_header_nintendo_logo(const uint8_t* rom);
 bool gba_cartridge_verify_header_checksum(const uint8_t* rom);
 
-void gba_cartridge_write_rom(gba_cartridge_t* cartridge,gba_word_t value,uint32_t address,uint8_t size,uint8_t access);
-gba_word_t gba_cartridge_read_rom(gba_cartridge_t* cartridge,uint32_t address,uint8_t size,uint8_t access);
 
-void gba_cartridge_write_sram(gba_cartridge_t* cartridge,gba_word_t value,uint32_t address,uint8_t size,uint8_t access);
-gba_word_t gba_cartridge_read_sram(gba_cartridge_t* cartridge,uint32_t address,uint8_t size,uint8_t access);
+void gba_cartridge_write_rom_byte(gba_cartridge_t* cartridge,uint8_t value,uint32_t address,uint8_t access);
+gba_word_t gba_cartridge_read_rom_byte(gba_cartridge_t* cartridge,uint32_t address,uint8_t access);
+
+void gba_cartridge_write_rom_halfword(gba_cartridge_t* cartridge,gba_halfword_t value,uint32_t address,uint8_t access);
+gba_word_t gba_cartridge_read_rom_halfword(gba_cartridge_t* cartridge,uint32_t address,uint8_t access);
+
+void gba_cartridge_write_rom_word(gba_cartridge_t* cartridge,gba_word_t value,uint32_t address,uint8_t access);
+gba_word_t gba_cartridge_read_rom_word(gba_cartridge_t* cartridge,uint32_t address,uint8_t access);
+
+
+void gba_cartridge_write_sram_byte(gba_cartridge_t* cartridge,uint8_t value,uint32_t address,uint8_t access);
+gba_word_t gba_cartridge_read_sram_byte(gba_cartridge_t* cartridge,uint32_t address,uint8_t access);
+
+void gba_cartridge_write_sram_halfword(gba_cartridge_t* cartridge,gba_halfword_t value,uint32_t address,uint8_t access);
+
+void gba_cartridge_write_sram_word(gba_cartridge_t* cartridge,gba_word_t value,uint32_t address,uint8_t access);
+
 
 void gba_cartridge_reset(gba_cartridge_t* cartridge);
 

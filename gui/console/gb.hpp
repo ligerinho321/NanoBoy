@@ -98,7 +98,7 @@ public:
     }
 
     void open_memory_viewer() override {
-        event_viewer.set_open(true);
+        memory_viewer.set_open(true);
     }
 
     void open_tilemap_viewer() override {

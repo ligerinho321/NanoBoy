@@ -31,7 +31,11 @@ void gba_boot_enable_skip(gba_t* gba,bool enabled);
 
 void gba_boot_update(gba_boot_t* boot);
 
-gba_word_t gba_boot_read(gba_boot_t* boot,uint32_t address,uint8_t size);
+
+gba_word_t gba_boot_read_byte(gba_boot_t* boot,uint32_t address);
+gba_word_t gba_boot_read_halfword(gba_boot_t* boot,uint32_t address);
+gba_word_t gba_boot_read_word(gba_boot_t* boot,uint32_t address);
+
 
 void gba_boot_reset(gba_boot_t* boot);
 

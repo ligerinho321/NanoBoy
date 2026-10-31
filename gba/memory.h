@@ -59,21 +59,53 @@ extern "C" {
 
 void gba_memory_init(gba_memory_t* memory,gba_t* gba);
 
-void gba_memory_write(gba_memory_t* memory,uint32_t value,uint32_t address,uint8_t size,uint8_t access);
-uint32_t gba_memory_read(gba_memory_t* memory,uint32_t address,uint8_t size,uint8_t access);
+void gba_memory_write_byte(gba_memory_t* memory,uint8_t value,uint32_t address,uint8_t access);
+uint8_t gba_memory_read_byte(gba_memory_t* memory,uint32_t address,uint8_t access);
 
-gba_word_t gba_memory_read_unused(gba_memory_t* memory,uint32_t address,uint8_t size);
+void gba_memory_write_halfword(gba_memory_t* memory,uint16_t value,uint32_t address,uint8_t access);
+uint16_t gba_memory_read_halfword(gba_memory_t* memory,uint32_t address,uint8_t access);
+
+void gba_memory_write_word(gba_memory_t* memory,uint32_t value,uint32_t address,uint8_t access);
+uint32_t gba_memory_read_word(gba_memory_t* memory,uint32_t address,uint8_t access);
+
 
 void gba_memory_update_waitstate_table(gba_memory_t* memory);
 
-void gba_memory_write_register(gba_memory_t* memory,gba_word_t value,uint32_t address,uint8_t size);
-gba_word_t gba_memory_read_register(gba_memory_t* memory,uint32_t address,uint8_t size);
 
-void gba_memory_write_ewram(gba_memory_t* memory,gba_word_t value,uint32_t address,uint8_t size);
-gba_word_t gba_memory_read_ewram(gba_memory_t* memory,uint32_t address,uint8_t size);
+void gba_memory_write_register_byte(gba_memory_t* memory,uint8_t value,uint32_t address);
+gba_word_t gba_memory_read_register_byte(gba_memory_t* memory,uint32_t address);
 
-void gba_memory_write_iwram(gba_memory_t* memory,gba_word_t value,uint32_t address,uint8_t size);
-gba_word_t gba_memory_read_iwram(gba_memory_t* memory,uint32_t address,uint8_t size);
+void gba_memory_write_register_halfword(gba_memory_t* memory,gba_halfword_t value,uint32_t address);
+gba_word_t gba_memory_read_register_halfword(gba_memory_t* memory,uint32_t address);
+
+void gba_memory_write_register_word(gba_memory_t* memory,gba_word_t value,uint32_t address);
+gba_word_t gba_memory_read_register_word(gba_memory_t* memory,uint32_t address);
+
+
+void gba_memory_write_ewram_byte(gba_memory_t* memory,uint8_t value,uint32_t address);
+gba_word_t gba_memory_read_ewram_byte(gba_memory_t* memory,uint32_t address);
+
+void gba_memory_write_ewram_halfword(gba_memory_t* memory,gba_halfword_t value,uint32_t address);
+gba_word_t gba_memory_read_ewram_halfword(gba_memory_t* memory,uint32_t address);
+
+void gba_memory_write_ewram_word(gba_memory_t* memory,gba_word_t value,uint32_t address);
+gba_word_t gba_memory_read_ewram_word(gba_memory_t* memory,uint32_t address);
+
+
+void gba_memory_write_iwram_byte(gba_memory_t* memory,uint8_t value,uint32_t address);
+gba_word_t gba_memory_read_iwram_byte(gba_memory_t* memory,uint32_t address);
+
+void gba_memory_write_iwram_halfword(gba_memory_t* memory,gba_halfword_t value,uint32_t address);
+gba_word_t gba_memory_read_iwram_halfword(gba_memory_t* memory,uint32_t address);
+
+void gba_memory_write_iwram_word(gba_memory_t* memory,gba_word_t value,uint32_t address);
+gba_word_t gba_memory_read_iwram_word(gba_memory_t* memory,uint32_t address);
+
+
+gba_word_t gba_memory_read_unused_byte(gba_memory_t* memory,uint32_t address);
+gba_word_t gba_memory_read_unused_halfword(gba_memory_t* memory,uint32_t address);
+gba_word_t gba_memory_read_unused_word(gba_memory_t* memory,uint32_t address);
+
 
 void gba_memory_reset(gba_memory_t* memory);
 

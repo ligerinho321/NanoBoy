@@ -78,6 +78,7 @@ bool gb_console_t::insert_cartridge_from_memory(uint8_t* rom,size_t length){
 void gb_console_t::remove_cartridge(){
 
     event_viewer.clear();
+    memory_viewer.clear();
     tilemap_viewer.clear();
     tile_viewer.clear();
     object_viewer.clear();

@@ -286,6 +286,8 @@ static inline uint8_t gba_ppu_read_special_effect_msb(gba_ppu_special_effect_t* 
 
 void gba_ppu_write_register_raw(gba_ppu_t* ppu,uint8_t value,uint32_t address){
 
+    gba_ppu_update(ppu);
+
     switch(address){
         // LCD Control
         case 0x04000000: gba_ppu_write_lcd_control_lsb(ppu,value); break;
@@ -437,10 +439,14 @@ void gba_ppu_write_register_raw(gba_ppu_t* ppu,uint8_t value,uint32_t address){
         case 0x04000056: break;
         case 0x04000057: break;
     }
+
+    gba_ppu_schedule_next_event(ppu);
 }
 
 uint8_t gba_ppu_read_register_raw(gba_ppu_t* ppu,uint32_t address){
     
+    gba_ppu_update(ppu);
+
     uint8_t value = ppu->gba->memory.bus.b[address & 0x03];
 
     switch(address){
@@ -499,270 +505,288 @@ uint8_t gba_ppu_read_register_raw(gba_ppu_t* ppu,uint32_t address){
         case 0x04000057: value = 0x00; break;
     }
 
+    gba_ppu_schedule_next_event(ppu);
+    
     return value;
 }
 
 
-void gba_ppu_write_cram(gba_ppu_t* ppu,gba_word_t value,uint32_t address,uint8_t size){
+
+void gba_ppu_write_cram_byte(gba_ppu_t* ppu,uint8_t value,uint32_t address){
+    address &= gba_cram_address_mask;
+    address &= ~0x01;
+
+    gba_clock(ppu->gba,1);
+
+    ppu->cram[address | 0x00] = value;
+    ppu->cram[address | 0x01] = value;
+}
+
+gba_word_t gba_ppu_read_cram_byte(gba_ppu_t* ppu,uint32_t address){
     address &= gba_cram_address_mask;
 
-    // TODO: Plus 1 cycle if GBA accesses video memory at the same time
-    
-    switch(size){
-        case gba_memory_byte_access:{
-            address &= ~0x01;
+    gba_clock(ppu->gba,1);
 
-            gba_clock(ppu->gba,1);
+    gba_word_t value = {0};
 
-            ppu->cram[address | 0x00] = value.b[0];
-            ppu->cram[address | 0x01] = value.b[0];
-            break;
-        }
-        case gba_memory_halfword_access:{
-            address &= ~0x01;
+    value.b[0] = ppu->cram[address];
+    value.b[1] = value.b[0];
+    value.b[2] = value.b[0];
+    value.b[3] = value.b[0];
 
-            gba_clock(ppu->gba,1);
-
-            ppu->cram[address | 0x00] = value.b[0];
-            ppu->cram[address | 0x01] = value.b[1];
-            break;
-        }
-        case gba_memory_word_access:{
-            address &= ~0x03;
-
-            gba_clock(ppu->gba,1);
-
-            ppu->cram[address | 0x00] = value.b[0];
-            ppu->cram[address | 0x01] = value.b[1];
-
-            gba_clock(ppu->gba,1);
-
-            ppu->cram[address | 0x02] = value.b[2];
-            ppu->cram[address | 0x03] = value.b[3];
-            break;
-        }
-    }
+    return value;
 }
 
-gba_word_t gba_ppu_read_cram(gba_ppu_t* ppu,uint32_t address,uint8_t size){
+
+void gba_ppu_write_cram_halfword(gba_ppu_t* ppu,gba_halfword_t value,uint32_t address){
     address &= gba_cram_address_mask;
+    address &= ~0x01;
+
+    gba_clock(ppu->gba,1);
+
+    ppu->cram[address | 0x00] = value.b[0];
+    ppu->cram[address | 0x01] = value.b[1];
+}
+
+gba_word_t gba_ppu_read_cram_halfword(gba_ppu_t* ppu,uint32_t address){
+    address &= gba_cram_address_mask;
+    address &= ~0x01;
+
+    gba_clock(ppu->gba,1);
 
     gba_word_t value = {0};
 
-    // TODO: Plus 1 cycle if GBA accesses video memory at the same time
-
-    switch(size){
-        case gba_memory_byte_access:{
-            gba_clock(ppu->gba,1);
-
-            value.b[0] = ppu->cram[address];
-            value.b[1] = value.b[0];
-            value.b[2] = value.b[0];
-            value.b[3] = value.b[0];
-            break;
-        }
-        case gba_memory_halfword_access:{
-            address &= ~0x01;
-
-            gba_clock(ppu->gba,1);
-
-            value.b[0] = ppu->cram[address | 0x00];
-            value.b[1] = ppu->cram[address | 0x01];
-            value.b[2] = value.b[0];
-            value.b[3] = value.b[1];
-            break;
-        }
-        case gba_memory_word_access:{
-            address &= ~0x03;
-
-            gba_clock(ppu->gba,1);
-
-            value.b[0] = ppu->cram[address | 0x00];
-            value.b[1] = ppu->cram[address | 0x01];
-
-            gba_clock(ppu->gba,1);
-
-            value.b[2] = ppu->cram[address | 0x02];
-            value.b[3] = ppu->cram[address | 0x03];
-            break;
-        }
-    }
+    value.b[0] = ppu->cram[address | 0x00];
+    value.b[1] = ppu->cram[address | 0x01];
+    value.b[2] = value.b[0];
+    value.b[3] = value.b[1];
 
     return value;
 }
 
 
-void gba_ppu_write_vram(gba_ppu_t* ppu,gba_word_t value,uint32_t address,uint8_t size){
-    address &= gba_vram_address_mask;
-    
-    if(address >= gba_vram_length){
-        address = 0x10000 + (address & 0x7FFF);
-    }
+void gba_ppu_write_cram_word(gba_ppu_t* ppu,gba_word_t value,uint32_t address){
+    address &= gba_cram_address_mask;
+    address &= ~0x03;
 
-    // TODO: Plus 1 cycle if GBA accesses video memory at the same time
+    gba_clock(ppu->gba,1);
 
-    switch(size){
-        case gba_memory_byte_access:{
-            gba_clock(ppu->gba,1);
+    ppu->cram[address | 0x00] = value.b[0];
+    ppu->cram[address | 0x01] = value.b[1];
 
-            // TODO
-            break;
-        }
-        case gba_memory_halfword_access:{
-            address &= ~0x01;
+    gba_clock(ppu->gba,1);
 
-            gba_clock(ppu->gba,1);
-
-            ppu->vram[address | 0x00] = value.b[0];
-            ppu->vram[address | 0x01] = value.b[1];
-            break;
-        }
-        case gba_memory_word_access:{
-            address &= ~0x03;
-
-            gba_clock(ppu->gba,1);
-
-            ppu->vram[address | 0x00] = value.b[0];
-            ppu->vram[address | 0x01] = value.b[1];
-
-            gba_clock(ppu->gba,1);
-
-            ppu->vram[address | 0x02] = value.b[2];
-            ppu->vram[address | 0x03] = value.b[3];
-            break;
-        }
-    }
+    ppu->cram[address | 0x02] = value.b[2];
+    ppu->cram[address | 0x03] = value.b[3];
 }
 
-gba_word_t gba_ppu_read_vram(gba_ppu_t* ppu,uint32_t address,uint8_t size){
+gba_word_t gba_ppu_read_cram_word(gba_ppu_t* ppu,uint32_t address){
+    address &= gba_cram_address_mask;
+    address &= ~0x03;
+
+    gba_word_t value = {0};
+
+    gba_clock(ppu->gba,1);
+
+    value.b[0] = ppu->cram[address | 0x00];
+    value.b[1] = ppu->cram[address | 0x01];
+
+    gba_clock(ppu->gba,1);
+
+    value.b[2] = ppu->cram[address | 0x02];
+    value.b[3] = ppu->cram[address | 0x03];
+
+    return value;
+}
+
+
+
+void gba_ppu_write_vram_byte(gba_ppu_t* ppu,uint8_t value,uint32_t address){
+    gba_unused(value);
+
     address &= gba_vram_address_mask;
 
-    if(address >= gba_vram_length){
-        address = 0x10000 + (address & 0x7FFF);
-    }
+    if(address >= gba_vram_length) address = 0x10000 + (address & 0x7FFF);
 
-    // TODO: Plus 1 cycle if GBA accesses video memory at the same time
+    gba_clock(ppu->gba,1);
 
-    gba_word_t value = {0};
+    printf("Write byte in VRAM not supported\n");
+}
 
-    switch(size){
-        case gba_memory_byte_access:{
-            gba_clock(ppu->gba,1);
-
-            value.b[0] = ppu->vram[address];
-            value.b[1] = value.b[0];
-            value.b[2] = value.b[0];
-            value.b[3] = value.b[0];
-            break;
-        }
-        case gba_memory_halfword_access:{
-            address &= ~0x01;
-
-            gba_clock(ppu->gba,1);
-
-            value.b[0] = ppu->vram[address | 0x00];
-            value.b[1] = ppu->vram[address | 0x01];
-            value.b[2] = value.b[0];
-            value.b[3] = value.b[1];
-            break;
-        }
-        case gba_memory_word_access:{
-            address &= ~0x03;
-
-            gba_clock(ppu->gba,1);
-
-            value.b[0] = ppu->vram[address | 0x00];
-            value.b[1] = ppu->vram[address | 0x01];
-
-            gba_clock(ppu->gba,1);
-
-            value.b[2] = ppu->vram[address | 0x02];
-            value.b[3] = ppu->vram[address | 0x03];
-            break;
-        }
-    }
+gba_word_t gba_ppu_read_vram_byte(gba_ppu_t* ppu,uint32_t address){
+    address &= gba_vram_address_mask;
     
-    return value;
-}
+    if(address >= gba_vram_length) address = 0x10000 + (address & 0x7FFF);
 
-
-void gba_ppu_write_oam(gba_ppu_t* ppu,gba_word_t value,uint32_t address,uint8_t size){
-    address &= gba_oam_address_mask;
-
-    // TODO: Plus 1 cycle if GBA accesses video memory at the same time
-
-    switch(size){
-        case gba_memory_byte_access:{
-            gba_clock(ppu->gba,1);
-            // 8-bit writes to OAM are ignored
-            break;
-        }
-        case gba_memory_halfword_access:{
-            address &= ~0x01;
-
-            gba_clock(ppu->gba,1);
-
-            ppu->oam[address | 0x00] = value.b[0];
-            ppu->oam[address | 0x01] = value.b[1];
-            break;
-        }
-        case gba_memory_word_access:{
-            address &= ~0x03;
-
-            gba_clock(ppu->gba,1);
-
-            ppu->oam[address | 0x00] = value.b[0];
-            ppu->oam[address | 0x01] = value.b[1];
-            ppu->oam[address | 0x02] = value.b[2];
-            ppu->oam[address | 0x03] = value.b[3];
-            break;
-        }
-    }
-}
-
-gba_word_t gba_ppu_read_oam(gba_ppu_t* ppu,uint32_t address,uint8_t size){
-    address &= gba_oam_address_mask;
-
-    // TODO: Plus 1 cycle if GBA accesses video memory at the same time
+    gba_clock(ppu->gba,1);
 
     gba_word_t value = {0};
 
-    switch(size){
-        case gba_memory_byte_access:{
-            gba_clock(ppu->gba,1);
-
-            value.b[0] = ppu->oam[address];
-            value.b[1] = value.b[0];
-            value.b[2] = value.b[0];
-            value.b[3] = value.b[0];
-            break;
-        }
-        case gba_memory_halfword_access:{
-            address &= ~0x01;
-
-            gba_clock(ppu->gba,1);
-
-            value.b[0] = ppu->oam[address | 0x00];
-            value.b[1] = ppu->oam[address | 0x01];
-            value.b[2] = value.b[0];
-            value.b[3] = value.b[1];
-            break;
-        }
-        case gba_memory_word_access:{
-            address &= ~0x03;
-
-            gba_clock(ppu->gba,1);
-
-            value.b[0] = ppu->oam[address | 0x00];
-            value.b[1] = ppu->oam[address | 0x01];
-            value.b[2] = ppu->oam[address | 0x02];
-            value.b[3] = ppu->oam[address | 0x03];
-            break;
-        }
-    }
+    value.b[0] = ppu->vram[address];
+    value.b[1] = value.b[0];
+    value.b[2] = value.b[0];
+    value.b[3] = value.b[0];
 
     return value;
 }
+
+
+void gba_ppu_write_vram_halfword(gba_ppu_t* ppu,gba_halfword_t value,uint32_t address){
+    address &= gba_vram_address_mask;
+
+    if(address >= gba_vram_length) address = 0x10000 + (address & 0x7FFF);
+
+    address &= ~0x01;
+
+    gba_clock(ppu->gba,1);
+
+    ppu->vram[address | 0x00] = value.b[0];
+    ppu->vram[address | 0x01] = value.b[1];
+}
+
+gba_word_t gba_ppu_read_vram_halfword(gba_ppu_t* ppu,uint32_t address){
+    address &= gba_vram_address_mask;
+
+    if(address >= gba_vram_length) address = 0x10000 + (address & 0x7FFF);
+
+    address &= ~0x01;
+
+    gba_clock(ppu->gba,1);
+
+    gba_word_t value = {0};
+
+    value.b[0] = ppu->vram[address | 0x00];
+    value.b[1] = ppu->vram[address | 0x01];
+    value.b[2] = value.b[0];
+    value.b[3] = value.b[1];
+
+    return value;
+}
+
+
+void gba_ppu_write_vram_word(gba_ppu_t* ppu,gba_word_t value,uint32_t address){
+    address &= gba_vram_address_mask;
+
+    if(address >= gba_vram_length) address = 0x10000 + (address & 0x7FFF);
+
+    address &= ~0x03;
+
+    gba_clock(ppu->gba,1);
+
+    ppu->vram[address | 0x00] = value.b[0];
+    ppu->vram[address | 0x01] = value.b[1];
+
+    gba_clock(ppu->gba,1);
+
+    ppu->vram[address | 0x02] = value.b[2];
+    ppu->vram[address | 0x03] = value.b[3];
+}
+
+gba_word_t gba_ppu_read_vram_word(gba_ppu_t* ppu,uint32_t address){
+    address &= gba_vram_address_mask;
+
+    if(address >= gba_vram_length) address = 0x10000 + (address & 0x7FFF);
+
+    address &= ~0x03;
+
+    gba_word_t value = {0};
+
+    gba_clock(ppu->gba,1);
+
+    value.b[0] = ppu->vram[address | 0x00];
+    value.b[1] = ppu->vram[address | 0x01];
+
+    gba_clock(ppu->gba,1);
+
+    value.b[2] = ppu->vram[address | 0x02];
+    value.b[3] = ppu->vram[address | 0x03];
+
+    return value;
+}
+
+
+
+void gba_ppu_write_oam_byte(gba_ppu_t* ppu,uint8_t value,uint32_t address){
+    gba_unused(value);
+    
+    address &= gba_oam_address_mask;
+
+    gba_clock(ppu->gba,1);
+
+    // 8-bit writes to OAM are ignored
+}
+
+gba_word_t gba_ppu_read_oam_byte(gba_ppu_t* ppu,uint32_t address){
+    address &= gba_oam_address_mask;
+
+    gba_clock(ppu->gba,1);
+
+    gba_word_t value = {0};
+
+    value.b[0] = ppu->oam[address];
+    value.b[1] = value.b[0];
+    value.b[2] = value.b[0];
+    value.b[3] = value.b[0];
+
+    return value;
+}
+
+
+void gba_ppu_write_oam_halfword(gba_ppu_t* ppu,gba_halfword_t value,uint32_t address){
+    address &= gba_oam_address_mask;
+    address &= ~0x01;
+
+    gba_clock(ppu->gba,1);
+
+    ppu->oam[address | 0x00] = value.b[0];
+    ppu->oam[address | 0x01] = value.b[1];
+}
+
+gba_word_t gba_ppu_read_oam_halfword(gba_ppu_t* ppu,uint32_t address){
+    address &= gba_oam_address_mask;
+    address &= ~0x01;
+
+    gba_clock(ppu->gba,1);
+
+    gba_word_t value = {0};
+
+    value.b[0] = ppu->oam[address | 0x00];
+    value.b[1] = ppu->oam[address | 0x01];
+    value.b[2] = value.b[0];
+    value.b[3] = value.b[1];
+
+    return value;
+}
+
+
+void gba_ppu_write_oam_word(gba_ppu_t* ppu,gba_word_t value,uint32_t address){
+    address &= gba_oam_address_mask;
+    address &= ~0x03;
+
+    gba_clock(ppu->gba,1);
+
+    ppu->oam[address | 0x00] = value.b[0];
+    ppu->oam[address | 0x01] = value.b[1];
+    ppu->oam[address | 0x02] = value.b[2];
+    ppu->oam[address | 0x03] = value.b[3];
+}
+
+gba_word_t gba_ppu_read_oam_word(gba_ppu_t* ppu,uint32_t address){
+    address &= gba_oam_address_mask;
+    address &= ~0x03;
+
+    gba_clock(ppu->gba,1);
+
+    gba_word_t value = {0};
+
+    value.b[0] = ppu->oam[address | 0x00];
+    value.b[1] = ppu->oam[address | 0x01];
+    value.b[2] = ppu->oam[address | 0x02];
+    value.b[3] = ppu->oam[address | 0x03];
+
+    return value;
+}
+
 
 
 void gba_ppu_reset(gba_ppu_t* ppu){

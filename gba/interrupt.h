@@ -24,7 +24,7 @@ typedef struct _gba_interrupt_t {
 
     gba_halfword_t enable;
     gba_halfword_t flag;
-    bool master_enable;
+    bool master_enabled;
 } gba_interrupt_t;
 
 #ifdef __cplusplus
